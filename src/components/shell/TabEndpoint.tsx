@@ -6,13 +6,14 @@
  */
 import { useMemo, useState } from 'react';
 import { ENDPOINTS } from '../../api/agent';
-import { tabEndpointUrl } from '../../api/endpoint';
+import { tabEndpointUrl, tabFallbackUrl } from '../../api/endpoint';
 import type { TabId } from '../../state/view';
 import { useView } from '../../state/view';
 
 export function TabEndpoint({ tab }: { tab: TabId }) {
   const ep = useMemo(() => ENDPOINTS.find((e) => e.tab === tab), [tab]);
   const url = useMemo(() => tabEndpointUrl(tab), [tab]);
+  const fallback = useMemo(() => tabFallbackUrl(tab), [tab]);
   const announce = useView((s) => s.announce);
   const [copied, setCopied] = useState('');
   if (!ep) return null;
@@ -38,9 +39,14 @@ export function TabEndpoint({ tab }: { tab: TabId }) {
         Returns JSON: <code>scope</code>, <code>consolidated</code> (headline metrics, grouped breakdown, available
         groupings and metrics, live insights) and <code>raw</code> (the rows themselves). Query parameters:
         {' '}<code>include=all|raw|consolidated</code>, <code>limit=1000|all</code>, <code>groupBy=</code>
-        {ep.groupBy.slice(0, 3).join('|')}. The app has no server behind it, so the endpoint is rendered by the page —
-        a caller that runs JavaScript gets the JSON; a plain <code>curl</code> gets the HTML shell. An agent already in
-        the page should call <code>window.floor.get('{tab}')</code> instead.
+        {ep.groupBy.slice(0, 3).join('|')}, plus <code>start</code>, <code>end</code> and <code>location</code> to scope
+        it server-side. Plain <code>curl</code> works — no JavaScript needed. The catalogue of every tab is at
+        {' '}<code>/api/v1/tabs</code>.
+      </p>
+      <p className="t-label-s faint tab-endpoint-note">
+        On a static deployment with no server running, the same payload is rendered by the page itself at
+        {' '}<code className="tab-endpoint-alt">{fallback}</code> — that one needs a caller that executes JavaScript.
+        An agent already inside the page should call <code>window.floor.get('{tab}')</code>.
       </p>
     </section>
   );

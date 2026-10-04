@@ -21,6 +21,8 @@ const { DEFAULT_THRESHOLDS } = await import('../src/state/view.ts');
 const { ask } = await import('../src/api/ask.ts');
 const { buildReport } = await import('../src/report/model.ts');
 const { renderReport } = await import('../src/report/shell.ts');
+const { buildAgentApi, ENDPOINTS } = await import('../src/api/agent.ts');
+const { buildTabPayload } = await import('../src/api/endpoint.ts');
 
 /** Real HTTP surface for agents and third-party applications.
  *
@@ -141,6 +143,8 @@ function describe() {
       { method: 'GET', path: '/api/v1/ask?q=…', use: 'Grounded natural-language answer from the same resolver as the app.' },
       { method: 'GET', path: '/api/v1/report?format=json|html', use: 'Generate an on-demand report for period/location query parameters.' },
       { method: 'GET', path: '/api/v1/health', use: 'Freshness, source status, row counts and defects.' },
+      { method: 'GET', path: '/api/v1/tabs', use: 'One endpoint per tab in the app, with its grain, headline metrics and groupings.' },
+      { method: 'GET', path: '/api/v1/tabs/:tab', use: 'Everything one tab holds: scope, consolidated view and the raw rows behind it. include=all|raw|consolidated, limit=N|all, groupBy=key.' },
     ],
     query: { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', location: 'repeat or pipe-delimit', classFormat: 'repeat or pipe-delimit', cursor: 'zero-based row offset', limit: 'max 100000', transport: 'ndjson or sse' },
     sources: Object.entries(SOURCE_CATALOGUE).map(([id, s]) => ({ id, ...s, endpoint: `/api/v1/sources/${id}`, stream: `/api/v1/sources/${id}/stream` })),
@@ -187,6 +191,32 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       const report = buildReport(scope, DEFAULT_THRESHOLDS, studio);
       if (url.searchParams.get('format') === 'html') { res.statusCode = 200; res.setHeader('content-type', 'text/html; charset=utf-8'); res.end(renderReport(report)); }
       else sendJson(res, 200, report);
+      return true;
+    }
+
+    /* One endpoint per tab in the app. Same payload the in-page `?api=` mode renders, computed
+       here instead, so a caller that does not run JavaScript gets the JSON over plain HTTP. */
+    if (url.pathname === '/api/v1/tabs' || url.pathname === '/api/v1/tabs/') {
+      sendJson(res, 200, { apiVersion: '1.0', tabs: ENDPOINTS.map((e) => ({ tab: e.tab, title: e.title, description: e.description, grain: e.table,
+        headline: e.headline, groupBy: e.groupBy, metricCount: e.metrics.length, endpoint: `/api/v1/tabs/${e.tab}?include=all&limit=1000` })) });
+      return true;
+    }
+    const tabMatch = url.pathname.match(/^\/api\/v1\/tabs\/([a-z-]+)$/);
+    if (tabMatch) {
+      const ep = ENDPOINTS.find((e) => e.tab === tabMatch[1]);
+      if (!ep) { sendJson(res, 404, { error: 'Unknown tab', available: ENDPOINTS.map((e) => e.tab) }); return true; }
+      const filters = filtersFrom(url, ds);
+      const scope = computeScope(ds, filters, Number(url.searchParams.get('ratePerSession') ?? 1200), DEFAULT_THRESHOLDS);
+      const api = buildAgentApi(scope, DEFAULT_THRESHOLDS, () => {});
+      const includeRaw = url.searchParams.get('include');
+      const limitRaw = url.searchParams.get('limit');
+      sendJson(res, 200, buildTabPayload(api, scope, {
+        tab: ep.tab,
+        include: includeRaw === 'raw' || includeRaw === 'consolidated' ? includeRaw : 'all',
+        limit: limitRaw === 'all' ? 0 : Math.max(0, Number(limitRaw ?? 1000) || 1000),
+        groupBy: url.searchParams.get('groupBy') ?? undefined,
+        format: 'json',
+      }));
       return true;
     }
 

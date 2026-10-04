@@ -10,7 +10,7 @@
  * keep the same relative hue in every theme, so switching theme never makes a reader re-learn
  * which line is which.
  */
-export type Theme = 'matte' | 'gloss' | 'carbon' | 'aurora' | 'paper' | 'contrast';
+export type Theme = 'matte' | 'gloss' | 'carbon' | 'aurora' | 'paper' | 'contrast' | 'linen' | 'blueprint';
 
 export interface ThemeMeta {
   id: Theme;
@@ -46,6 +46,12 @@ const SPECS: ThemeSpec[] = [
   { id: 'contrast', label: 'Contrast', blurb: 'Okabe–Ito on white: every series stays separable for colour blindness.', dark: false,
     surface: '#FFFFFF', accents: ['#0072B2', '#B04E00', '#007A5A', '#A8537F', '#8A6100'],
     pos: '#007A5A', neg: '#B04E00', warn: '#8A6100', text3: '#4A4A4A', hairline: '#CFCFCF', nullc: '#767676' },
+  { id: 'linen', label: 'Linen', blurb: 'Soft neutral ground, ink-black type. Minimal, not bare.', dark: false,
+    surface: '#FFFFFF', accents: ['#1F4D8F', '#9B2D3F', '#2F6B4A', '#5A4080', '#8A5A12'],
+    pos: '#2F6B4A', neg: '#9B2D3F', warn: '#8A5A12', text3: '#5C5C55', hairline: '#E4E4DF', nullc: '#9A9A92' },
+  { id: 'blueprint', label: 'Blueprint', blurb: 'Cool white with one blue running through it. Draughtsman-plain.', dark: false,
+    surface: '#FFFFFF', accents: ['#13518C', '#1C7BB8', '#0F6E63', '#4A4E9B', '#8A5B1C'],
+    pos: '#0F6E63', neg: '#A32F3C', warn: '#8A5B1C', text3: '#556375', hairline: '#DCE5F0', nullc: '#93A1B4' },
 ];
 
 export const THEMES: ThemeMeta[] = SPECS.map(({ id, label, blurb, dark }) => ({ id, label, blurb, dark }));

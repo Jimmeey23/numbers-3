@@ -29,12 +29,41 @@ export interface ApiRequest {
   format: 'json';
 }
 
-/** The endpoint for one tab, absolute, ready to paste into an agent. */
-export function tabEndpointUrl(tab: TabId, opts?: Partial<Pick<ApiRequest, 'include' | 'limit' | 'groupBy'>>): string {
-  const base = typeof window === 'undefined' ? '' : `${window.location.origin}${window.location.pathname}`;
-  const q = new URLSearchParams({ [API_PARAM]: tab, include: opts?.include ?? 'all', limit: String(opts?.limit ?? 1000), format: 'json' });
+type UrlOpts = Partial<Pick<ApiRequest, 'include' | 'limit' | 'groupBy'>>;
+
+/** Origin of whatever is serving the app, or '' when there is no document (Node, tests). */
+function origin(): string {
+  const loc = typeof window === 'undefined' ? undefined : (window as Window).location;
+  return loc && typeof loc.origin === 'string' ? loc.origin : '';
+}
+
+function query(opts?: UrlOpts, extra?: Record<string, string>) {
+  const q = new URLSearchParams({ ...extra, include: opts?.include ?? 'all', limit: String(opts?.limit ?? 1000) });
   if (opts?.groupBy) q.set('groupBy', opts.groupBy);
-  return `${base}?${q.toString()}`;
+  return q;
+}
+
+/* Two addresses for the same payload, because the app is deployed two ways.
+ *
+ *   /api/v1/tabs/<tab>   — a real HTTP route, served by server/api.mts. Plain `curl` works, no
+ *                          JavaScript required. This is the one to hand to an agent, and the one
+ *                          the tab prints, whenever the deployment runs the Node server (or the
+ *                          Vercel function that wraps it).
+ *   /?api=<tab>          — the same JSON rendered by the page itself, for a purely static host
+ *                          where nothing is running server-side. Needs a caller that executes
+ *                          JavaScript.
+ */
+
+/** The tab's HTTP endpoint. Absolute when there is an origin to be absolute about. */
+export function tabEndpointUrl(tab: TabId, opts?: UrlOpts): string {
+  return `${origin()}/api/v1/tabs/${tab}?${query(opts).toString()}`;
+}
+
+/** The in-page fallback: same payload, rendered by the app, for a static deployment. */
+export function tabFallbackUrl(tab: TabId, opts?: UrlOpts): string {
+  const loc = typeof window === 'undefined' ? undefined : (window as Window).location;
+  const base = loc ? `${loc.origin}${loc.pathname}` : '';
+  return `${base}?${query(opts, { [API_PARAM]: tab, format: 'json' }).toString()}`;
 }
 
 /** Parse the current location. Returns null for an ordinary page load. */
@@ -61,7 +90,7 @@ export function buildTabPayload(api: AgentApi, scope: Scope, req: ApiRequest): R
   const ep = ENDPOINTS.find((e) => e.tab === req.tab)!;
   const rows = scope.tables[ep.table] ?? [];
   const payload: Record<string, unknown> = {
-    endpoint: tabEndpointUrl(req.tab, { include: req.include, limit: req.limit, groupBy: req.groupBy }),
+    endpoint: `/api/v1/tabs/${req.tab}?${new URLSearchParams({ include: req.include, limit: String(req.limit || 'all') }).toString()}`,
     tab: ep.tab,
     title: ep.title,
     description: ep.description,
