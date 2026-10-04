@@ -8,7 +8,7 @@
 import type { Scope } from '../state/data';
 import type { Thresholds } from '../state/view';
 import { metric, type TableName } from '../semantics/metrics';
-import { GROUP_KEYS, lastNMonths, metricValues, rollupLevel, seriesBy, type Row } from '../semantics/aggregations';
+import { GROUP_KEYS, historyMonths, metricValues, rollupLevel, seriesBy, type Row } from '../semantics/aggregations';
 import { fmtCurrency, fmtDelta, fmtMonthShort, fmtPercent, formatValue } from '../semantics/formats';
 import { runRules, summariseImpact } from '../insights/engine';
 import type { Insight } from '../insights/rules';
@@ -310,7 +310,7 @@ function project(series: (number | null)[]): { low: number; mid: number; high: n
 /* ── The builder ──────────────────────────────────────────── */
 
 export function buildReport(scope: Scope, thresholds: Thresholds, studio: string): ReportModel {
-  const months = lastNMonths(scope.today.slice(0, 7), 13);
+  const months = historyMonths(scope.today.slice(0, 7));
   // A metric may appear in several chapters. Build it once: on large visit grains this removes
   // millions of duplicate row scans and keeps report generation responsive.
   const kpiCache = new Map<string, ReportKpi>();

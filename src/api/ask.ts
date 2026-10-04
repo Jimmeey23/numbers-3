@@ -8,7 +8,7 @@
 import type { Scope } from '../state/data';
 import { resolvePeriod, type Preset } from '../state/filters';
 import type { MetricDef } from '../semantics/metrics';
-import { GROUP_KEYS, metricValues, rollupLevel, seriesBy, lastNMonths, type Row } from '../semantics/aggregations';
+import { GROUP_KEYS, metricValues, rollupLevel, seriesBy, historyMonths, type Row } from '../semantics/aggregations';
 import { fmtDelta, fmtMonthShort, formatValue } from '../semantics/formats';
 import { findDimension, grainOf, normalise, resolveTerm, searchMetrics, type ResolvedTerm } from './resolve';
 import { runRules, summariseImpact } from '../insights/engine';
@@ -264,7 +264,7 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
   }
 
   if (intent === 'trend') {
-    const months = lastNMonths(scope.today.slice(0, 7), 13);
+    const months = historyMonths(scope.today.slice(0, 7));
     const series = seriesBy(questionSlice.allRows, (r) => r.month, [def.id], scope.ctx, months);
     const vals = series.map((s) => s.values[def.id].value);
     const first = vals.find((v) => v !== null) ?? null;

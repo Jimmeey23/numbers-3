@@ -51,7 +51,7 @@ export function FormatComparison({ scope }: { scope: Scope }) {
       <KpiStrip scope={scope} table="visits" rows={rows} ids={['visits', 'v_unique_members', 'v_fill_rate', 'v_show_up_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_repeat_rate', 'v_rev_per_visit']} />
       <div className="format-scorecards">{nodes.map((n) => <article className="format-scorecard" key={n.label}><span>{n.label}</span><strong>{formatValue('integer', n.values.visits.value)}</strong><small>visits</small><dl><div><dt>Fill</dt><dd>{formatValue('percent', n.values.v_fill_rate.value)}</dd></div><div><dt>Attendance</dt><dd>{formatValue('percent', n.values.v_show_up_rate.value)}</dd></div><div><dt>Revenue</dt><dd>{formatValue('currency', n.values.v_revenue.value)}</dd></div><div><dt>Per visit</dt><dd>{formatValue('currency', n.values.v_rev_per_visit.value)}</dd></div></dl></article>)}</div>
     </Register>
-    <Register title="13-month demand comparison" subtitle="Visit volume by format through the current data month" domain="growth">
+    <Register title="14-month demand comparison" subtitle="Visit volume by format through the current data month" domain="growth">
       <ChartModule title="Monthly visits" table={{ columns: ['Month', ...FORMATS], rows: monthly.map((m) => [m.month, ...m.values.map((v) => v.visits.value)]) }}>
         <XYChart categories={months.map(fmtMonthShort)} series={FORMATS.map((f, i) => ({ id: f, label: f, color: ['var(--hue-attendance)', 'var(--hue-revenue)', 'var(--hue-people)'][i], values: monthly.map((m) => m.values[i].visits.value) }))} fmtLeft="integer" height={260} />
       </ChartModule>

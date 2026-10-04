@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOverlay } from '../../state/overlays';
 import { useDrill } from '../../state/drill';
 import { useScope } from '../../state/data';
-import { metric } from '../../semantics/metrics';
-import { lastNMonths, metricValues, seriesBy, type Row } from '../../semantics/aggregations';
+import { METRICS, metric } from '../../semantics/metrics';
+import { historyMonths, metricValues, seriesBy, type Row } from '../../semantics/aggregations';
 import { fmtDate, fmtMonthShort, formatValue } from '../../semantics/formats';
 import { MetricCard } from '../MetricCard/MetricCard';
 import { XYChart } from '../charts/core';
@@ -51,26 +51,30 @@ export function DrillPanel() {
   }, [t, close]);
 
   const ctx = scope?.ctx;
-  const kpis = useMemo(() => (t && ctx ? metricValues(t.rows, t.metricIds.slice(0, 4), ctx) : null), [t, ctx]);
+  // Custom table columns can open a record-only drill with no registry metrics.
+  // Use the same valid four-metric list for calculations and rendered cards.
+  const metricIds = useMemo(() => [...new Set((t?.metricIds ?? []).filter((id) => typeof id === 'string' && METRICS[id]?.table === t?.table))].slice(0, 4), [t]);
+  const primaryMetricId = metricIds[0];
+  const kpis = useMemo(() => (t && ctx && metricIds.length ? metricValues(t.rows, metricIds, ctx) : null), [t, ctx, metricIds]);
   const ranks = useMemo(() => {
-    if (!t || !ctx || !t.peers) return null;
+    if (!t || !ctx || !t.peers || !metricIds.length) return null;
     const out: Record<string, { pos: number; of: number }> = {};
-    for (const id of t.metricIds.slice(0, 4)) {
+    for (const id of metricIds) {
       const def = metric(id); const vals = t.peers.map((p) => ({ label: p.label, v: metricValues(p.rows, [id], ctx)[id].value })).filter((x) => x.v !== null) as { label: string; v: number }[];
       vals.sort((a, b) => (def.higherIsBetter ? b.v - a.v : a.v - b.v));
       const pos = vals.findIndex((x) => x.label === t.title) + 1; out[id] = { pos: pos || vals.length, of: vals.length };
     }
     return out;
-  }, [t, ctx]);
+  }, [t, ctx, metricIds]);
   const trend = useMemo(() => {
-    if (!t || !ctx || !scope) return null;
-    const months = lastNMonths(scope.today.slice(0, 7), 13);
-    const id = t.metricIds[0];
+    if (!t || !ctx || !scope || !primaryMetricId) return null;
+    const months = historyMonths(scope.today.slice(0, 7));
+    const id = primaryMetricId;
     const own = seriesBy(t.rows, (r) => r.month, [id], ctx, months).map((s) => s.values[id].value);
     const peerSeries = (t.peers ?? []).map((p) => seriesBy(p.rows, (r) => r.month, [id], ctx, months).map((s) => s.values[id].value));
     const median = months.map((_, i) => { const v = peerSeries.map((s) => s[i]).filter((x): x is number => x !== null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; });
     return { months, own, median, id };
-  }, [t, ctx, scope]);
+  }, [t, ctx, scope, primaryMetricId]);
   const composition = useMemo(() => {
     if (!t) return [];
     const key = t.table === 'sales' ? 'category' : t.table === 'newc' ? 'source' : t.table === 'lapsed' ? 'membership_type' : t.table === 'leads' ? 'status' : 'format';
@@ -78,12 +82,12 @@ export function DrillPanel() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   }, [t]);
   const neighbours = useMemo(() => {
-    if (!t || !ctx || !t.peers) return [];
-    const id = t.metricIds[0]; const def = metric(id);
+    if (!t || !ctx || !t.peers || !primaryMetricId) return [];
+    const id = primaryMetricId; const def = metric(id);
     const vals = t.peers.map((p) => ({ label: p.label, v: metricValues(p.rows, [id], ctx)[id].value, rows: p.rows })).filter((x) => x.v !== null) as { label: string; v: number; rows: Row[] }[];
     vals.sort((a, b) => (def.higherIsBetter ? b.v - a.v : a.v - b.v));
     const i = vals.findIndex((x) => x.label === t.title); return vals.slice(Math.max(0, i - 5), i + 6).map((x, j) => ({ ...x, self: x.label === t.title, pos: Math.max(0, i - 5) + j + 1 }));
-  }, [t, ctx]);
+  }, [t, ctx, primaryMetricId]);
   const insights = useMemo(() => (t && scope ? runRules(scope, useView.getState().thresholds).filter((i) => t.rows.length && (i.entity === t.title || t.breadcrumb.includes(i.entity))).slice(0, 4) : []), [t, scope]);
   if (!t || !scope || !ctx) return null;
   const sheet = SHEETS.find((s) => s.key === (t.table === 'newc' ? 'new' : t.table));
@@ -103,12 +107,12 @@ export function DrillPanel() {
             <button className="btn btn-xs" onClick={close}>Close <span className="kbd">Esc</span></button>
           </div>
           <h2 className="t-display-s" style={{ margin: '0 0 14px' }}>{t.title} <span className="t-label-m muted">{t.rows.length.toLocaleString('en-IN')} rows</span></h2>
-          <div className="kpi-strip" style={{ ['--kpi-cols' as string]: Math.min(4, t.metricIds.length) }}>
-            {kpis && t.metricIds.slice(0, 8).map((id, i) => <MetricCard key={id} metricId={id} value={kpis[id].value} n={kpis[id].n} coverage={kpis[id].coverage} contributing={kpis[id].contributing} suspect={kpis[id].suspect} variant="inline" index={i} rank={ranks?.[id]} />)}
-          </div>
+          {kpis && <div className="kpi-strip" style={{ ['--kpi-cols' as string]: metricIds.length }}>
+            {metricIds.map((id, i) => <MetricCard key={id} metricId={id} value={kpis[id].value} n={kpis[id].n} coverage={kpis[id].coverage} contributing={kpis[id].contributing} suspect={kpis[id].suspect} variant="inline" index={i} rank={ranks?.[id]} />)}
+          </div>}
           {trend && (
             <div style={{ marginTop: 18 }}>
-              <div className="t-heading-m" style={{ marginBottom: 6 }}>{metric(trend.id).label}, 13 months vs peer median</div>
+              <div className="t-heading-m" style={{ marginBottom: 6 }}>{metric(trend.id).label}, 14 months vs peer median</div>
               <XYChart categories={trend.months.map(fmtMonthShort)} series={[{ id: 'own', label: t.title, color: 'var(--hue)', values: trend.own, fmt: metric(trend.id).format }, { id: 'med', label: 'Peer median', color: 'var(--text-3)', values: trend.median, fmt: metric(trend.id).format, ghost: true }]} height={180} fmtLeft={metric(trend.id).format} />
             </div>
           )}
@@ -121,8 +125,8 @@ export function DrillPanel() {
           )}
           {neighbours.length > 1 && (
             <div style={{ marginTop: 18 }}>
-              <div className="t-heading-m" style={{ marginBottom: 6 }}>Nearest peers by {metric(t.metricIds[0]).label}</div>
-              <table className="tbl"><tbody>{neighbours.map((n) => <tr key={n.label} className={n.self ? 'selected' : ''} style={{ cursor: n.self ? 'default' : 'pointer' }} onClick={() => !n.self && open({ ...t, title: n.label, rows: n.rows, breadcrumb: [...t.breadcrumb.slice(0, -1), n.label], sourceEl: null })}><td className="t-body-s"><span className="medal" style={{ marginRight: 6 }}>{n.pos}</span>{n.label}</td><td className="t-num">{formatValue(metric(t.metricIds[0]).format, n.v)}</td></tr>)}</tbody></table>
+              <div className="t-heading-m" style={{ marginBottom: 6 }}>Nearest peers by {metric(primaryMetricId).label}</div>
+              <table className="tbl"><tbody>{neighbours.map((n) => <tr key={n.label} className={n.self ? 'selected' : ''} style={{ cursor: n.self ? 'default' : 'pointer' }} onClick={() => !n.self && open({ ...t, title: n.label, rows: n.rows, breadcrumb: [...t.breadcrumb.slice(0, -1), n.label], sourceEl: null })}><td className="t-body-s"><span className="medal" style={{ marginRight: 6 }}>{n.pos}</span>{n.label}</td><td className="t-num">{formatValue(metric(primaryMetricId).format, n.v)}</td></tr>)}</tbody></table>
             </div>
           )}
           {insights.length > 0 && <div style={{ marginTop: 18, display: 'grid', gap: 8 }}><div className="t-heading-m">Insights for this entity</div>{insights.map((i) => <InsightCard key={i.key} insight={i} compact />)}</div>}

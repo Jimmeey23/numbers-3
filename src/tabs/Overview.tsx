@@ -102,7 +102,7 @@ export function Overview({ scope }: { scope: Scope }) {
     { id: 'cur', label: 'Current', family: 'Volume', value: (n) => n.rows[0]?.cur ?? null, format: 'decimal', render: (n) => <span className="t-num">{n.level === 2 ? formatValue(metric(n.rows[0].metric).format, n.rows[0].cur) : ''}</span> },
     { id: 'prev', label: scope.period.prevLabel, family: 'Volume', value: (n) => n.rows[0]?.prev ?? null, render: (n) => <span className="t-num muted">{n.level === 2 ? formatValue(metric(n.rows[0].metric).format, n.rows[0].prev) : ''}</span> },
     { id: 'var', label: 'Variance', family: 'Volume', value: (n) => (n.rows[0] && n.rows[0].cur !== null && n.rows[0].prev !== null ? n.rows[0].cur - n.rows[0].prev : null), render: (n) => { if (n.level !== 2) return ''; const d = fmtDelta(metric(n.rows[0].metric).format, n.rows[0].cur, n.rows[0].prev); const good = d.value === null ? null : (d.value >= 0) === metric(n.rows[0].metric).higherIsBetter; return <span className={`t-num ${good === null ? '' : good ? 'pos' : 'neg'}`}>{d.text}</span>; } },
-    { id: 'spark', label: '13 months', family: 'Behaviour', render: (n) => (n.level === 2 ? <Sparkline data={n.rows[0].spark} width={80} height={18} color="var(--hue)" area={false} /> : '') },
+    { id: 'spark', label: '14 months', family: 'Behaviour', render: (n) => (n.level === 2 ? <Sparkline data={n.rows[0].spark} width={80} height={18} color="var(--hue)" area={false} /> : '') },
     { id: 'rank', label: 'Rank across locations', family: 'Score', render: (n) => { if (n.level !== 2) return ''; const id = n.rows[0].metric; const peers = locTable.filter((r) => r.metric === id && r.cur !== null).sort((a, b) => (metric(id).higherIsBetter ? (b.cur ?? 0) - (a.cur ?? 0) : (a.cur ?? 0) - (b.cur ?? 0))); const pos = peers.findIndex((r) => r.location === n.rows[0].location) + 1; return <span className="t-num">{pos ? `#${pos} of ${peers.length}` : '—'}</span>; } },
   ];
 
@@ -132,12 +132,12 @@ export function Overview({ scope }: { scope: Scope }) {
           </tr>)}</tbody></table>
         </div>
       </Register>
-      <Register title="Location scorecard" subtitle="Location → domain → metric, with 13-month shape and rank" domain="attendance" id="drill-table">
+      <Register title="Location scorecard" subtitle="Location → domain → metric, with 14-month shape and rank" domain="attendance" id="drill-table">
         <NestedTable title="Location scorecard" rows={locTable.map((r) => ({ ...r, location: r.location, domainLabel: r.domain, metricLabel: metric(r.metric).label }))} table="sessions" groupKeys={['ov_location', 'ov_domain', 'ov_metric']} availableKeys={['ov_location', 'ov_domain', 'ov_metric']} columns={columns} ctx={scope.ctx} domain="attendance" filtersLabel={filtersLabel(scope)} maxHeight={520} />
       </Register>
       <Register title="Movers and locations" domain="revenue">
         <Two a={<ChartModule title="Biggest movers by rupee impact" subtitle="Products and trainers, current vs comparison" table={{ columns: ['Entity', 'Δ Revenue'], rows: movers.map((m) => [m.label, Math.round(m.value)]) }}><HBars items={movers.map((m) => ({ label: m.label, value: m.value, sub: m.sub }))} fmt="currency" diverge /></ChartModule>}
-          b={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>Location small multiples — gross revenue, 13 months</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>{smallMultiples.map((s) => <div key={s.l} className="surface chrome" style={{ padding: 10 }}><div className="t-heading-s muted">{s.l}</div><div className="t-display-s tabular">{fmtCurrency(s.cur)}</div><Sparkline data={s.series} width={240} height={36} color="var(--hue-revenue)" /></div>)}</div></div>} />
+          b={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>Location small multiples — gross revenue, 14 months</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>{smallMultiples.map((s) => <div key={s.l} className="surface chrome" style={{ padding: 10 }}><div className="t-heading-s muted">{s.l}</div><div className="t-display-s tabular">{fmtCurrency(s.cur)}</div><Sparkline data={s.series} width={240} height={36} color="var(--hue-revenue)" /></div>)}</div></div>} />
       </Register>
       <Register title="When the studio fills" subtitle="Fill rate by day and hour" domain="attendance" lazy actions={<div style={{ display: 'flex', gap: 2 }}><button className="btn btn-xs" aria-pressed={loc === null} onClick={() => setLoc(null)}>All</button>{locs.map((l) => <button key={l} className="btn btn-xs" aria-pressed={loc === l} onClick={() => setLoc(l)}>{l.split(',')[0]}</button>)}</div>}>
         <DayTimeHeatmap rows={heatRows} metricId="fill_rate" scope={scope} />

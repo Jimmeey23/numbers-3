@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Scope } from '../../state/data';
 import { metric } from '../../semantics/metrics';
-import { GROUP_KEYS, lastNMonths, metricValues, rollupLevel, seriesBy } from '../../semantics/aggregations';
+import { GROUP_KEYS, historyMonths, metricValues, rollupLevel, seriesBy } from '../../semantics/aggregations';
 import { fmtMonthShort, formatValue } from '../../semantics/formats';
 import { MetricCard } from '../MetricCard/MetricCard';
 import { ChartModule, HBars, XYChart } from '../charts/core';
@@ -19,7 +19,7 @@ export function CustomWidget({ spec, scope, onEdit }: { spec: WidgetSpec; scope:
   const table = def.table;
   const rows = scope.tables[table] ?? [];
   const cmpRows = scope.compare[table] ?? [];
-  const months = useMemo(() => lastNMonths(scope.today.slice(0, 7), 13), [scope.today]);
+  const months = useMemo(() => historyMonths(scope.today.slice(0, 7)), [scope.today]);
 
   /* `nodes` is the truncated display list; `ranked` keeps every eligible group so a
      strongest/weakest pair is drawn from the real extremes rather than from the top N. */

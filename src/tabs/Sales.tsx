@@ -38,7 +38,7 @@ export function Sales({ scope }: { scope: Scope }) {
     { id: 'units_per_transaction', metricId: 'units_per_transaction', family: 'Behaviour' }, { id: 'distinct_products', metricId: 'distinct_products', family: 'Volume' }, { id: 'top_product_share', metricId: 'top_product_share', family: 'Behaviour', hidden: true },
     { id: 'unique_buyers', metricId: 'unique_buyers', family: 'Volume' }, { id: 'arpu', metricId: 'arpu', family: 'Revenue' }, { id: 'repeat_buyer_rate', metricId: 'repeat_buyer_rate', family: 'Behaviour', heat: true }, { id: 'voided_rate', metricId: 'voided_rate', family: 'Behaviour' },
     { id: 'membership_rev_share', metricId: 'membership_rev_share', family: 'Revenue', hidden: true },
-    { id: 'spark', label: '13 months', family: 'Behaviour', spark: (rs) => (rs[0] ? productSeries.get(rs[0].product ?? '(none)') ?? [] : []) },
+    { id: 'spark', label: '14 months', family: 'Behaviour', spark: (rs) => (rs[0] ? productSeries.get(rs[0].product ?? '(none)') ?? [] : []) },
   ], [totalGross, productSeries]);
   const productNodes = useMemo(() => rollupLevel(rows, ['product'], 0, S_METRICS, scope.ctx), [rows, scope.ctx]);
   const productPrev = useMemo(() => rollupLevel(scope.compare.sales, ['product'], 0, S_METRICS, scope.ctx), [scope.compare.sales, scope.ctx]);

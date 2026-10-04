@@ -32,7 +32,7 @@ export function LateCancellations({ scope }: { scope: Scope }) {
     <Register title="Late cancellations" subtitle="Penalty-window cancellations, their rate, concentration and schedule impact" domain="risk">
       <KpiStrip scope={scope} table="visits" ids={IDS} />
     </Register>
-    <Register title="13-month movement" subtitle="Counts and rates are shown together so volume changes are not mistaken for behaviour changes" domain="risk">
+    <Register title="14-month movement" subtitle="Counts and rates are shown together so volume changes are not mistaken for behaviour changes" domain="risk">
       <ChartModule title="Late cancellations and rate" table={{ columns: ['Month', 'Late cancellations', 'Rate'], rows: trend.map((s) => [s.key, s.values.v_late_cancels.value, s.values.v_late_cancel_rate.value]) }} records={() => ({ columns: ['Date', 'Member', 'Class', 'Trainer', 'Location'], rows: lateRows.map((r) => [r.date, r.name, r.class_name, r.trainer, r.location]) })}>
         <XYChart categories={months.map(fmtMonthShort)} series={[{ id: 'n', label: 'Late cancellations', color: 'var(--hue-risk)', kind: 'bar', values: trend.map((s) => s.values.v_late_cancels.value) }, { id: 'r', label: 'Late-cancel rate', color: 'var(--hue-revenue)', axis: 'right', fmt: 'percent', values: trend.map((s) => s.values.v_late_cancel_rate.value) }]} fmtLeft="integer" fmtRight="percent" height={250} />
       </ChartModule>

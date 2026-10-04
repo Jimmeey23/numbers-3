@@ -163,6 +163,11 @@ export function lastNMonths(endMonth: string, n: number): string[] {
   return out;
 }
 
+/** Current month plus at least thirteen completed months for inclusive year-over-year history. */
+export function historyMonths(currentMonth: string, n = 14): string[] {
+  return lastNMonths(currentMonth, Math.max(14, n));
+}
+
 /* ---------- Ranking & stats ---------- */
 export function zscores(values: (number | null)[]): (number | null)[] {
   const v = values.filter((x): x is number => x !== null);
