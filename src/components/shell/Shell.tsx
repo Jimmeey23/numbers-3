@@ -19,6 +19,7 @@ import { scopeLine } from '../../api/export';
 import { useScope as useScopeForExport } from '../../state/data';
 import { AI_EVENT, clearAIKey, generateAISignals, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
 import { clearSavedReports, listSavedReports } from '../../report/store';
+import { RAMPS, THEMES, type Theme } from '../../design/ramps';
 
 export function TitleBar() {
   const { theme, setTheme, density, setDensity, comparison, toggleComparison, setPaletteOpen, setSettingsOpen, savedViews, saveView, deleteView, tab, setTab } = useView();
@@ -72,9 +73,7 @@ export function TitleBar() {
         <select className="input t-label-m tb-select" value={density} onChange={(e) => setDensity(e.target.value as typeof density)} aria-label="Row density (D)">
           <option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="dense">Dense</option>
         </select>
-        <button className="btn btn-xs" onClick={() => setTheme(theme === 'matte' ? 'gloss' : 'matte')} aria-label={`Switch to the ${theme === 'matte' ? 'Gloss' : 'Matte'} theme`} title="Theme (T)">
-          {theme === 'matte' ? '◐' : '◑'} {theme === 'matte' ? 'Gloss' : 'Matte'}
-        </button>
+        <ThemeMenu theme={theme} setTheme={setTheme} />
       </div>
       <div className="tb-group">
         <button className="btn btn-xs" onClick={() => useView.getState().setAskOpen(true)} title="Ask a question about this data (A)">Ask <span className="kbd">A</span></button>
@@ -137,6 +136,43 @@ export function TabRail() {
     </div>
   );
 }
+
+/* Theme menu. Six themes rather than a light/dark pair, so a toggle no longer says what the next
+   press does — the list names each one and says what it is for. T still cycles. */
+function ThemeMenu({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
+  const [open, setOpen] = useState(false);
+  useOverlay(open, useCallback(() => setOpen(false), []));
+  const current = THEMES.find((t) => t.id === theme) ?? THEMES[0];
+  return (
+    <div style={{ position: 'relative' }}>
+      <button className="btn btn-xs" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+        title="Theme (T cycles)">{current.dark ? '◐' : '◑'} {current.label}</button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 60 }} onClick={() => setOpen(false)} />
+          <div className="menu theme-menu" role="menu" style={{ right: 0, zIndex: 61 }}>
+            {THEMES.map((t) => (
+              <button key={t.id} role="menuitemradio" aria-checked={t.id === theme} className="theme-item"
+                onClick={() => { setTheme(t.id); setOpen(false); }}>
+                <span className="theme-swatches" aria-hidden>
+                  {SWATCHES[t.id].map((c, i) => <i key={i} style={{ background: c }} />)}
+                </span>
+                <span className="theme-item-text">
+                  <b>{t.label}{t.id === theme ? ' ·' : ''}</b>
+                  <span className="t-label-s faint">{t.blurb}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* The canvas, then the five domain accents — the menu shows the palette rather than naming it. */
+const SWATCHES: Record<Theme, string[]> = Object.fromEntries(THEMES.map((t) => [t.id,
+  [RAMPS[t.id].surface, ...['attendance', 'revenue', 'growth', 'people', 'risk'].map((d) => RAMPS[t.id].domain[d])]])) as Record<Theme, string[]>;
 
 export function InsightRail() {
   const { railOpen, toggleRail, thresholds, dismissed, tab, setSettingsOpen, announce } = useView();
@@ -323,7 +359,7 @@ export function SettingsPanel() {
         </section>
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Appearance & comparison</h3><p>Presentation preferences are stored on this device.</p></div></div>
-          <label className="settings-field"><span>Theme</span><select className="input" value={theme} onChange={(e) => setTheme(e.target.value as typeof theme)}><option value="matte">Matte</option><option value="gloss">Gloss</option></select></label>
+          <label className="settings-field"><span>Theme</span><select className="input" value={theme} onChange={(e) => setTheme(e.target.value as typeof theme)}>{THEMES.map((t) => <option key={t.id} value={t.id}>{t.label} — {t.dark ? 'dark' : 'light'}</option>)}</select></label>
           <label className="settings-field"><span>Table density</span><select className="input" value={density} onChange={(e) => setDensity(e.target.value as typeof density)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="dense">Dense</option></select></label>
           <label className="report-option"><input type="checkbox" checked={comparison} onChange={toggleComparison} /><span><b>Show period comparisons</b><small>Add prior-period values beneath metrics and table cells.</small></span></label>
         </section>

@@ -7,6 +7,7 @@ import { isHardRefresh, useData, useScope, type Scope } from './state/data';
 import { useEscapeClosesEverything } from './state/overlays';
 import { encodeFilters, useFilters } from './state/filters';
 import { TABS, useView, type TabId } from './state/view';
+import { THEMES } from './design/ramps';
 import { useDrill } from './state/drill';
 import { SHEETS } from './data/sheets.config';
 import { TabEndpoint } from './components/shell/TabEndpoint';
@@ -47,7 +48,7 @@ function useKeyboard() {
         case 'f': case 'F': setFiltersOpen(!filtersOpen); break;
         case 's': case 'S': toggleRail(); break;
         case 'd': case 'D': setDensity(density === 'compact' ? 'dense' : density === 'dense' ? 'comfortable' : 'compact'); break;
-        case 't': case 'T': setTheme(theme === 'matte' ? 'gloss' : 'matte'); break;
+        case 't': case 'T': { const ids = THEMES.map((x) => x.id); setTheme(ids[(ids.indexOf(theme) + 1) % ids.length]); break; }
         case 'c': case 'C': toggleComparison(); break;
         case '/': { e.preventDefault(); const el = document.querySelector<HTMLInputElement>('input[aria-label="Search rows"]'); el?.focus(); break; }
         case 'a': case 'A': useView.getState().setAskOpen(!useView.getState().askOpen); break;

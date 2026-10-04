@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { DEFAULT_FILTERS, type Filters } from './filters';
 
-export type Theme = 'matte' | 'gloss';
+import { isDark, isTheme, type Theme } from '../design/ramps';
+export type { Theme };
 export type Density = 'comfortable' | 'compact' | 'dense';
 export const TAB_IDS = ['overview', 'sales', 'leads', 'acquisition', 'retention', 'classes', 'slots', 'bookings', 'attendance', 'trainers', 'payroll', 'late-cancellations', 'format-comparison', 'health'] as const;
 export type TabId = typeof TAB_IDS[number];
@@ -39,7 +40,8 @@ interface ViewState {
 }
 
 const applyAttr = (k: string, v: string) => document.documentElement.setAttribute(k, v);
-const initialTheme = (document.documentElement.getAttribute('data-theme') as Theme) || 'matte';
+const attr = document.documentElement.getAttribute('data-theme');
+const initialTheme: Theme = isTheme(attr) ? attr : 'matte';
 const initialDensity = (document.documentElement.getAttribute('data-density') as Density) || 'compact';
 const tabFromHash = (): TabId => { const h = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; return (TAB_IDS as readonly string[]).includes(h) ? h : 'overview'; };
 
@@ -47,7 +49,9 @@ export const useView = create<ViewState>((set) => ({
   theme: initialTheme, density: initialDensity, tab: tabFromHash(), railOpen: window.innerWidth >= 1600, filtersOpen: false, comparison: false, paletteOpen: false, settingsOpen: false, askOpen: false, reportOpen: false,
   ratePerSession: ls('floor.rate', 1200), thresholds: { ...DEFAULT_THRESHOLDS, ...ls('floor.thresholds', {}) },
   savedViews: [...PRESET_VIEWS, ...ls<SavedView[]>('floor.views', [])], dismissed: ls('floor.dismissed', {}), announcement: '',
-  setTheme: (theme) => { applyAttr('data-theme', theme); save('floor.theme', theme); localStorage.setItem('floor.theme', theme); set({ theme }); },
+  /* `data-mode` rides alongside `data-theme`: the chrome rules that care only whether the
+     material is dark or light are written against the mode, so a new theme needs no new CSS. */
+  setTheme: (theme) => { applyAttr('data-theme', theme); applyAttr('data-mode', isDark(theme) ? 'dark' : 'light'); localStorage.setItem('floor.theme', theme); set({ theme }); },
   setDensity: (density) => { applyAttr('data-density', density); localStorage.setItem('floor.density', density); set({ density }); },
   setTab: (tab) => set({ tab }),
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),

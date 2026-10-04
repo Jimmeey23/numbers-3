@@ -1,3 +1,4 @@
+import type { Theme } from '../../design/ramps';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GROUP_KEYS, metricValues, rollupLevel, type RollupNode, type Row } from '../../semantics/aggregations';
 import { metric, type QueryContext, type TableName } from '../../semantics/metrics';
@@ -297,7 +298,7 @@ export function NestedTable(p: NestedTableProps) {
 }
 
 interface RowProps {
-  n: RollupNode; i: number; isOpen: boolean; canOpen: boolean; leaf: boolean; columns: ColumnDef[]; ctx: QueryContext; theme: 'matte' | 'gloss'; heat: Map<string, { center: number; span: number }>; rank?: number; selected: boolean;
+  n: RollupNode; i: number; isOpen: boolean; canOpen: boolean; leaf: boolean; columns: ColumnDef[]; ctx: QueryContext; theme: Theme; heat: Map<string, { center: number; span: number }>; rank?: number; selected: boolean;
   compare: Record<string, { value: number | null }> | null; toggle: (n: RollupNode, whole?: boolean) => void; drill: (n: RollupNode, el?: HTMLElement | null) => void; onKey: (e: React.KeyboardEvent<HTMLTableRowElement>, n: RollupNode, i: number) => void;
   setSelected: React.Dispatch<React.SetStateAction<Set<string>>>; leafLabel?: string; table: TableName;
 }
@@ -328,7 +329,7 @@ function NodeRow({ n, i, isOpen, canOpen, columns, ctx, theme, heat, rank, selec
   );
 }
 
-function Cell({ c, n, ctx, theme, heat, prev }: { c: ColumnDef; n: RollupNode; ctx: QueryContext; theme: 'matte' | 'gloss'; heat?: { center: number; span: number }; prev: number | null }) {
+function Cell({ c, n, ctx, theme, heat, prev }: { c: ColumnDef; n: RollupNode; ctx: QueryContext; theme: Theme; heat?: { center: number; span: number }; prev: number | null }) {
   const fmt = colFmt(c);
   const v = nodeVal(n, c, ctx);
   const def = c.metricId ? metric(c.metricId) : null;

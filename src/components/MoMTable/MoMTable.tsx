@@ -1,3 +1,4 @@
+import type { Theme } from '../../design/ramps';
 import { Fragment, useMemo, useState } from 'react';
 import { metricValues, type Row } from '../../semantics/aggregations';
 import { metric, type QueryContext } from '../../semantics/metrics';
@@ -102,7 +103,7 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
   );
 }
 
-function MoMCell({ id, v, raw, prev, yoy, rank, n, month, mode, t, theme, last, hidden, seasonal, onClick }: { id: string; v: number | null; raw: number | null; prev: number | null; yoy: number | null; rank: number; n: number; month: string; mode: Mode; t: number | null; theme: 'matte' | 'gloss'; last: boolean; hidden: boolean; seasonal: number | null; onClick: () => void }) {
+function MoMCell({ id, v, raw, prev, yoy, rank, n, month, mode, t, theme, last, hidden, seasonal, onClick }: { id: string; v: number | null; raw: number | null; prev: number | null; yoy: number | null; rank: number; n: number; month: string; mode: Mode; t: number | null; theme: Theme; last: boolean; hidden: boolean; seasonal: number | null; onClick: () => void }) {
   const def = metric(id);
   const tip = useTooltip(() => <TipBody context={`${def.label} · ${fmtMonthShort(month)}`} value={formatValue(def.format, raw)} delta={`${fmtDelta(def.format, raw, prev).text} vs previous month · ${fmtDelta(def.format, raw, yoy).text} vs same month last year`} rank={`Rank ${rank} of 12`} n={`n = ${n.toLocaleString('en-IN')} rows`} hint="Click to filter to this month" />, [raw, prev, month]);
   const bg = t === null ? undefined : diverging(theme, t);

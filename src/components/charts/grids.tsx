@@ -1,3 +1,4 @@
+import type { Theme } from '../../design/ramps';
 import { useMemo } from 'react';
 import { diverging, needsInvert, sequential } from '../../design/ramps';
 import { useView } from '../../state/view';
@@ -31,7 +32,7 @@ export function Heatmap({ xs, ys, cells, fmt = 'percent', kind = 'attendance', c
   );
 }
 
-function HeatRow({ y, yi, xs, map, colorOf, fmt, onClick, cellH, minN, yLabel, theme }: { y: string; yi: number; xs: string[]; map: Map<string, HeatCell>; colorOf: (v: number) => string; fmt: Fmt; onClick?: (c: HeatCell) => void; cellH: number; minN: number; yLabel?: (y: string) => string; theme: 'matte' | 'gloss' }) {
+function HeatRow({ y, yi, xs, map, colorOf, fmt, onClick, cellH, minN, yLabel, theme }: { y: string; yi: number; xs: string[]; map: Map<string, HeatCell>; colorOf: (v: number) => string; fmt: Fmt; onClick?: (c: HeatCell) => void; cellH: number; minN: number; yLabel?: (y: string) => string; theme: Theme }) {
   return (
     <>
       <div className="t-heading-xs muted" style={{ display: 'flex', alignItems: 'center', paddingRight: 8, justifyContent: 'flex-end' }}>{yLabel ? yLabel(y) : y}</div>
@@ -40,7 +41,7 @@ function HeatRow({ y, yi, xs, map, colorOf, fmt, onClick, cellH, minN, yLabel, t
   );
 }
 
-function HeatCellView({ c, x, y, colorOf, fmt, onClick, cellH, minN, delay, theme }: { c?: HeatCell; x: string; y: string; colorOf: (v: number) => string; fmt: Fmt; onClick?: (c: HeatCell) => void; cellH: number; minN: number; delay: number; theme: 'matte' | 'gloss' }) {
+function HeatCellView({ c, x, y, colorOf, fmt, onClick, cellH, minN, delay, theme }: { c?: HeatCell; x: string; y: string; colorOf: (v: number) => string; fmt: Fmt; onClick?: (c: HeatCell) => void; cellH: number; minN: number; delay: number; theme: Theme }) {
   const low = !c || c.value === null || c.n < minN;
   const bg = low ? 'var(--surface-inset)' : colorOf(c!.value as number);
   const tip = useTooltip(() => <TipBody context={`${y} · ${x}`} value={c ? formatValue(fmt, c.value) : '—'} n={c ? `n = ${c.n}${c.extra ? ` · ${c.extra}` : ''}` : 'No data'} hint={onClick ? 'Click to filter' : ''} />, [c?.value]);
@@ -85,7 +86,7 @@ export function ScheduleGrid({ slots, onClick, center = 0.5 }: { slots: SlotCard
     </div>
   );
 }
-function SlotCardView({ s, theme, span, center, maxCap, onClick }: { s: SlotCard; theme: 'matte' | 'gloss'; span: number; center: number; maxCap: number; onClick?: (s: SlotCard) => void }) {
+function SlotCardView({ s, theme, span, center, maxCap, onClick }: { s: SlotCard; theme: Theme; span: number; center: number; maxCap: number; onClick?: (s: SlotCard) => void }) {
   const t = s.value === null ? 0 : (s.value - center) / span; const bg = s.value === null ? 'var(--surface-2)' : diverging(theme, t);
   const tip = useTooltip(() => <TipBody context={`${s.day.slice(0, 3)} ${s.time} · ${s.label}`} value={formatValue('percent', s.value)} n={`n = ${s.n} occurrences · capacity ${s.capacity}${s.sub ? ` · ${s.sub}` : ''}`} hint="Click to filter" />, [s.key, s.value]);
   return (

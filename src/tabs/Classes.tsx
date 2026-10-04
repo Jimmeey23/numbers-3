@@ -1,3 +1,4 @@
+import type { Theme } from '../design/ramps';
 import { useMemo, useState } from 'react';
 import type { Scope } from '../state/data';
 import { Register } from '../components/Register';
@@ -15,7 +16,7 @@ import { useFilters } from '../state/filters';
 import { useDrill } from '../state/drill';
 import { fmtDateShort } from '../semantics/formats';
 
-export const SESSION_COLUMNS = (theme: 'matte' | 'gloss'): ColumnDef[] => [
+export const SESSION_COLUMNS = (theme: Theme): ColumnDef[] => [
   { id: 'sessions', metricId: 'sessions', family: 'Volume', bar: true },
   { id: 'seats', metricId: 'seats', family: 'Volume' },
   { id: 'booked', metricId: 'booked', family: 'Volume' },

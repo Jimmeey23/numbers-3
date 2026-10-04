@@ -1,50 +1,47 @@
 /* Atlas — design tokens.
-   Two materials: Matte (dead-flat black, light comes only from data) and
-   Lacquer (pure white neumorphism — surfaces are extruded from the background, never painted on it). */
+
+   Six themes, each a complete palette: neutrals, five domain accents, the readable "ink" form of
+   each accent, the semantic colours and the elevation recipe. A theme is selected with
+   `data-theme` on <html>; `data-mode` carries dark/light alongside it, so chrome rules that depend
+   only on the material ("a dark surface needs a hairline, a light one needs a shadow") are written
+   once against the mode rather than once per theme.
+
+   Ink values are derived, not eyeballed: each accent is walked toward white (dark themes) or black
+   (light themes) until it clears 4.5:1 against that theme's 12% wash of the same accent, which is
+   the surface the text actually sits on. */
+
 :root[data-theme="matte"] {
-  /* A near-black with a cool cast rather than #000: pure black against saturated accents reads
-     as glare, and gives surfaces nothing to be elevated against. */
-  --canvas:#07080B;      --surface-1:#0E1116;  --surface-2:#161A21;
-  --surface-3:#1F242D;   --surface-inset:#0A0C10;
-  --hairline:#232833;    --hairline-strong:#39404E;
+  --canvas:#050505;      --surface-1:#0E0E0F;  --surface-2:#161618;
+  --surface-3:#1F1F22;   --surface-inset:#09090A;  --surface-raised:#0E0E0F;
+  --hairline:#242427;    --hairline-strong:#3C3C41;  --rule:#242427;
   --overlay:rgba(0,0,0,.72);
-  --text-1:#F4F7FB;      --text-2:#AAB3C2;     --text-3:#78828F;
-  --text-inverse:#0A0C0F;
+  --text-1:#F6F6F7;      --text-2:#A9A9B0;     --text-3:#7F7F88;
+  --text-inverse:#050505;
 
-  /* Five accents held at one perceptual lightness and a shared, moderate chroma, so no series
-     shouts over another and a five-line chart stays readable. Vivid, not neon. */
-  --neon-cyan:#4FC3F7;   --neon-rose:#F2718F;  --neon-mint:#43D9A3;
-  --neon-violet:#A78BFA; --neon-amber:#F5B74E;
+  --hue-attendance:#00E5FF;
+  --hue-revenue:#FF2E88;
+  --hue-growth:#00FFA3;
+  --hue-people:#B87CFF;
+  --hue-risk:#FFC400;
 
-  --hue-attendance:var(--neon-cyan);
-  --hue-revenue:var(--neon-rose);
-  --hue-growth:var(--neon-mint);
-  --hue-people:var(--neon-violet);
-  --hue-risk:var(--neon-amber);
+  --ink-attendance:#00E5FF;
+  --ink-revenue:#FF2E88;
+  --ink-growth:#00FFA3;
+  --ink-people:#B87CFF;
+  --ink-risk:#FFC400;
+  --ink-neutral:#A9A9B0;
 
-  --pos:#43D9A3; --neg:#F2666F; --warn:#F5B74E;
-  --info:#4FC3F7; --null:#49515F;
-
-  /* Ink: the readable form of each accent, for text sitting on that accent's wash.
-     The raw accent is tuned for fills and strokes; several fail 4.5:1 as type. */
-  --ink-attendance:#7AD3F9; --ink-revenue:#F794AB; --ink-growth:#6FE3BA;
-  --ink-people:#C0ABFC;     --ink-risk:#F8CA7E;    --ink-neutral:#AAB3C2;
-
+  --pos:#00FFA3; --neg:#FF4D6A; --warn:#FFC400; --info:#00E5FF; --null:#4A4A52;
+  --focus:#00E5FF; --glow:0 0 28px;
+  --heat-text-invert:#050505; --on-hue:#050505;
   --elev-1:none; --elev-2:none;
   --elev-3:0 0 0 1px var(--hairline-strong);
   --elev-4:0 0 0 1px var(--hairline-strong);
   --gloss-edge:none;
-  --glow:0 0 24px;
-  --surface-raised:var(--surface-1);
   --tooltip-shadow:0 0 0 1px var(--hairline-strong), 0 24px 48px -12px #000;
-  --focus:var(--neon-cyan);
-  --heat-text-invert:#0A0C0F;
-  --on-hue:#07080B;
   --pop-shadow:0 24px 56px -20px rgba(0,0,0,.9), 0 0 0 1px var(--hairline-strong);
-
-  /* Neumorphism: in a matte world the extrusion is a luminance edge, not a shadow. */
   --neu-raised:inset 0 1px 0 rgba(255,255,255,.055), 0 1px 0 rgba(0,0,0,.6);
-  --neu-raised-hover:inset 0 1px 0 rgba(255,255,255,.085), 0 2px 0 rgba(0,0,0,.7);
+  --neu-raised-hover:inset 0 1px 0 rgba(255,255,255,.09), 0 2px 0 rgba(0,0,0,.72);
   --neu-pressed:inset 0 2px 4px rgba(0,0,0,.75), inset 0 -1px 0 rgba(255,255,255,.045);
   --neu-inset:inset 0 2px 5px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.04);
   --neu-card:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 10px -4px rgba(0,0,0,.85);
@@ -53,57 +50,208 @@
   color-scheme:dark;
 }
 
+/* Gloss — Bright white with blue accents. Surfaces are extruded from the page, never painted on it. */
 :root[data-theme="gloss"] {
-  /* Pure white. The canvas IS white; surfaces are extruded from it with paired light and shadow. */
-  /* A faintly cool paper rather than pure white, so a white card has something to sit on. */
-  --canvas:#F7F9FC;      --surface-1:#FFFFFF;  --surface-2:#FBFCFE;
-  --surface-3:#F1F5FA;   --surface-inset:#ECF1F7;
-  --hairline:#E2E8F0;    --hairline-strong:#7C8899;   /* 3.2:1 on white — real control boundaries, not decoration */
-  --rule:#DCE3EC;                                     /* decorative separators only */
+  --canvas:#FFFFFF;      --surface-1:#FFFFFF;  --surface-2:#F5F8FD;
+  --surface-3:#EBF1FA;   --surface-inset:#F1F5FB;  --surface-raised:#FFFFFF;
+  --hairline:#E2EAF4;    --hairline-strong:#8296AF;  --rule:#E2EAF4;
   --overlay:rgba(12,18,28,.38);
-  /* High contrast: body text is near-black on white — 16.1:1. */
-  --text-1:#0A0F1A;      --text-2:#3D4859;     --text-3:#5F6C7D;
+  --text-1:#0A1220;      --text-2:#3B4961;     --text-3:#5D6C84;
   --text-inverse:#FFFFFF;
 
-  /* The same five hues as the dark theme, darkened to carry 4.5:1 as type on white. */
-  --crimson:#C2325C; --crimson-bright:#DE4473; --crimson-deep:#8C1D3D;
-  --cobalt:#2563C9;  --cobalt-bright:#3B7FE8;  --navy:#123A70;
-  --plum:#7449C6;    --teal:#17876B;           --brass:#A5700F;
+  --hue-attendance:#1668E3;
+  --hue-revenue:#0B3FA8;
+  --hue-growth:#0B7765;
+  --hue-people:#5C46D4;
+  --hue-risk:#A35C00;
 
-  --hue-attendance:var(--cobalt);
-  --hue-revenue:var(--crimson);
-  --hue-growth:var(--teal);
-  --hue-people:var(--plum);
-  --hue-risk:var(--brass);
+  --ink-attendance:#1565DC;
+  --ink-revenue:#0B3FA8;
+  --ink-growth:#0B7765;
+  --ink-people:#5C46D4;
+  --ink-risk:#9E5900;
+  --ink-neutral:#3B4961;
 
-  --pos:#17876B; --neg:#C2325C; --warn:#A5700F;
-  --info:#2563C9; --null:#98A4B4;
-
-  --ink-attendance:#1E55AE; --ink-revenue:#A62A4E; --ink-growth:#13735B;
-  --ink-people:#633CAA;     --ink-risk:#8C5F0C;    --ink-neutral:#445162;
-
-  --elev-1:0 1px 2px rgba(16,24,40,.05);
-  --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
+  --pos:#0E8A5F; --neg:#C32B4B; --warn:#A35C00; --info:#1668E3; --null:#9AA8BC;
+  --focus:#1668E3; --glow:0 0 18px;
+  --heat-text-invert:#FFFFFF; --on-hue:#FFFFFF;
+  --elev-1:0 1px 2px rgba(16,24,40,.05); --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
   --elev-3:0 12px 28px -6px rgba(16,24,40,.12),0 4px 8px -4px rgba(16,24,40,.05);
   --elev-4:0 28px 60px -12px rgba(16,24,40,.18);
   --gloss-edge:inset 0 1px 0 #FFFFFF;
-  --glow:0 0 18px;
-  --surface-raised:#FFFFFF;
   --tooltip-shadow:0 18px 44px -12px rgba(12,18,28,.22), 0 0 0 1px var(--hairline);
-  --focus:var(--cobalt);
-  --heat-text-invert:#FFFFFF;
-  --on-hue:#FFFFFF;
   --pop-shadow:0 24px 56px -22px rgba(16,24,40,.28), 0 0 0 1px var(--hairline);
-
-  /* Neumorphism proper: one light source, top-left. Raised = light above, shadow below.
-     Inset = the inverse. On pure white this reads as soft extrusion, not a floating card. */
-  --neu-raised:6px 6px 14px rgba(163,177,198,.34), -6px -6px 14px rgba(255,255,255,.95);
-  --neu-raised-hover:8px 8px 18px rgba(163,177,198,.42), -8px -8px 18px rgba(255,255,255,1);
-  --neu-pressed:inset 4px 4px 9px rgba(163,177,198,.40), inset -4px -4px 9px rgba(255,255,255,.95);
-  --neu-inset:inset 3px 3px 7px rgba(163,177,198,.30), inset -3px -3px 7px rgba(255,255,255,.92);
-  --neu-card:7px 7px 16px rgba(163,177,198,.28), -7px -7px 16px rgba(255,255,255,.95);
-  --neu-float:14px 14px 34px rgba(163,177,198,.36), -10px -10px 26px rgba(255,255,255,1);
+  --neu-raised:5px 5px 12px rgba(163,177,198,.26), -5px -5px 12px rgba(255,255,255,.92);
+  --neu-raised-hover:7px 7px 16px rgba(163,177,198,.34), -7px -7px 16px rgba(255,255,255,1);
+  --neu-pressed:inset 4px 4px 9px rgba(163,177,198,.32), inset -4px -4px 9px rgba(255,255,255,.92);
+  --neu-inset:inset 3px 3px 7px rgba(163,177,198,.26), inset -3px -3px 7px rgba(255,255,255,.9);
+  --neu-card:6px 6px 14px rgba(163,177,198,.22), -6px -6px 14px rgba(255,255,255,.92);
+  --neu-float:14px 14px 34px rgba(163,177,198,.3), -10px -10px 26px rgba(255,255,255,1);
   --border-1:1px solid transparent;
+  color-scheme:light;
+}
+
+/* Carbon — Graphite and warm, restrained accents — the quietest theme, built for a full day on the floor. */
+:root[data-theme="carbon"] {
+  --canvas:#141719;      --surface-1:#1C2023;  --surface-2:#24292D;
+  --surface-3:#2D3338;   --surface-inset:#17191C;  --surface-raised:#1C2023;
+  --hairline:#32383D;    --hairline-strong:#4E565D;  --rule:#32383D;
+  --overlay:rgba(0,0,0,.72);
+  --text-1:#ECEFF1;      --text-2:#AEB7BD;     --text-3:#7E888F;
+  --text-inverse:#141719;
+
+  --hue-attendance:#3FBFA8;
+  --hue-revenue:#E8756B;
+  --hue-growth:#9FC46A;
+  --hue-people:#8E9BF0;
+  --hue-risk:#E8A33D;
+
+  --ink-attendance:#3FBFA8;
+  --ink-revenue:#E8756B;
+  --ink-growth:#9FC46A;
+  --ink-people:#8E9BF0;
+  --ink-risk:#E8A33D;
+  --ink-neutral:#AEB7BD;
+
+  --pos:#7FC77A; --neg:#E8756B; --warn:#E8A33D; --info:#3FBFA8; --null:#59616A;
+  --focus:#3FBFA8; --glow:0 0 20px;
+  --heat-text-invert:#141719; --on-hue:#141719;
+  --elev-1:none; --elev-2:none;
+  --elev-3:0 0 0 1px var(--hairline-strong);
+  --elev-4:0 0 0 1px var(--hairline-strong);
+  --gloss-edge:none;
+  --tooltip-shadow:0 0 0 1px var(--hairline-strong), 0 24px 48px -12px #000;
+  --pop-shadow:0 24px 56px -20px rgba(0,0,0,.9), 0 0 0 1px var(--hairline-strong);
+  --neu-raised:inset 0 1px 0 rgba(255,255,255,.055), 0 1px 0 rgba(0,0,0,.6);
+  --neu-raised-hover:inset 0 1px 0 rgba(255,255,255,.09), 0 2px 0 rgba(0,0,0,.72);
+  --neu-pressed:inset 0 2px 4px rgba(0,0,0,.75), inset 0 -1px 0 rgba(255,255,255,.045);
+  --neu-inset:inset 0 2px 5px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.04);
+  --neu-card:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 10px -4px rgba(0,0,0,.85);
+  --neu-float:inset 0 1px 0 rgba(255,255,255,.06), 0 18px 40px -16px rgba(0,0,0,.95);
+  --border-1:1px solid var(--hairline);
+  color-scheme:dark;
+}
+
+/* Aurora — Deep indigo night with cool pastels. Dark without being black. */
+:root[data-theme="aurora"] {
+  --canvas:#0A0E1F;      --surface-1:#121831;  --surface-2:#1A2342;
+  --surface-3:#232E55;   --surface-inset:#0C1126;  --surface-raised:#121831;
+  --hairline:#2A3560;    --hairline-strong:#475789;  --rule:#2A3560;
+  --overlay:rgba(0,0,0,.72);
+  --text-1:#EEF2FF;      --text-2:#A9B4DA;     --text-3:#7C88B4;
+  --text-inverse:#0A0E1F;
+
+  --hue-attendance:#6FD3FF;
+  --hue-revenue:#FF9BC2;
+  --hue-growth:#74E8C3;
+  --hue-people:#B8A1FF;
+  --hue-risk:#FFD27A;
+
+  --ink-attendance:#6FD3FF;
+  --ink-revenue:#FF9BC2;
+  --ink-growth:#74E8C3;
+  --ink-people:#B8A1FF;
+  --ink-risk:#FFD27A;
+  --ink-neutral:#A9B4DA;
+
+  --pos:#74E8C3; --neg:#FF8095; --warn:#FFD27A; --info:#6FD3FF; --null:#4C5882;
+  --focus:#6FD3FF; --glow:0 0 26px;
+  --heat-text-invert:#0A0E1F; --on-hue:#0A0E1F;
+  --elev-1:none; --elev-2:none;
+  --elev-3:0 0 0 1px var(--hairline-strong);
+  --elev-4:0 0 0 1px var(--hairline-strong);
+  --gloss-edge:none;
+  --tooltip-shadow:0 0 0 1px var(--hairline-strong), 0 24px 48px -12px #000;
+  --pop-shadow:0 24px 56px -20px rgba(0,0,0,.9), 0 0 0 1px var(--hairline-strong);
+  --neu-raised:inset 0 1px 0 rgba(255,255,255,.055), 0 1px 0 rgba(0,0,0,.6);
+  --neu-raised-hover:inset 0 1px 0 rgba(255,255,255,.09), 0 2px 0 rgba(0,0,0,.72);
+  --neu-pressed:inset 0 2px 4px rgba(0,0,0,.75), inset 0 -1px 0 rgba(255,255,255,.045);
+  --neu-inset:inset 0 2px 5px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.04);
+  --neu-card:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 10px -4px rgba(0,0,0,.85);
+  --neu-float:inset 0 1px 0 rgba(255,255,255,.06), 0 18px 40px -16px rgba(0,0,0,.95);
+  --border-1:1px solid var(--hairline);
+  color-scheme:dark;
+}
+
+/* Paper — Warm cream and editorial ink. The theme to print a report from. */
+:root[data-theme="paper"] {
+  --canvas:#F7F3EA;      --surface-1:#FFFDF7;  --surface-2:#F2EDE2;
+  --surface-3:#E9E2D4;   --surface-inset:#EFE9DC;  --surface-raised:#FFFDF7;
+  --hairline:#E0D8C8;    --hairline-strong:#9A8D77;  --rule:#E0D8C8;
+  --overlay:rgba(12,18,28,.38);
+  --text-1:#1C1A16;      --text-2:#4A453C;     --text-3:#6B6459;
+  --text-inverse:#FFFFFF;
+
+  --hue-attendance:#2B5C8A;
+  --hue-revenue:#96333D;
+  --hue-growth:#5C6B2F;
+  --hue-people:#6A4A7A;
+  --hue-risk:#9A6B1E;
+
+  --ink-attendance:#2B5C8A;
+  --ink-revenue:#96333D;
+  --ink-growth:#5C6B2F;
+  --ink-people:#6A4A7A;
+  --ink-risk:#8C611B;
+  --ink-neutral:#4A453C;
+
+  --pos:#4F6B33; --neg:#96333D; --warn:#9A6B1E; --info:#2B5C8A; --null:#A89B84;
+  --focus:#2B5C8A; --glow:0 0 16px;
+  --heat-text-invert:#FFFFFF; --on-hue:#FFFFFF;
+  --elev-1:0 1px 2px rgba(16,24,40,.05); --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
+  --elev-3:0 12px 28px -6px rgba(16,24,40,.12),0 4px 8px -4px rgba(16,24,40,.05);
+  --elev-4:0 28px 60px -12px rgba(16,24,40,.18);
+  --gloss-edge:inset 0 1px 0 #FFFFFF;
+  --tooltip-shadow:0 18px 44px -12px rgba(12,18,28,.22), 0 0 0 1px var(--hairline);
+  --pop-shadow:0 24px 56px -22px rgba(16,24,40,.28), 0 0 0 1px var(--hairline);
+  --neu-raised:5px 5px 12px rgba(168,155,132,.26), -5px -5px 12px rgba(255,255,255,.92);
+  --neu-raised-hover:7px 7px 16px rgba(168,155,132,.34), -7px -7px 16px rgba(255,255,255,1);
+  --neu-pressed:inset 4px 4px 9px rgba(168,155,132,.32), inset -4px -4px 9px rgba(255,255,255,.92);
+  --neu-inset:inset 3px 3px 7px rgba(168,155,132,.26), inset -3px -3px 7px rgba(255,255,255,.9);
+  --neu-card:6px 6px 14px rgba(168,155,132,.22), -6px -6px 14px rgba(255,255,255,.92);
+  --neu-float:14px 14px 34px rgba(168,155,132,.3), -10px -10px 26px rgba(255,255,255,1);
+  --border-1:1px solid var(--hairline);
+  color-scheme:light;
+}
+
+/* Contrast — Maximum contrast on white, in the Okabe–Ito palette — every series stays separable for red-green colour blindness. */
+:root[data-theme="contrast"] {
+  --canvas:#FFFFFF;      --surface-1:#FFFFFF;  --surface-2:#F2F2F2;
+  --surface-3:#E6E6E6;   --surface-inset:#EDEDED;  --surface-raised:#FFFFFF;
+  --hairline:#CFCFCF;    --hairline-strong:#595959;  --rule:#CFCFCF;
+  --overlay:rgba(12,18,28,.38);
+  --text-1:#000000;      --text-2:#262626;     --text-3:#4A4A4A;
+  --text-inverse:#FFFFFF;
+
+  --hue-attendance:#0072B2;
+  --hue-revenue:#B04E00;
+  --hue-growth:#007A5A;
+  --hue-people:#A8537F;
+  --hue-risk:#8A6100;
+
+  --ink-attendance:#006FAD;
+  --ink-revenue:#B04E00;
+  --ink-growth:#007A5A;
+  --ink-people:#9E4E77;
+  --ink-risk:#8A6100;
+  --ink-neutral:#262626;
+
+  --pos:#007A5A; --neg:#B04E00; --warn:#8A6100; --info:#0072B2; --null:#767676;
+  --focus:#0072B2; --glow:0 0 0;
+  --heat-text-invert:#FFFFFF; --on-hue:#FFFFFF;
+  --elev-1:0 1px 2px rgba(16,24,40,.05); --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
+  --elev-3:0 12px 28px -6px rgba(16,24,40,.12),0 4px 8px -4px rgba(16,24,40,.05);
+  --elev-4:0 28px 60px -12px rgba(16,24,40,.18);
+  --gloss-edge:inset 0 1px 0 #FFFFFF;
+  --tooltip-shadow:0 18px 44px -12px rgba(12,18,28,.22), 0 0 0 1px var(--hairline);
+  --pop-shadow:0 24px 56px -22px rgba(16,24,40,.28), 0 0 0 1px var(--hairline);
+  --neu-raised:none;
+  --neu-raised-hover:none;
+  --neu-pressed:none;
+  --neu-inset:none;
+  --neu-card:0 0 0 1px var(--hairline);
+  --neu-float:0 0 0 1px var(--hairline-strong), 0 20px 48px -18px rgba(0,0,0,.3);
+  --border-1:1px solid var(--hairline-strong);
   color-scheme:light;
 }
 
