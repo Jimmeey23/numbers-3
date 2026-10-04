@@ -72,8 +72,8 @@ export function DayTimeHeatmap({ rows, metricId, scope, minN = 3, kind }: { rows
   }, [rows, metricId, scope.ctx]);
   if (!cells.length) return <EmptyState title="No sessions carry a day and time in this scope" body="Widen the period or clear day and slot filters." />;
   const table = { columns: ['Day', ...xs.map((x) => fmtTime12(x))], rows: DAYS.map((d) => [d, ...xs.map((x) => { const c = cells.find((k) => k.x === x && k.y === d); return c?.value ?? null; })]) };
-  return <ChartModule title={`${def.label} by day and hour`} subtitle="Click a cell to filter the tab to that day and slot" table={table}><Heatmap xs={xs} ys={DAYS} cells={cells} fmt={def.format} kind={kind ?? (def.domain === 'revenue' ? 'revenue' : def.domain === 'risk' ? 'diverging' : 'attendance')} minN={minN} xLabel={(x) => fmtTime12(x)} yLabel={(y) => y.slice(0, 3)} title={`${def.label} by day and hour`}
-    onClick={(c) => { addTransient({ dim: 'day', value: c.y }); addTransient({ dim: 'slot', value: +c.x.slice(0, 2) < 12 ? 'Morning' : +c.x.slice(0, 2) < 17 ? 'Afternoon' : 'Evening' }); }} /></ChartModule>;
+  return <ChartModule title={`${def.label} by day and hour`} subtitle="Click a cell to filter the tab to that exact day and hour. Tables that do not carry a time of day are unaffected — the filter chip says which." table={table}><Heatmap xs={xs} ys={DAYS} cells={cells} fmt={def.format} kind={kind ?? (def.domain === 'revenue' ? 'revenue' : def.domain === 'risk' ? 'diverging' : 'attendance')} minN={minN} xLabel={(x) => fmtTime12(x)} yLabel={(y) => y.slice(0, 3)} title={`${def.label} by day and hour`}
+    onClick={(c) => { addTransient({ dim: 'day', value: c.y }); addTransient({ dim: 'hour_of_day', value: c.x, label: fmtTime12(c.x) }); }} /></ChartModule>;
 }
 
 /** Cohort triangle: cohort month × months since, value = share of cohort still meeting `alive` at that offset. */

@@ -50,7 +50,7 @@ export function Trainers({ scope }: { scope: Scope }) {
     <>
       <WidgetSection tab="trainers" scope={scope} placement="top" />
       <Register title="Trainers" subtitle="Draw premium separates who fills a room from who happens to teach at 7:30" domain="people">
-        <KpiStrip scope={scope} table="sessions" ids={['active_trainers', 'avg_class_size_incl', 'fill_rate', 'revenue_per_session', 'draw_premium_spread', 'top3_revenue_concentration']} cols={6} />
+        <KpiStrip scope={scope} table="sessions" ids={['active_trainers', 'sessions', 'avg_class_size_incl', 'fill_rate', 'revenue_per_session', 'teaching_hours', 'draw_premium_spread', 'top3_revenue_concentration']} />
       </Register>
       <Register title="Popular vs profitable" subtitle="Draw premium against revenue per attendee; bubble = sessions" domain="people">
         <ChartModule title="Draw premium × revenue per attendee" table={{ columns: ['Trainer', 'Draw premium', 'Rev per attendee', 'Sessions'], rows: trainerNodes.map((n) => [n.label, n.values.draw_premium_pp.value === null ? null : `${(n.values.draw_premium_pp.value * 100).toFixed(1)}pp`, Math.round(n.values.rev_pac.value ?? 0), n.values.sessions.value]) }}>

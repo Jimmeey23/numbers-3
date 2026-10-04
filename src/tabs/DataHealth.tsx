@@ -12,6 +12,8 @@ import { metricValues } from '../semantics/aggregations';
 import { useView } from '../state/view';
 import { diverging, needsInvert } from '../design/ramps';
 import { maxBy } from '../semantics/stats';
+import { CONCEPTS } from '../semantics/concepts';
+import { metric } from '../semantics/metrics';
 
 export function DataHealth({ scope }: { scope: Scope }) {
   const { loads, dataset: ds, load } = useData();
@@ -79,6 +81,20 @@ export function DataHealth({ scope }: { scope: Scope }) {
   const nullKey = completeness.length ? completeness.reduce((a, c) => a + (c.nullRate ?? 0), 0) / completeness.length : null;
   const orphanRate = integrity.length ? integrity.reduce((a, i) => a + i.orphans, 0) / Math.max(1, integrity.reduce((a, i) => a + i.total, 0)) : null;
   const maxVar = recon.length ? maxBy(recon, (r) => r.v, 0) : null;
+  /* One concept, one metric — and for every concept the app still measures more than one way,
+     the canonical figure beside each variant, so a difference is explained here rather than
+     discovered as two numbers on two tabs. */
+  const concepts = useMemo(() => CONCEPTS.map((c) => {
+    const canonicalValue = metricValues(scope.tables[c.canonical.table], [c.canonical.metricId], scope.ctx)[c.canonical.metricId].value;
+    const variants = c.variants.map((v) => {
+      const value = metricValues(scope.tables[v.table], [v.metricId], scope.ctx)[v.metricId].value;
+      const variance = canonicalValue !== null && value !== null && canonicalValue !== 0 ? Math.abs(value - canonicalValue) / Math.abs(canonicalValue) : null;
+      return { ...v, label: metric(v.metricId).label, value, variance, within: variance === null ? null : variance <= c.tolerance };
+    }).filter((v) => v.value !== null);
+    return { ...c, canonicalLabel: metric(c.canonical.metricId).label, canonicalValue, variants };
+  }).filter((c) => c.canonicalValue !== null && c.variants.length), [scope]);
+  const conceptFmt = (id: string) => metric(id).format;
+
   const blocked = loads.filter((l) => l.status === 'error' || l.status === 'empty');
   return (
     <>
@@ -115,11 +131,38 @@ export function DataHealth({ scope }: { scope: Scope }) {
       </Register>
       <Register title="Sheet status" subtitle="Each tab is resolved by title and its header validated against the declared schema. Google silently serves the first sheet on a bad title — the schema check catches that." domain="neutral">
         <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Tab</th><th className="t-heading-s">Status</th><th className="t-heading-s">Rows</th><th className="t-heading-s">Columns</th><th className="t-heading-s">Load</th><th className="t-heading-s">Source</th><th className="t-heading-s">Schema drift</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Detail</th></tr></thead>
-          <tbody>{loads.map((l) => <tr key={l.key}><td className="t-body-s">{l.title}</td><td><span className={`t-label-s pill ${l.status === 'ok' ? 'pos' : l.status === 'derived' ? 'warn' : 'neg'}`} style={{ border: '1px solid currentColor', padding: '1px 8px' }}>{l.status === 'ok' ? 'Loaded' : l.status === 'derived' ? 'Derived' : l.status === 'empty' ? 'Empty' : l.status === 'pending' ? 'Loading' : 'Failed'}</span></td><td className="t-num">{l.rows.toLocaleString('en-IN')}</td><td className="t-num">{l.columns.length || '—'}</td><td className="t-num">{l.loadMs ? `${(l.loadMs / 1000).toFixed(1)}s${l.fromCache ? ' (cache)' : ''}` : '—'}</td><td className="t-body-s"><a href={sheetUiUrl(l.spreadsheetId)} target="_blank" rel="noreferrer" className="hue">Open</a></td><td className="t-body-s">{l.missing.length ? <span className="warn" title={l.missing.join(', ')}>{l.missing.length} missing</span> : null}{l.missing.length && l.extra.length ? ' · ' : ''}{l.extra.length ? <span className="muted" title={l.extra.join(', ')}>{l.extra.length} extra</span> : null}{!l.missing.length && !l.extra.length && l.columns.length ? <span className="pos">Matches</span> : null}</td><td className="t-body-s" style={{ textAlign: 'left', whiteSpace: 'normal', maxWidth: 480 }}>{l.error && <div className="neg">{l.error}</div>}{l.hint && <div className="muted">{l.hint}</div>}</td></tr>)}</tbody></table></div>
+          <tbody>{loads.map((l) => <tr key={l.key}><td className="t-body-s">{l.title}</td><td><span className={`t-label-s pill ${l.status === 'ok' ? 'pos' : l.status === 'derived' || l.status === 'unused' ? 'warn' : 'neg'}`} style={{ border: '1px solid currentColor', padding: '1px 8px' }}>{l.status === 'ok' ? 'Loaded' : l.status === 'derived' ? 'Derived' : l.status === 'unused' ? 'Read, not used' : l.status === 'empty' ? 'Empty' : l.status === 'pending' ? 'Loading' : 'Failed'}</span></td><td className="t-num">{l.rows.toLocaleString('en-IN')}</td><td className="t-num">{l.columns.length || '—'}</td><td className="t-num">{l.loadMs ? `${(l.loadMs / 1000).toFixed(1)}s${l.fromCache ? ' (cache)' : ''}` : '—'}</td><td className="t-body-s"><a href={sheetUiUrl(l.spreadsheetId)} target="_blank" rel="noreferrer" className="hue">Open</a></td><td className="t-body-s">{l.missing.length ? <span className="warn" title={l.missing.join(', ')}>{l.missing.length} missing</span> : null}{l.missing.length && l.extra.length ? ' · ' : ''}{l.extra.length ? <span className="muted" title={l.extra.join(', ')}>{l.extra.length} extra</span> : null}{!l.missing.length && !l.extra.length && l.columns.length ? <span className="pos">Matches</span> : null}</td><td className="t-body-s" style={{ textAlign: 'left', whiteSpace: 'normal', maxWidth: 480 }}>{l.error && <div className="neg">{l.error}</div>}{l.hint && <div className="muted">{l.hint}</div>}</td></tr>)}</tbody></table></div>
       </Register>
       <Register title="Cross-sheet reconciliation" subtitle="Both figures, absolute variance, variance % and a verdict. This is what makes the rest of the product defensible." domain="neutral">
         <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s" style={{ textAlign: 'left' }}>Check</th><th className="t-heading-s">A</th><th className="t-heading-s">B</th><th className="t-heading-s">Variance</th><th className="t-heading-s">Variance %</th><th className="t-heading-s">Verdict</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Note</th></tr></thead>
           <tbody>{recon.map((r) => <tr key={r.label}><td className="t-body-s">{r.label}</td><td className="t-num">{r.fmt === 'currency' ? fmtCurrency(r.a) : r.a.toLocaleString('en-IN')}</td><td className="t-num">{r.fmt === 'currency' ? fmtCurrency(r.b) : r.b.toLocaleString('en-IN')}</td><td className="t-num">{r.fmt === 'currency' ? fmtCurrency(Math.abs(r.a - r.b)) : Math.abs(r.a - r.b).toLocaleString('en-IN')}</td><td className="t-num">{formatValue('percent', r.v)}</td><td><span className={`t-label-s pill ${r.status === 'pass' ? 'pos' : r.status === 'warn' ? 'warn' : 'neg'}`} style={{ border: '1px solid currentColor', padding: '1px 8px' }}>{r.status === 'pass' ? 'Pass' : r.status === 'warn' ? 'Warn' : 'Fail'}</span></td><td className="t-body-s muted" style={{ textAlign: 'left', whiteSpace: 'normal', maxWidth: 420 }}>{r.note}</td></tr>)}</tbody></table></div>
+      </Register>
+      <Register title="One concept, one metric" domain="neutral"
+        subtitle="Every question the app can still answer more than one way, with the figure each tab is required to show and what each remaining variant measures instead. A tab may only bind the canonical metric; the variants exist so the sources can be compared here.">
+        <div className="table-scroll" style={{ maxHeight: 520 }}>
+          <table className="tbl">
+            <thead><tr><th className="t-heading-s" style={{ textAlign: 'left' }}>Question</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Metric</th><th className="t-heading-s">Value</th><th className="t-heading-s">vs canonical</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Why it differs</th></tr></thead>
+            <tbody>
+              {concepts.map((c) => [
+                <tr key={c.id}>
+                  <td className="t-body-s" rowSpan={c.variants.length + 1} style={{ verticalAlign: 'top' }}>{c.question}</td>
+                  <td className="t-body-s"><b>{c.canonicalLabel}</b><div className="t-label-s faint">canonical · {c.canonical.table}</div></td>
+                  <td className="t-num"><b>{formatValue(conceptFmt(c.canonical.metricId), c.canonicalValue)}</b></td>
+                  <td className="t-num faint">—</td>
+                  <td className="t-body-s faint" style={{ textAlign: 'left', whiteSpace: 'normal' }}>Every tab shows this one.</td>
+                </tr>,
+                ...c.variants.map((v) => (
+                  <tr key={`${c.id}-${v.metricId}`}>
+                    <td className="t-body-s">{v.label}<div className="t-label-s faint">{v.table}</div></td>
+                    <td className="t-num">{formatValue(conceptFmt(v.metricId), v.value)}</td>
+                    <td className={`t-num ${v.within === false ? 'warn' : 'faint'}`}>{v.variance === null ? '—' : formatValue('percent', v.variance)}</td>
+                    <td className="t-body-s faint" style={{ textAlign: 'left', whiteSpace: 'normal', maxWidth: 520 }}>{v.because}</td>
+                  </tr>
+                )),
+              ])}
+            </tbody>
+          </table>
+        </div>
       </Register>
       <Register title="Referential integrity" subtitle="Orphan rates for each join in the query layer" domain="neutral">
         <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s" style={{ textAlign: 'left' }}>Join</th><th className="t-heading-s">Rows</th><th className="t-heading-s">Orphans</th><th className="t-heading-s">Orphan rate</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Note</th></tr></thead>

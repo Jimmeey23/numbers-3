@@ -54,7 +54,10 @@ export const SHEETS: SheetConfig[] = [
     expected: ['Member ID','First Name','Last Name','Email','Order At','Paid','Payment Method Name','Checked In','Complementary','Is Late Cancelled','Session ID','Session Name','Capacity','Location','Date (IST)','Day of Week','Time','Duration (Minutes)','Teacher Name','Cleaned Product','Cleaned Category','Cleaned Class','Host ID','Month','Year','Class No','Is New','UniqueID1','UniqueID2'] },
 ];
 
-export const CACHE_TTL_MS = 15 * 60 * 1000;
+/* Sheet text is cached until the operator asks for fresh data, not for a fixed window: an
+   ordinary page reload must not re-download 165 MB. This value is no longer an expiry — it is
+   only the age past which the UI calls the cached copy stale and offers to refresh. */
+export const CACHE_STALE_AFTER_MS = 15 * 60 * 1000;
 
 export const LOCATION_SHORT: Record<string, string> = {
   'Kwality House, Kemps Corner': 'Kemps Corner',

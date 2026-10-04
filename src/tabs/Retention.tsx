@@ -11,6 +11,7 @@ import { NestedTable, type ColumnDef } from '../components/NestedTable/NestedTab
 import { MoMTable } from '../components/MoMTable/MoMTable';
 import { RankingList } from '../components/RankingList/RankingList';
 import { metricValues, rollupLevel, type Row } from '../semantics/aggregations';
+import type { QueryContext } from '../semantics/metrics';
 import { categorical } from '../design/ramps';
 import { useView } from '../state/view';
 import { useDrill } from '../state/drill';
@@ -26,6 +27,11 @@ const riskBandsFor = (high: number) => [
   { id: 'watch', label: `Watch (${high - 20}–${high - 1})`, lo: high - 20, hi: high, tone: 'info' as const },
   { id: 'healthy', label: `Healthy (under ${high - 20})`, lo: -1, hi: high - 20, tone: 'pos' as const },
 ];
+
+/** Paid membership value, always the registry's definition so a worklist total and the KPI card
+ *  above it can never be two different numbers. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const paidValue = (rows: any[], ctx: QueryContext): number => metricValues(rows, ['l_revenue'], ctx).l_revenue.value ?? 0;
 
 export function Retention({ scope }: { scope: Scope }) {
   const months = useMonths(scope);
@@ -76,7 +82,7 @@ export function Retention({ scope }: { scope: Scope }) {
   const lifecycle = useMemo(() => {
     const bucket = (name: string, pred: (r: Row) => boolean, tone: 'pos' | 'warn' | 'neg' | 'info') => {
       const rs = rows.filter(pred);
-      return { label: name, count: rs.length, value: rs.reduce((a, r) => a + (r.amount_paid ?? 0), 0), tone };
+      return { label: name, count: rs.length, value: paidValue(rs, scope.ctx), tone };
     };
     return [
       bucket('New', (r) => r.status === 'New', 'info'),
@@ -93,7 +99,7 @@ export function Retention({ scope }: { scope: Scope }) {
     const act = rows.filter((r) => r.active);
     return RISK_BANDS.map((b) => {
       const rs = act.filter((r) => (r.risk_score ?? 0) >= b.lo && (r.risk_score ?? 0) < b.hi);
-      return { ...b, rows: rs, count: rs.length, value: rs.reduce((a, r) => a + (r.amount_paid ?? 0), 0),
+      return { ...b, rows: rs, count: rs.length, value: paidValue(rs, scope.ctx),
         util: metricValues(rs, ['utilisation'], scope.ctx).utilisation.value,
         absent: metricValues(rs, ['avg_days_since_visit'], scope.ctx).avg_days_since_visit.value };
     });
@@ -121,7 +127,7 @@ export function Retention({ scope }: { scope: Scope }) {
     const churned = rows.filter((r) => r.churned && r.duration_days !== null);
     return bands.map(([lo, hi, label]) => {
       const rs = churned.filter((r) => (r.duration_days ?? 0) >= lo && (r.duration_days ?? 0) < hi);
-      return { label, n: rs.length, value: rs.reduce((a, r) => a + (r.amount_paid ?? 0), 0),
+      return { label, n: rs.length, value: paidValue(rs, scope.ctx),
         util: metricValues(rs, ['utilisation'], scope.ctx).utilisation.value };
     });
   }, [rows, scope.ctx]);
@@ -151,7 +157,7 @@ export function Retention({ scope }: { scope: Scope }) {
       { k: 'Days since last visit', s: avg(stayed, (m) => m.daysSince), g: avg(gone, (m) => m.daysSince), fmt: 'days' as const, higher: false },
       { k: 'Lifetime spend', s: avg(stayed, (m) => m.spend), g: avg(gone, (m) => m.spend), fmt: 'currency' as const, higher: true },
       { k: 'Memberships bought', s: avg(stayed, (m) => m.memberships), g: avg(gone, (m) => m.memberships), fmt: 'decimal' as const, higher: true },
-      { k: 'Formats used', s: avg(stayed, (m) => m.types.size), g: avg(gone, (m) => m.types.size), fmt: 'decimal' as const, higher: true },
+      { k: 'Membership product types bought', s: avg(stayed, (m) => m.types.size), g: avg(gone, (m) => m.types.size), fmt: 'decimal' as const, higher: true },
       { k: 'Discount taken', s: avg(stayed, (m) => (m.original ? m.discount / m.original : null)), g: avg(gone, (m) => (m.original ? m.discount / m.original : null)), fmt: 'percent' as const, higher: false },
       { k: 'Freezes used', s: avg(stayed, (m) => m.frozen), g: avg(gone, (m) => m.frozen), fmt: 'decimal' as const, higher: false },
     ];
@@ -196,7 +202,7 @@ export function Retention({ scope }: { scope: Scope }) {
     .filter((n) => n.rows.length >= 20).sort((a, b) => (b.values.churn_rate.value ?? 0) - (a.values.churn_rate.value ?? 0)), [rows, scope.ctx]);
   const expiry = useMemo(() => rows.filter((r) => r.active && r.end_ts !== null && r.end_ts >= scope.ctx.todayTs && r.end_ts <= scope.ctx.todayTs + 60 * 864e5)
     .sort((a, b) => a.end_ts! - b.end_ts!), [rows, scope.ctx.todayTs]);
-  const zero = useMemo(() => rows.filter((r) => r.active && (r.completed ?? 0) === 0 && (r.days_elapsed ?? 0) > 7 && (r.amount_paid ?? 0) > 0)
+  const zero = useMemo(() => rows.filter((r) => r.active && (r.completed ?? 0) === 0 && (r.days_elapsed ?? 0) > scope.ctx.zeroUsageDays && (r.amount_paid ?? 0) > 0)
     .sort((a, b) => (b.amount_paid ?? 0) - (a.amount_paid ?? 0)), [rows]);
   const winback = useMemo(() => members.filter((m) => m.churned && !m.active && m.spend > 0 && m.contactable)
     .sort((a, b) => b.spend - a.spend).slice(0, 40), [members]);
@@ -226,7 +232,7 @@ export function Retention({ scope }: { scope: Scope }) {
     const pending = due.filter((r) => !r.renewed && !r.churned && r.status !== 'Lapsed' && r.status !== 'Frozen' && r.status !== 'Not Activated').length;
     const decided = renewed + lapsed;
     return { month, due: due.length, renewed, lapsed, frozen, notActivated, pending, rate: decided ? renewed / decided : null,
-      value: due.reduce((a, r) => a + (r.amount_paid ?? 0), 0) };
+      value: paidValue(due, scope.ctx) };
   }), [renewalMonths, scope.all.lapsed]);
 
   if (!rows.length && !scope.all.lapsed.length) return <div style={{ paddingTop: 20 }}><SectionEmpty what="memberships" scope={scope} /></div>;
@@ -365,7 +371,8 @@ export function Retention({ scope }: { scope: Scope }) {
           alive={(r, o) => !(r.churned && (r.duration_days ?? 0) < o * 30)} scope={scope} valueLabel="still active" />
       </Register>
 
-      <Register title="Month on month" index="⑧ Trend" domain="risk" lazy>
+      <Register title="Month on month" index="⑧ Trend" domain="risk" lazy
+        subtitle="Memberships are grouped by the month they were purchased, and every status column reads each membership's status today. This is therefore today's outcome by purchase cohort — &ldquo;of the memberships bought in March, how many are active or churned now&rdquo; — not a month-by-month history of the active base. The source carries no status history to reconstruct that from.">
         <MoMTable rows={scope.all.lapsed} metricIds={['new_memberships', 'active_memberships', 'churned_memberships', 'churn_rate', 'renewal_rate', 'gross_revenue_retention', 'utilisation', 'liability', 'member_ltv']}
           months={months} ctx={scope.ctx} domain="risk" />
       </Register>
@@ -374,7 +381,7 @@ export function Retention({ scope }: { scope: Scope }) {
         subtitle="Four lists, each sorted so the first row is the most valuable call you can make today.">
         <div className="subgrid">
           <DataPanel title={`Save list — ${worklist.length} active memberships at or above the ${scope.ctx.riskHigh} risk threshold`}
-            subtitle={`${fmtCurrency(worklist.reduce((a, r) => a + (r.amount_paid ?? 0), 0))} of paid membership value`} maxHeight={360}>
+            subtitle={`${fmtCurrency(paidValue(worklist, scope.ctx))} of paid membership value`} maxHeight={360}>
             <table className="tbl">
               <thead><tr><th className="t-heading-s">Member</th><th className="t-heading-s">Membership</th><th className="t-heading-s">Risk</th><th className="t-heading-s">Used</th><th className="t-heading-s">Absent</th><th className="t-heading-s">Ends</th><th className="t-heading-s">Paid</th></tr></thead>
               <tbody>{worklist.map((r, i) => (
@@ -388,14 +395,14 @@ export function Retention({ scope }: { scope: Scope }) {
             </table>
           </DataPanel>
           <Two
-            a={<DataPanel title={`Expiring in 60 days — ${expiry.length}`} subtitle={`${fmtCurrency(expiry.reduce((a, r) => a + (r.amount_paid ?? 0), 0))} up for renewal`} maxHeight={320}>
+            a={<DataPanel title={`Expiring in 60 days — ${expiry.length}`} subtitle={`${fmtCurrency(paidValue(expiry, scope.ctx))} up for renewal`} maxHeight={320}>
               <table className="tbl">
                 <thead><tr><th className="t-heading-s">Member</th><th className="t-heading-s">Ends</th><th className="t-heading-s">Used</th><th className="t-heading-s">Paid</th></tr></thead>
                 <tbody>{expiry.slice(0, 60).map((r, i) => <tr key={i}><td className="t-body-s">{r.member_name}</td><td className="t-num">{fmtDate(r.end_date)}</td>
                   <td className="t-num">{formatValue('percent', r.sessions_limit ? (r.completed ?? 0) / r.sessions_limit : r.used_pct)}</td><td className="t-num">{fmtCurrency(r.amount_paid)}</td></tr>)}</tbody>
               </table>
             </DataPanel>}
-            b={<DataPanel title={`Never used — ${zero.length}`} subtitle={`${fmtCurrency(zero.reduce((a, r) => a + (r.amount_paid ?? 0), 0))} bought and untouched after a week`} maxHeight={320}>
+            b={<DataPanel title={`Never used — ${zero.length}`} subtitle={`${fmtCurrency(paidValue(zero, scope.ctx))} bought and untouched for more than ${scope.ctx.zeroUsageDays} days`} maxHeight={320}>
               <table className="tbl">
                 <thead><tr><th className="t-heading-s">Member</th><th className="t-heading-s">Membership</th><th className="t-heading-s">Started</th><th className="t-heading-s">Paid</th></tr></thead>
                 <tbody>{zero.slice(0, 60).map((r, i) => <tr key={i}><td className="t-body-s">{r.member_name}</td><td className="t-body-s">{r.membership_name}</td>

@@ -16,8 +16,8 @@ import { runRules, isDismissed } from '../insights/engine';
 import { InsightCard } from '../components/InsightCard/InsightCard';
 import { Sparkline } from '../components/MetricCard/MetricCard';
 
-const HEADLINE = ['gross_revenue', 'attendance', 'fill_rate', 'new_clients', 'conversion_rate', 'active_memberships', 'churn_rate', 'sessions', 'empty_session_rate', 'aov', 'second_visit_rate', 'revenue_at_risk_30d'];
-const TABLE_OF: Record<string, 'sessions' | 'sales' | 'newc' | 'lapsed'> = { gross_revenue: 'sales', attendance: 'sessions', fill_rate: 'sessions', new_clients: 'newc', conversion_rate: 'newc', active_memberships: 'lapsed', churn_rate: 'lapsed', sessions: 'sessions', empty_session_rate: 'sessions', aov: 'sales', second_visit_rate: 'newc', revenue_at_risk_30d: 'lapsed' };
+const HEADLINE = ['gross_revenue', 'visits', 'fill_rate', 'new_clients', 'conversion_rate', 'active_memberships', 'churn_rate', 'sessions', 'empty_session_rate', 'aov', 'second_visit_rate', 'revenue_at_risk_30d'];
+const TABLE_OF: Record<string, 'sessions' | 'sales' | 'newc' | 'lapsed' | 'visits'> = { gross_revenue: 'sales', visits: 'visits', fill_rate: 'sessions', new_clients: 'newc', conversion_rate: 'newc', active_memberships: 'lapsed', churn_rate: 'lapsed', sessions: 'sessions', empty_session_rate: 'sessions', aov: 'sales', second_visit_rate: 'newc', revenue_at_risk_30d: 'lapsed' };
 
 let ribbonPlayed = false;
 
@@ -36,20 +36,35 @@ export function Overview({ scope }: { scope: Scope }) {
     return days;
   }, [scope]);
 
+  /* Volume and price already explain the revenue change exactly:
+       (txCur − txPrev)·aovPrev + (aovCur − aovPrev)·txCur ≡ curRev − prevRev
+     Adding mix, new-member sales and an assumed churn exposure on top forced "Other" to become a
+     balancing plug, not a driver. Those three overlap with volume and price and with each other,
+     so they are reported beside the bridge as context, never as bars inside it. */
   const bridge = useMemo(() => {
     const cur = scope.tables.sales; const prev = scope.compare.sales;
-    const g = (rows: Row[]) => rows.reduce((a, r) => a + (r.value ?? 0), 0);
-    const prevRev = g(prev); const curRev = g(cur);
-    const txPrev = new Set(prev.map((r) => r.sale_id)).size || 1; const txCur = new Set(cur.map((r) => r.sale_id)).size || 1;
+    const v = (rows: Row[]) => metricValues(rows, ['gross_revenue', 'transactions'], scope.ctx);
+    const vc = v(cur); const vp = v(prev);
+    const prevRev = vp.gross_revenue.value ?? 0; const curRev = vc.gross_revenue.value ?? 0;
+    const txPrev = vp.transactions.value || 1; const txCur = vc.transactions.value || 1;
     const aovPrev = prevRev / txPrev; const aovCur = curRev / txCur;
     const volume = (txCur - txPrev) * aovPrev; const price = (aovCur - aovPrev) * txCur;
+    return [{ label: scope.period.prevLabel, value: prevRev, total: true }, { label: 'Volume', value: volume }, { label: 'Price', value: price }, { label: 'Current', value: curRev, total: true }];
+  }, [scope]);
+
+  /* Overlapping context, each measured on its own terms and never summed with the bridge. */
+  const bridgeContext = useMemo(() => {
+    const cur = scope.tables.sales; const prev = scope.compare.sales;
+    const g = (rows: Row[]) => metricValues(rows, ['gross_revenue'], scope.ctx).gross_revenue.value ?? 0;
     const newIds = new Set(scope.tables.newc.filter((r) => r.is_new).map((r) => r.member_id));
-    const newRev = g(cur.filter((r) => newIds.has(r.member_id)));
-    const memShare = (rows: Row[]) => (g(rows) ? g(rows.filter((r) => r.category === 'Memberships')) / g(rows) : 0);
-    const mix = (memShare(cur) - memShare(prev)) * curRev;
-    const churn = -scope.tables.lapsed.filter((r) => r.churned_date && r.churned_date >= scope.period.start && r.churned_date <= scope.period.end).reduce((a, r) => a + (r.amount_paid ?? 0), 0) * 0.25;
-    const residual = curRev - prevRev - volume - price - mix - newRev - churn;
-    return [{ label: scope.period.prevLabel, value: prevRev, total: true }, { label: 'Volume', value: volume }, { label: 'Price', value: price }, { label: 'Mix', value: mix }, { label: 'New members', value: newRev }, { label: 'Churn', value: churn }, { label: 'Other', value: residual }, { label: 'Current', value: curRev, total: true }];
+    // Category shares use the allocated metric, so a mixed-category sale contributes exactly once.
+    const memShare = (rows: Row[]) => metricValues(rows, ['membership_rev_share'], scope.ctx).membership_rev_share.value ?? 0;
+    const churned = scope.tables.lapsed.filter((r) => r.churned_date && r.churned_date >= scope.period.start && r.churned_date <= scope.period.end);
+    return [
+      { label: 'Sales to first-time members', value: g(cur.filter((r) => newIds.has(r.member_id))), note: 'Part of the volume and price movement above, not additional to it.' },
+      { label: 'Membership share of revenue', value: null as number | null, pct: memShare(cur), delta: memShare(cur) - memShare(prev), note: 'A mix shift inside the same revenue, so it cannot add rupees to the bridge.' },
+      { label: 'Amount paid on memberships that churned this period', value: churned.reduce((a, r) => a + (r.amount_paid ?? 0), 0), note: `${churned.length.toLocaleString('en-IN')} memberships. Revenue already banked — exposure for future periods, not a deduction from this one.` },
+    ];
   }, [scope]);
 
   // Location → Domain → Metric table (custom nodes)
@@ -63,8 +78,16 @@ export function Overview({ scope }: { scope: Scope }) {
   const movers = useMemo(() => {
     const out: { label: string; value: number; sub: string }[] = [];
     const push = (label: string, cur: number | null, prev: number | null, sub: string) => { if (cur !== null && prev !== null) out.push({ label, value: cur - prev, sub }); };
-    for (const [k, rows] of new Map(rollupLevel(scope.tables.sales, ['product'], 0, ['gross_revenue'], scope.ctx).map((n) => [n.key, n.rows]))) { const prev = scope.compare.sales.filter((r) => r.product === k); push(k, rows.reduce((a, r) => a + (r.value ?? 0), 0), prev.reduce((a, r) => a + (r.value ?? 0), 0), 'product'); }
-    for (const n of rollupLevel(scope.tables.sessions, ['trainer'], 0, ['revenue'], scope.ctx)) { const prev = scope.compare.sessions.filter((r) => r.trainer === n.key); push(n.key, n.values.revenue.value, prev.reduce((a, r) => a + (r.revenue ?? 0), 0), 'trainer'); }
+    /* Allocated revenue, not a raw line-item sum: a product's movement has to reconcile with the
+       product table and with the bridge above it. */
+    for (const n of rollupLevel(scope.tables.sales, ['product'], 0, ['category_revenue'], scope.ctx)) {
+      const prev = scope.compare.sales.filter((r) => r.product === n.key);
+      push(n.key, n.values.category_revenue.value, metricValues(prev, ['category_revenue'], scope.ctx).category_revenue.value, 'product');
+    }
+    for (const n of rollupLevel(scope.tables.sessions, ['trainer'], 0, ['revenue'], scope.ctx)) {
+      const prev = scope.compare.sessions.filter((r) => r.trainer === n.key);
+      push(n.key, n.values.revenue.value, metricValues(prev, ['revenue'], scope.ctx).revenue.value, 'trainer');
+    }
     return out.sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 12);
   }, [scope]);
 
@@ -92,14 +115,22 @@ export function Overview({ scope }: { scope: Scope }) {
       <div style={{ padding: '8px 0 0' }}>
         <PulseRibbon days={ribbon} played={played} onPlayed={() => { ribbonPlayed = true; setPlayed(true); }} onRange={(s, e) => set({ preset: 'custom', start: s, end: e })} />
       </div>
-      <Register title="Business state" subtitle={`${scope.period.label} vs ${scope.period.prevLabel}`} domain="attendance">
-        <MixedKpiStrip scope={scope} items={[{ table: 'sales', id: 'gross_revenue' }, { table: 'sessions', id: 'attendance' }, { table: 'sessions', id: 'fill_rate' }, { table: 'newc', id: 'new_clients' }, { table: 'newc', id: 'conversion_rate' }, { table: 'lapsed', id: 'active_memberships' }]} />
+      <Register title="Business state" subtitle={`${scope.period.label} vs ${scope.period.prevLabel}. New clients and conversion count everyone who had a first visit in the period, including people who joined too recently to have returned or bought — the Acquisition tab holds those back, so its rates read higher. Active memberships counts live membership records, not members who visited.`} domain="attendance">
+        <MixedKpiStrip scope={scope} items={[{ table: 'sales', id: 'gross_revenue' }, { table: 'sales', id: 'aov' }, { table: 'visits', id: 'visits' }, { table: 'sessions', id: 'fill_rate' }, { table: 'newc', id: 'new_clients' }, { table: 'newc', id: 'conversion_rate' }, { table: 'lapsed', id: 'active_memberships' }, { table: 'lapsed', id: 'churn_rate' }]} />
       </Register>
-      <Register title="Why revenue moved" subtitle="Bridge from the comparison period to now: volume, price, mix, new members, churn" domain="revenue">
-        <ChartModule title="Revenue bridge" table={{ columns: ['Step', 'Value'], rows: bridge.map((b) => [b.label, Math.round(b.value)]) }}>
+      <Register title="Why revenue moved" subtitle="Volume and price account for the whole change between the two periods. Mix, first-time sales and churn exposure overlap with them, so they are shown separately below rather than added in." domain="revenue">
+        <ChartModule title="Revenue bridge" subtitle="Exhaustive: opening revenue + volume + price = closing revenue, with no residual" table={{ columns: ['Step', 'Value'], rows: bridge.map((b) => [b.label, Math.round(b.value)]) }}>
           <Waterfall steps={bridge} />
         </ChartModule>
-        <div className="t-label-s faint" style={{ marginTop: 6 }}>Volume = Δtransactions × prior AOV · Price = ΔAOV × current transactions · Mix = Δmembership share × current revenue · New members = gross from first-time clients in period · Churn = 25% of value churned in period, a proxy for lost renewals.</div>
+        <div className="t-label-s faint" style={{ marginTop: 6 }}>Volume = Δtransactions × prior AOV · Price = ΔAOV × current transactions. The two are exhaustive by construction, so there is no residual to report.</div>
+        <div style={{ marginTop: 14 }}>
+          <div className="t-heading-s" style={{ marginBottom: 4 }}>Context — overlapping with the bridge, not additional to it</div>
+          <table className="tbl"><tbody>{bridgeContext.map((c) => <tr key={c.label}>
+            <td className="t-body-s">{c.label}</td>
+            <td className="t-num">{c.value !== null ? fmtCurrency(c.value) : `${formatValue('percent', c.pct ?? null)} (${(c.delta ?? 0) >= 0 ? '+' : ''}${formatValue('pp', c.delta ?? null)})`}</td>
+            <td className="t-label-s faint">{c.note}</td>
+          </tr>)}</tbody></table>
+        </div>
       </Register>
       <Register title="Location scorecard" subtitle="Location → domain → metric, with 13-month shape and rank" domain="attendance" id="drill-table">
         <NestedTable title="Location scorecard" rows={locTable.map((r) => ({ ...r, location: r.location, domainLabel: r.domain, metricLabel: metric(r.metric).label }))} table="sessions" groupKeys={['ov_location', 'ov_domain', 'ov_metric']} availableKeys={['ov_location', 'ov_domain', 'ov_metric']} columns={columns} ctx={scope.ctx} domain="attendance" filtersLabel={filtersLabel(scope)} maxHeight={520} />
@@ -134,7 +165,7 @@ function MultiTableMoM({ scope, months }: { scope: Scope; months: string[] }) {
 function PnL({ scope }: { scope: Scope }) {
   const rows = useMemo(() => {
     const locs = [...new Set([...scope.tables.sales.map((r) => r.location), ...scope.tables.sessions.map((r) => r.location)].filter(Boolean))] as string[];
-    return locs.map((l) => { const sales = metricValues(scope.tables.sales.filter((r) => r.location === l), ['gross_revenue', 'net_revenue', 'discount_value'], scope.ctx); const sess = metricValues(scope.tables.sessions.filter((r) => r.location === l), ['sessions', 'attendance', 'fill_rate'], scope.ctx); const cost = (sess.sessions.value ?? 0) * scope.ctx.ratePerSession; return { l, gross: sales.gross_revenue.value, net: sales.net_revenue.value, disc: sales.discount_value.value, sessions: sess.sessions.value, fill: sess.fill_rate.value, cost, contrib: (sales.net_revenue.value ?? 0) - cost }; }).sort((a, b) => (b.gross ?? 0) - (a.gross ?? 0));
+    return locs.map((l) => { const sales = metricValues(scope.tables.sales.filter((r) => r.location === l), ['gross_revenue', 'net_revenue', 'discount_value'], scope.ctx); const sess = metricValues(scope.tables.sessions.filter((r) => r.location === l), ['sessions', 'fill_rate'], scope.ctx); const cost = (sess.sessions.value ?? 0) * scope.ctx.ratePerSession; return { l, gross: sales.gross_revenue.value, net: sales.net_revenue.value, disc: sales.discount_value.value, sessions: sess.sessions.value, fill: sess.fill_rate.value, cost, contrib: (sales.net_revenue.value ?? 0) - cost }; }).sort((a, b) => (b.gross ?? 0) - (a.gross ?? 0));
   }, [scope]);
   return (
     <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Location P&L (trainer cost at the assumed rate)</div>

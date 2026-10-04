@@ -1,8 +1,9 @@
-/* Fetch every tab by title, validate the header against the declared schema, cache raw CSV for 15 minutes.
+/* Fetch every tab by title, validate the header against the declared schema, cache raw CSV until
+   the operator explicitly asks for fresh data.
    Memory discipline: the raw CSV text and the parsed row array for a sheet are released the moment that
    sheet has been mapped. Holding all of them at once costs well over a gigabyte at these volumes. */
 import { makeRowView, parseCsv, readHeader } from './csv';
-import { CACHE_TTL_MS, SHEETS, type SheetConfig } from './sheets.config';
+import { SHEETS, type SheetConfig } from './sheets.config';
 import { readOverrides, resolveConfig, resolveUrl } from './sources';
 import type { Dataset, Defect, SheetKey, SheetLoad } from './types';
 import {
@@ -20,7 +21,9 @@ async function readCache(url: string): Promise<{ text: string; at: number } | nu
     const res = await c.match(url);
     if (!res) return null;
     const at = Number(res.headers.get('x-floor-cached-at') ?? 0);
-    if (!at || Date.now() - at > CACHE_TTL_MS) return null;
+    if (!at) return null;
+    /* No time-based expiry. A cached sheet is served however old it is; only an explicit
+       refresh — the Reload button, or a hard refresh of the page — goes back to the network. */
     return { text: await res.text(), at };
   } catch { return null; }
 }
@@ -145,6 +148,13 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
         load.status = out.length ? 'ok' : 'empty';
         if (!out.length) { load.error = `Tab "${cfg.title}" loaded but holds only a header row.`; load.hint = 'Populate the tab; the modules render as soon as rows exist.'; }
       }
+    } else if (r.text !== null) {
+      /* The fetch succeeded but no mapper consumes this sheet. Reporting it as still "pending"
+         implied a load that never finishes; it is read and deliberately unused. */
+      validateHeader(cfg, r.text, load);
+      load.status = 'unused';
+      load.rows = Math.max(0, r.text.split('\n').filter((line) => line.trim()).length - 1);
+      load.hint = `Fetched successfully and deliberately not ingested: nothing in the app reads "${cfg.title}". Its source-defined calculations are not reconciled against the app's own.`;
     }
     (r as { text: string | null }).text = null;
     onProgress?.([...loads], `Prepared ${cfg.title}`);
@@ -228,12 +238,20 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
     rowsAffected: netMismatch,
     impact: 'Net of VAT is derived as Payment Value − Payment VAT, falling back to unit price × quantity, so it can never exceed gross. The sheet column is retained only for this check.', status: 'mitigated' });
 
-  // "today" = latest observation across the sheets; every relative period keys off it, not the clock.
+  /* Operational "today" is the IST wall clock. It used to be the latest timestamp in the sheets,
+     which the schedule pushes into the future: classes booked for next week became part of the
+     current period, every one of them with zero attendance, and fill rate collapsed. The latest
+     observation is still useful — but as source freshness, reported separately. */
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const todayTs = Date.parse(`${today}T00:00:00Z`);
   let maxTs = 0;
-  const horizon = Date.now() + 864e5 * 400;
-  for (const arr of [sessions, checkins, sales, newc] as { ts: number | null }[][]) for (const r of arr) if (r.ts && r.ts > maxTs && r.ts < horizon) maxTs = r.ts;
-  const todayTs = maxTs || Date.now();
-  const today = new Date(todayTs).toISOString().slice(0, 10);
+  for (const arr of [sessions, checkins, sales, newc] as { ts: number | null }[][]) for (const r of arr) if (r.ts && r.ts > maxTs && r.ts <= todayTs) maxTs = r.ts;
+  const dataThrough = maxTs ? new Date(maxTs).toISOString().slice(0, 10) : today;
+  const scheduledAhead = (sessions as { date: string | null }[]).filter((r) => r.date !== null && r.date > today).length;
+  if (scheduledAhead) defects.push({ id: 'sessions-scheduled-ahead', sheet: 'Sessions', column: 'Date',
+    description: `${scheduledAhead.toLocaleString('en-IN')} session occurrences are dated after today — they are on the timetable but have not happened yet.`,
+    rowsAffected: scheduledAhead,
+    impact: 'Every relative period now ends at the IST date, so scheduled occurrences stay out of held-session, empty-session, fill and no-show figures. A custom period with an end date in the future will include them.', status: 'mitigated' });
 
   const lapsed = await consume('lapsed', (r) => mapLapsedRow(r, todayTs));
   const leads = await consume('leads', (r) => mapLeadRow(r, todayTs));
@@ -283,7 +301,7 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
   }
 
   onProgress?.([...loads], 'Ready');
-  return { visits, sessions, checkins, sales, newc, lapsed, payroll, leads, bookings, loads, defects, today, todayTs, loadedAt: Date.now() };
+  return { visits, sessions, checkins, sales, newc, lapsed, payroll, leads, bookings, loads, defects, today, todayTs, dataThrough, loadedAt: Date.now() };
 }
 
 /** Offline assembly used by scripts/render-test.mts — same code path, CSV text in, Dataset out. */

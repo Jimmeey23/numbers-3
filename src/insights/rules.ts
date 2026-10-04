@@ -13,9 +13,15 @@ export interface Insight {
   impactINR: number; n?: number; tab: TabId; linkFilters: Transient[];
   /** What the rupee figure means. Only like bases may be summed. */
   basis?: ImpactBasis;
-  /** Member ids (or other stable keys) this insight claims, so the engine can net out overlap. */
-  claims?: string[];
+  /** The members this insight claims and what each contributes to its rupee figure, so overlap is
+   *  netted on real amounts rather than on a head count. */
+  claims?: { id: string; value: number }[];
 }
+/** Claim rows that carry a stable member id, keeping the rupees each one contributes. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const claimsOf = (rows: any[], value: (r: any) => number) =>
+  rows.filter((r) => r.member_id).map((r) => ({ id: r.member_id as string, value: value(r) }));
+
 export interface Rule { id: string; label: string; tab: TabId; run: (s: Scope, t: Thresholds) => Insight[] }
 
 const mk = (rule: string, entity: string, rest: Omit<Insight, 'key' | 'rule' | 'entity'>): Insight => ({ key: `${rule}:${entity}`, rule, entity, ...rest });
@@ -77,26 +83,34 @@ export const RULES: Rule[] = [
       const v = metricValues(rows, ['median_response_hours'], s.ctx); const h = v.median_response_hours.value;
       if (h === null || h <= t.leadResponseHours) continue;
       const gap = frAll !== null && srAll !== null ? Math.max(0, frAll - srAll) : 0;
-      const impact = rows.length * gap * 12599;
+      const impact = rows.length * gap * s.ctx.medianFirstMembership;
       out.push(mk('slow_lead', k, {
         severity: impact > 50000 ? 'critical' : 'attention', tab: 'leads',
         title: `${k} answers leads in ${h.toFixed(0)} hours on median, against a ${t.leadResponseHours}-hour target`,
-        body: lift ? `Across the book, leads answered within an hour convert at ${lift.toFixed(1)}× the rate of slower ones (${fmtPercent(frAll)} against ${fmtPercent(srAll)}). This associate holds ${rows.length} leads.`
-                   : `This associate holds ${rows.length} leads and none were answered inside the target.`,
+        body: (() => {
+          // Count what actually happened rather than asserting it: the studio-wide lift being
+          // unmeasurable says nothing about whether this associate answered anyone in time.
+          const within = rows.filter((r) => r.response_hours !== null && r.response_hours <= t.leadResponseHours).length;
+          const unanswered = rows.filter((r) => r.response_hours === null).length;
+          const detail = `${within} of ${rows.length} were answered inside the ${t.leadResponseHours}-hour target${unanswered ? `, and ${unanswered} have no logged follow-up at all` : ''}.`;
+          return lift
+            ? `Across the book, leads answered within an hour convert at ${lift.toFixed(1)}× the rate of slower ones (${fmtPercent(frAll)} against ${fmtPercent(srAll)}). ${detail}`
+            : `There are too few fast answers across the book to measure a conversion lift. ${detail}`;
+        })(),
         action: 'Set a one-hour first-touch SLA and route overflow to whoever is fastest this week.',
         impactINR: impact, n: rows.length, linkFilters: [{ dim: 'associate', value: k }],
       }));
     }
     // Only the three worst offenders reach the rail; the rest are visible on the Leads tab.
     return out.sort((a, b) => b.impactINR - a.impactINR).slice(0, 3); } },
-  { id: 'untouched', label: 'Untouched leads', tab: 'leads', run: (s) => { const v = metricValues(s.tables.leads, ['untouched_leads', 'lead_conversion_rate'], s.ctx); const n = v.untouched_leads.value ?? 0; if (!n) return []; const val = n * (v.lead_conversion_rate.value ?? 0.1) * 12599; return [mk('untouched', 'Leads', { severity: 'critical', tab: 'leads', title: `${n} leads have had no contact for more than 48 hours`, body: `At the current ${fmtPercent(v.lead_conversion_rate.value)} win rate these are worth about ${fmtCurrency(val)}.`, action: 'Work the untouched list today, newest first.', impactINR: val, n, linkFilters: [] })]; } },
+  { id: 'untouched', label: 'Untouched leads', tab: 'leads', run: (s, t) => { const v = metricValues(s.tables.leads, ['untouched_leads', 'lead_conversion_rate'], s.ctx); const n = v.untouched_leads.value ?? 0; if (!n) return []; const val = n * (v.lead_conversion_rate.value ?? 0.1) * s.ctx.medianFirstMembership; return [mk('untouched', 'Leads', { severity: 'critical', tab: 'leads', title: `${n} leads have had no contact for more than ${t.untouchedHours} hours`, body: `At the current ${fmtPercent(v.lead_conversion_rate.value)} win rate these are worth about ${fmtCurrency(val)}.`, action: 'Work the untouched list today, newest first.', impactINR: val, n, linkFilters: [] })]; } },
   { id: 'discount_creep', label: 'Discount creep', tab: 'sales', run: (s, t) => { const a = metricValues(s.tables.sales, ['discount_rate', 'discount_value'], s.ctx); const b = metricValues(s.compare.sales, ['discount_rate'], s.ctx); if (a.discount_rate.value === null || b.discount_rate.value === null || a.discount_rate.value - b.discount_rate.value <= t.discountCreepPp) return []; return [mk('discount_creep', 'Sales', { severity: 'attention', tab: 'sales', title: `Discounting rose from ${fmtPercent(b.discount_rate.value)} to ${fmtPercent(a.discount_rate.value)}`, body: `${fmtCurrency(a.discount_value.value)} was given away in discounts this period.`, action: 'Review who is issuing codes and cap discount depth on memberships.', impactINR: a.discount_value.value ?? 0, linkFilters: [] })]; } },
-  { id: 'dormant', label: 'Dormant actives', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && (r.days_since_last_visit ?? 0) > t.dormantDays); if (!rows.length) return []; const val = rows.reduce((a, r) => a + (r.amount_paid ?? 0), 0); return [mk('dormant', 'Active members', { severity: 'critical', tab: 'retention', title: `${rows.length} paying members haven't visited in ${t.dormantDays} days`, body: `Their current memberships are worth ${fmtCurrency(val)} and the pattern precedes most churn.`, action: 'Call the top of the dormancy worklist today; start with the highest risk score.', impactINR: val, n: rows.length, basis: 'at-risk', claims: rows.map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [{ dim: 'status', value: 'Active' }] })]; } },
-  { id: 'zero_usage', label: 'Zero-usage memberships', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && (r.completed ?? 0) === 0 && (r.days_elapsed ?? 0) > t.zeroUsageDays && (r.amount_paid ?? 0) > 0); if (!rows.length) return []; const val = rows.reduce((a, r) => a + (r.amount_paid ?? 0), 0); return [mk('zero_usage', 'Unused memberships', { severity: 'critical', tab: 'retention', title: `${rows.length} memberships bought and never used`, body: `Worth ${fmtCurrency(val)}; each started more than a week ago with zero completed sessions.`, action: 'Book their first class for them — a concierge booking converts most of these.', impactINR: val, n: rows.length, basis: 'sunk', claims: rows.map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [] })]; } },
-  { id: 'expiry_cliff', label: 'Expiry cliff', tab: 'retention', run: (s, t) => { const act = s.tables.lapsed.filter((r) => r.active); const v = metricValues(act, ['expiring_30d', 'revenue_at_risk_30d'], s.ctx); const n = v.expiring_30d.value ?? 0; if (!act.length || n / act.length <= t.expiryCliffShare) return []; const d = new Date(s.ctx.todayTs + 30 * 864e5).toISOString().slice(0, 10); return [mk('expiry_cliff', 'Renewals', { severity: 'attention', tab: 'retention', title: `${n} memberships worth ${fmtCurrency(v.revenue_at_risk_30d.value)} expire before ${fmtDate(d)}`, body: `That is ${fmtPercent(n / act.length)} of the active base ending inside 30 days.`, action: 'Run the renewal cadence now; prioritise members with high utilisation.', impactINR: v.revenue_at_risk_30d.value ?? 0, n, basis: 'at-risk', claims: act.filter((r) => r.end_ts !== null && r.end_ts >= s.ctx.todayTs && r.end_ts <= s.ctx.todayTs + 30 * 864e5).map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [] })]; } },
-  { id: 'utilisation_risk', label: 'Utilisation risk', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && r.sessions_limit && r.duration_days && r.days_elapsed !== null && r.days_elapsed >= r.duration_days / 2 && ((r.completed ?? 0) / r.sessions_limit) < t.utilisationFloor); if (rows.length < 3) return []; const val = rows.reduce((a, r) => a + (r.liability ?? 0), 0); return [mk('utilisation_risk', 'Under-users', { severity: 'attention', tab: 'retention', title: `${rows.length} members are on pace to use less than a quarter of what they bought`, body: `They are past the midpoint of their term with ${fmtCurrency(val)} of sessions still unused.`, action: 'Send a mid-term nudge with two suggested classes each.', impactINR: val, n: rows.length, basis: 'at-risk', claims: rows.map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [] })]; } },
+  { id: 'dormant', label: 'Dormant actives', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && (r.days_since_last_visit ?? 0) > t.dormantDays); if (!rows.length) return []; const val = rows.reduce((a, r) => a + (r.amount_paid ?? 0), 0); return [mk('dormant', 'Active members', { severity: 'critical', tab: 'retention', title: `${rows.length} paying members haven't visited in ${t.dormantDays} days`, body: `Their current memberships are worth ${fmtCurrency(val)} and the pattern precedes most churn.`, action: 'Call the top of the dormancy worklist today; start with the highest risk score.', impactINR: val, n: rows.length, basis: 'at-risk', claims: claimsOf(rows, (r) => r.amount_paid ?? 0), linkFilters: [{ dim: 'status', value: 'Active' }] })]; } },
+  { id: 'zero_usage', label: 'Zero-usage memberships', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && (r.completed ?? 0) === 0 && (r.days_elapsed ?? 0) > t.zeroUsageDays && (r.amount_paid ?? 0) > 0); if (!rows.length) return []; const val = rows.reduce((a, r) => a + (r.amount_paid ?? 0), 0); return [mk('zero_usage', 'Unused memberships', { severity: 'critical', tab: 'retention', title: `${rows.length} memberships bought and never used`, body: `Worth ${fmtCurrency(val)}; each started more than a week ago with zero completed sessions.`, action: 'Book their first class for them — a concierge booking converts most of these.', impactINR: val, n: rows.length, basis: 'sunk', claims: claimsOf(rows, (r) => r.amount_paid ?? 0), linkFilters: [] })]; } },
+  { id: 'expiry_cliff', label: 'Expiry cliff', tab: 'retention', run: (s, t) => { const act = s.tables.lapsed.filter((r) => r.active); const v = metricValues(act, ['expiring_30d', 'revenue_at_risk_30d'], s.ctx); const n = v.expiring_30d.value ?? 0; if (!act.length || n / act.length <= t.expiryCliffShare) return []; const d = new Date(s.ctx.todayTs + 30 * 864e5).toISOString().slice(0, 10); return [mk('expiry_cliff', 'Renewals', { severity: 'attention', tab: 'retention', title: `${n} memberships worth ${fmtCurrency(v.revenue_at_risk_30d.value)} expire before ${fmtDate(d)}`, body: `That is ${fmtPercent(n / act.length)} of the active base ending inside 30 days.`, action: 'Run the renewal cadence now; prioritise members with high utilisation.', impactINR: v.revenue_at_risk_30d.value ?? 0, n, basis: 'at-risk', claims: claimsOf(act.filter((r) => r.end_ts !== null && r.end_ts >= s.ctx.todayTs && r.end_ts <= s.ctx.todayTs + 30 * 864e5), (r) => r.amount_paid ?? 0), linkFilters: [] })]; } },
+  { id: 'utilisation_risk', label: 'Utilisation risk', tab: 'retention', run: (s, t) => { const rows = s.tables.lapsed.filter((r) => r.active && r.sessions_limit && r.duration_days && r.days_elapsed !== null && r.days_elapsed >= r.duration_days / 2 && ((r.completed ?? 0) / r.sessions_limit) < t.utilisationFloor); if (rows.length < 3) return []; const val = rows.reduce((a, r) => a + (r.liability ?? 0), 0); return [mk('utilisation_risk', 'Under-users', { severity: 'attention', tab: 'retention', title: `${rows.length} members are on pace to use less than a quarter of what they bought`, body: `They are past the midpoint of their term with ${fmtCurrency(val)} of sessions still unused.`, action: 'Send a mid-term nudge with two suggested classes each.', impactINR: val, n: rows.length, basis: 'at-risk', claims: claimsOf(rows, (r) => r.amount_paid ?? 0), linkFilters: [] })]; } },
   { id: 'first_visit_cliff', label: 'First-visit cliff', tab: 'acquisition', run: (s) => {
-    // Only judge cohorts that have had 21 days to come back — otherwise last week's joiners
+    // Only judge cohorts that have had the configured maturity window to come back — otherwise recent joiners
     // are counted as lost and the rate is meaningless.
     const mature = s.ctx.todayTs - s.ctx.matureDays * 864e5;
     const fresh = s.tables.newc.filter((r) => r.is_new && r.ts !== null && r.ts <= mature);
@@ -106,8 +120,8 @@ export const RULES: Rule[] = [
     const afp = metricValues(fresh, ['avg_first_purchase'], s.ctx).avg_first_purchase.value ?? s.ctx.medianFirstMembership;
     return [mk('first_visit_cliff', 'First visit', { severity: 'critical', tab: 'acquisition',
       title: `${fmtPercent(share)} of first-timers never come back`,
-      body: `${never.toLocaleString('en-IN')} of ${fresh.length.toLocaleString('en-IN')} people whose first class was at least three weeks ago never returned. Anyone who joined more recently is excluded, so this is a settled figure.`,
-      action: 'Book the second class before they leave the building, and follow up inside 48 hours.',
+      body: `${never.toLocaleString('en-IN')} of ${fresh.length.toLocaleString('en-IN')} people whose first class was at least ${s.ctx.matureDays} days ago never returned. Anyone who joined more recently is excluded, so this is a settled figure.`,
+      action: 'Book the second class before they leave the building, and follow up the same day.',
       impactINR: never * afp * 0.25, n: fresh.length, linkFilters: [] })];
   } },
   { id: 'renewal_ladder', label: 'Renewal ladder', tab: 'retention', run: (s) => {
@@ -133,7 +147,7 @@ export const RULES: Rule[] = [
       title: `${rows.length} memberships were paid for but never activated`,
       body: `Worth ${fmtCurrency(val)}. These members bought and then never started the clock.`,
       action: 'Activate them manually and book the first class — the membership is already paid.',
-      impactINR: val, n: rows.length, basis: 'sunk', claims: rows.map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [{ dim: 'status', value: 'Not Activated' }] })];
+      impactINR: val, n: rows.length, basis: 'sunk', claims: claimsOf(rows, (r) => r.amount_paid ?? 0), linkFilters: [{ dim: 'status', value: 'Not Activated' }] })];
   } },
   { id: 'discount_retention', label: 'Discount and retention', tab: 'retention', run: (s) => {
     const disc = s.tables.lapsed.filter((r) => (r.discount_value ?? 0) > 0 && (r.original_amount ?? 0) > 0);
@@ -158,7 +172,7 @@ export const RULES: Rule[] = [
       title: `${rows.length} active memberships worth ${fmtCurrency(val)} score ${s.ctx.riskHigh} or above on churn risk`,
       body: `${contactable} of them are contactable. Risk blends low utilisation, long absence, cancellations and poor attendance.`,
       action: 'Work the save list on the Retention tab, highest score first.',
-      impactINR: val, n: rows.length, basis: 'at-risk', claims: rows.map((r) => r.member_id).filter(Boolean) as string[], linkFilters: [] })];
+      impactINR: val, n: rows.length, basis: 'at-risk', claims: claimsOf(rows, (r) => r.amount_paid ?? 0), linkFilters: [] })];
   } },
   { id: 'no_show_cluster', label: 'No-show cluster', tab: 'bookings', run: (s, t) => { const out: Insight[] = []; for (const [k, rows] of groupRows(s.tables.bookings, GROUP_KEYS.slot)) { if (rows.length < 10) continue; const v = metricValues(rows, ['b_no_show_rate', 'b_no_show'], s.ctx); const r = v.b_no_show_rate.value; if (r === null || r <= t.noShowRate) continue; out.push(mk('no_show_cluster', slotLabel(k), { severity: 'attention', tab: 'bookings', title: `${slotLabel(k)} loses ${fmtPercent(r)} of bookings to no-shows`, body: `${v.b_no_show.value} seats were blocked by no-shows across ${rows.length} bookings.`, action: 'Enable a waitlist and a 12-hour reminder for this slot.', impactINR: (v.b_no_show.value ?? 0) * (metricValues(s.tables.sessions, ['rev_pac'], s.ctx).rev_pac.value ?? 0), n: rows.length, linkFilters: [{ dim: 'daytime', value: k, label: slotLabel(k) }] })); } return out; } },
   { id: 'mix_shift', label: 'Revenue mix shift', tab: 'sales', run: (s, t) => { const a = metricValues(s.tables.sales, ['membership_rev_share', 'gross_revenue'], s.ctx); const b = metricValues(s.compare.sales, ['membership_rev_share'], s.ctx); if (a.membership_rev_share.value === null || b.membership_rev_share.value === null || Math.abs(a.membership_rev_share.value - b.membership_rev_share.value) <= t.mixShiftPp) return []; const up = a.membership_rev_share.value > b.membership_rev_share.value; return [mk('mix_shift', 'Revenue mix', { severity: 'context', tab: 'sales', title: `Membership revenue ${up ? 'rose' : 'fell'} from ${fmtPercent(b.membership_rev_share.value)} to ${fmtPercent(a.membership_rev_share.value)} of the total`, body: `On ${fmtCurrency(a.gross_revenue.value)} gross this period.`, action: up ? 'Recurring revenue is strengthening; protect it with renewal follow-ups.' : 'Single-class and package revenue is displacing memberships; push conversion offers.', impactINR: Math.abs(a.membership_rev_share.value - b.membership_rev_share.value) * (a.gross_revenue.value ?? 0), linkFilters: [] })]; } },

@@ -164,6 +164,12 @@ export const TABLE_DIMS: Record<TableName, (keyof Dims)[]> = {
   leads: ['location', 'trainer', 'format', 'source'],
 };
 
+/** Which global dimensions a table actually carries. A filter on a dimension the table has no
+ *  column for silently does nothing, so the UI states it rather than implying every KPI moved. */
+export const dimensionReaches = (dim: keyof Dims, table: TableName): boolean => TABLE_DIMS[table].includes(dim);
+export const tablesMissingDimension = (dim: keyof Dims): TableName[] =>
+  (Object.keys(TABLE_DIMS) as TableName[]).filter((t) => !TABLE_DIMS[t].includes(dim));
+
 export function buildPredicate(f: Filters, table: TableName, start: string, end: string) {
   const dims = TABLE_DIMS[table];
   const has = (k: keyof Dims) => dims.includes(k);
@@ -179,7 +185,12 @@ export function buildPredicate(f: Filters, table: TableName, start: string, end:
       const s = r.start_date ?? r.purchase_date; const e = r.end_date;
       if (s && s > end) return false;
       if (e && e < start && r.status !== 'Active') return false;
-    } else if (r.date !== null) { if (r.date < start || r.date > end) return false; }
+    } else {
+      // An observation with no date cannot be placed in a period. Including it made every dated
+      // window silently wider than its label.
+      if (r.date === null || r.date === undefined) return false;
+      if (r.date < start || r.date > end) return false;
+    }
     if (!f.includeImports && r.is_import) return false;
     if (has('location') && sets.location.size && !sets.location.has(r.location)) return false;
     if (has('trainer') && sets.trainer.size && !sets.trainer.has(r.trainer)) return false;
@@ -192,6 +203,8 @@ export function buildPredicate(f: Filters, table: TableName, start: string, end:
     for (const t of transient) {
       if (t.dim === 'month') { if (r.month !== t.value) return false; continue; }
       if (t.dim === 'daytime') { if (`${r.day} ${r.time}` !== t.value) return false; continue; }
+      // An hour cell means that hour, not the daypart it falls in.
+      if (t.dim === 'hour_of_day') { if (!r.time || `${String(r.time).slice(0, 2)}:00` !== t.value) return false; continue; }
       if (!(t.dim in r)) continue;                       // dimension not carried by this table
       if (String(r[t.dim]) !== t.value) return false;
     }

@@ -1,5 +1,12 @@
 # Floor — audit
 
+> **Status: historical.** This document describes a snapshot taken before the October 2026 review.
+> Several of its findings have since changed in code, and its conclusion that "the arithmetic is
+> correct" no longer reflects what was later found. Read
+> [docs/metric-audit-2026-10-04.md](docs/metric-audit-2026-10-04.md) for the current assessment and
+> [docs/metric-fixes-2026-10-04.md](docs/metric-fixes-2026-10-04.md) for what was fixed. Keep this
+> file as evidence of the earlier state, not as certification of the current one.
+
 Everything below was produced by running code against the live sheets, not by reading it. The four
 harnesses are committed and repeatable:
 

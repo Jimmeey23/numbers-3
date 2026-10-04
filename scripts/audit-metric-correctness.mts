@@ -52,10 +52,13 @@ const baseScope: any = { rowsInScope: 1, period: { start: '2026-09-01', end: '20
 runRules(baseScope, DEFAULT_THRESHOLDS);
 const refreshed = { ...baseScope, tables: { ...tables, lapsed: [{ ...dormant, amount_paid: 99999 }] }, all: { ...tables, lapsed: [{ ...dormant, amount_paid: 99999 }] } };
 check('Same-count data refresh invalidates dormant insight value', runRules(refreshed, DEFAULT_THRESHOLDS).find(i => i.rule === 'dormant')?.impactINR, 99999);
+/* Claims now carry the amount each member contributes, so netting uses real values. The declared
+   policy is a per-member maximum: a=max(100,800)=800, b=900, c=100 → 1800. */
 const impact = summariseImpact([
-  { basis: 'membership_paid', impactINR: 1000, claims: ['a', 'b'] },
-  { basis: 'membership_paid', impactINR: 900, claims: ['a', 'c'] },
+  { basis: 'membership_paid', impactINR: 1000, claims: [{ id: 'a', value: 100 }, { id: 'b', value: 900 }] },
+  { basis: 'membership_paid', impactINR: 900, claims: [{ id: 'a', value: 800 }, { id: 'c', value: 100 }] },
 ] as any);
+check('Monetary overlap netting follows the declared per-member maximum policy', impact[0]?.net, 1800);
 console.log(JSON.stringify({ fixtures: results, overlapApproximation: { calculated: impact[0]?.net, maximumPerMemberPolicy: 1800, firstClaimPolicy: 1100 } }, null, 2));
 if (process.argv[2]) {
   const snapshotDir = path.resolve(process.argv[2]);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { TABS, useView, type TabId } from '../../state/view';
+import { DEFAULT_THRESHOLDS, TABS, useView, type TabId } from '../../state/view';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -9,6 +9,8 @@ import { CardComposer, CustomCardView, useCustomCards } from '../InsightCard/Cus
 import { METRIC_LIST } from '../../semantics/metrics';
 import { useDrill } from '../../state/drill';
 import { clearCache } from '../../data/ingest';
+import { CACHE_STALE_AFTER_MS } from '../../data/sheets.config';
+import type { SheetLoad } from '../../data/types';
 import { ExportMenu } from '../ExportMenu';
 import { addCard, buildAgentApi, ENDPOINTS, readCards } from '../../api/agent';
 import { scopeLine } from '../../api/export';
@@ -77,7 +79,7 @@ export function TitleBar() {
         <button className="btn btn-xs" onClick={() => useView.getState().setReportOpen(true)} title="Generate the monthly report (R)">Report <span className="kbd">R</span></button>
         <button className="btn btn-xs" onClick={() => setSettingsOpen(true)} title="Rate card and insight thresholds">Settings</button>
         <TabExport />
-        <button className="btn btn-xs" onClick={async () => { await clearCache(); load(true); }} disabled={status === 'loading'} title="Clear the 15-minute cache and re-read every sheet">
+        <button className="btn btn-xs" onClick={async () => { await clearCache(); load(true); }} disabled={status === 'loading'} title="Re-read every sheet from Google. Sheets are otherwise served from the local cache and are never refetched on their own.">
           {status === 'loading' ? 'Refreshing…' : '↻ Refresh'}
         </button>
       </div>
@@ -189,6 +191,21 @@ export function SignalRail() {
   );
 }
 
+/** When the sheet text behind this dataset was actually fetched — not when it was last parsed. */
+const sourceFetchedAt = (loads: SheetLoad[]): number | null => {
+  const ts = loads.map((l) => l.fetchedAt).filter((t): t is number => !!t);
+  return ts.length ? Math.min(...ts) : null;
+};
+const cacheAgeTitle = (loads: SheetLoad[]): string => {
+  const cached = loads.filter((l) => l.fromCache).length;
+  const at = sourceFetchedAt(loads);
+  if (!at) return 'Sheets were read from Google during this session.';
+  const stale = Date.now() - at > CACHE_STALE_AFTER_MS;
+  return `${cached} of ${loads.length} sheets came from the local cache, read ${fmtAgo(at)}. `
+    + 'Reloading the page reuses them; press Refresh to go back to Google.'
+    + (stale ? ' This copy is more than fifteen minutes old.' : '');
+};
+
 export function StatusBar() {
   const loads = useData((s) => s.loads); const ds = useData((s) => s.dataset); const scope = useScope();
   const announcement = useView((s) => s.announcement); const setTab = useView((s) => s.setTab);
@@ -200,7 +217,7 @@ export function StatusBar() {
     <footer className="statusbar t-label-s">
       <span className="tabular" style={{ color: 'var(--text-2)' }}>{scope ? `${scope.rowsInScope.toLocaleString('en-IN')} rows in scope` : 'Loading'}</span>
       {scope && <span className="faint">{scope.period.label}</span>}
-      {ds && <span className="faint">updated {fmtAgo(ds.loadedAt)}</span>}
+      {ds && <span className="faint" title={cacheAgeTitle(loads)}>{sourceFetchedAt(loads) ? `sheets read ${fmtAgo(sourceFetchedAt(loads)!)}` : `updated ${fmtAgo(ds.loadedAt)}`}</span>}
       <span className="sheet-dots">
         {loads.map((l) => (
           <span key={l.key} className={`sheet-dot ${l.status}`} title={`${l.title}: ${l.status === 'ok' ? `${l.rows.toLocaleString('en-IN')} rows` : l.error ?? l.hint ?? l.status}`}>
@@ -273,6 +290,7 @@ export function SettingsPanel() {
     { k: 'integrityVariance', label: 'Integrity variance', pct: true, help: 'Tolerance used by source reconciliation checks.' }, { k: 'riskHigh', label: 'High-risk score', help: 'Member-risk score at which intervention becomes urgent.' },
     { k: 'matureDays', label: 'Mature acquisition days', help: 'Days allowed before judging conversion or retention.' }, { k: 'medianFirstMembership', label: 'First membership baseline (₹)', help: 'Scenario baseline used when observed values are unavailable.' },
     { k: 'coverageFloor', label: 'Minimum data coverage', pct: true, help: 'Coverage below which a metric is explicitly cautioned.' },
+    { k: 'durationDefaultMin', label: 'Assumed class length (minutes)', help: 'Used for hours-based metrics wherever the source records no usable duration.' },
   ];
   const saveAi = () => { saveAISettings(ai, apiKey.trim()); setSaved(true); window.setTimeout(() => setSaved(false), 2000); };
   return (
@@ -295,7 +313,7 @@ export function SettingsPanel() {
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Signal thresholds</h3><p>Fine-tune when deterministic alerts fire. Percent inputs are percentage points.</p></div></div>
           <div className="threshold-grid">{T.map((t) => <label key={t.k}><span>{t.label}<small>{t.help}</small></span><div className="number-suffix"><input className="input" type="number" step={t.pct ? 1 : 1} value={t.pct ? Number((thresholds[t.k] * 100).toFixed(1)) : thresholds[t.k]} onChange={(e) => setThresholds({ [t.k]: t.pct ? +e.target.value / 100 : +e.target.value })} />{t.pct && <i>%</i>}</div></label>)}</div>
-          <button className="btn btn-xs" onClick={() => setThresholds({ deadSlotFill: .2, deadSlotMinOccurrences: 8, slotDeclinePp: .15, waitlistMin: 3, dependencyShare: .6, conversionSigma: 1.5, secondVisitFloor: .4, leadResponseHours: 4, untouchedHours: 48, discountCreepPp: .05, dormantDays: 21, zeroUsageDays: 7, expiryCliffShare: .15, utilisationFloor: .25, noShowRate: .15, mixShiftPp: .08, integrityVariance: .03, riskHigh: 60, matureDays: 21, medianFirstMembership: 12599, coverageFloor: .4 })}>Restore recommended thresholds</button>
+          <button className="btn btn-xs" onClick={() => setThresholds({ ...DEFAULT_THRESHOLDS })}>Restore recommended thresholds</button>
         </section>
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Appearance & comparison</h3><p>Presentation preferences are stored on this device.</p></div></div>

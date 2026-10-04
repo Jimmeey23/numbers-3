@@ -26,7 +26,7 @@ for (const m of METRIC_LIST) {
   if (m.format === 'percent' && !['weighted', 'custom', 'avg', 'median'].includes(m.aggregation)) {
     add('high', 'rates', `"${m.id}" is a percent but aggregates as ${m.aggregation}.`);
   }
-  if (m.format === 'percent' && m.aggregation === 'avg') {
+  if (m.format === 'percent' && m.aggregation === 'avg' && !m.perRowRate) {
     add('medium', 'rates', `"${m.id}" (${m.label}) averages a per-row rate. Correct only if the source column is already a per-entity rate; otherwise it violates the weighted rule.`);
   }
   if (m.aggregation === 'weighted' && !m.den) add('high', 'rates', `"${m.id}" is weighted but declares no denominator.`);
@@ -91,8 +91,15 @@ const allSrc = [...tabFiles.map((f) => fs.readFileSync(`src/tabs/${f}`, 'utf8'))
   fs.readFileSync('src/insights/rules.ts', 'utf8'),
   fs.readFileSync('src/components/DrillPanel/DrillPanel.tsx', 'utf8'),
   fs.readFileSync('src/tabs/common.tsx', 'utf8')].join('\n');
-const unused = METRIC_LIST.filter((m) => !allSrc.includes(`'${m.id}'`));
-if (unused.length) add('low', 'registry', `${unused.length} metrics are defined but never surfaced: ${unused.map((m) => m.id).join(', ')}`);
+/* Every metric is reachable from the registry-wide surfaces — the ⌘K palette, the custom-widget
+   metric picker and Ask all enumerate METRIC_LIST — so "not named in a tab file" means "not pinned
+   to a tab", not "unreachable". Flag only metrics no surface can reach. */
+const REGISTRY_SURFACES = ['src/components/shell/Shell.tsx', 'src/components/InsightCard/CustomCards.tsx',
+  'src/components/Widgets/WidgetSection.tsx', 'src/api/agent.ts', 'src/api/resolve.ts'];
+const enumeratesRegistry = REGISTRY_SURFACES.some((f) => fs.existsSync(f) && fs.readFileSync(f, 'utf8').includes('METRIC_LIST'));
+const unpinned = METRIC_LIST.filter((m) => !allSrc.includes(`'${m.id}'`));
+if (!enumeratesRegistry && unpinned.length) add('low', 'registry', `${unpinned.length} metrics are defined but never surfaced: ${unpinned.map((m) => m.id).join(', ')}`);
+else if (unpinned.length) console.log(`\nNote: ${unpinned.length} metrics are not pinned to a tab; all remain reachable from the palette, the widget picker and Ask.`);
 
 /* ── 9. Insight rules: duplicate ids, missing tabs ─────────── */
 const ruleIds = new Map<string, number>();

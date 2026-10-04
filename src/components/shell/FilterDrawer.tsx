@@ -84,7 +84,7 @@ export function FilterStrip() {
     filters.sources.length ? `${filters.sources.length} sources` : null,
     filters.newVsReturning !== 'all' ? (filters.newVsReturning === 'new' ? 'New only' : 'Returning only') : null,
     filters.includeImports ? 'Imports included' : null,
-    filters.compare === 'none' ? 'No comparison' : `vs ${period?.prevLabel}`,
+    filters.compare === 'none' ? 'No comparison' : period ? `vs ${period.prevLabel}` : null,
   ].filter(Boolean) as string[];
 
   return (

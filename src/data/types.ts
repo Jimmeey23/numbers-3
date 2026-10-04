@@ -131,6 +131,7 @@ export interface NewRow extends Dims {
   visits_post_trial: number | null;
   late_cancels_post_trial: number | null;
   memberships_bought: number | null;
+  memberships_bought_products: string[];
   purchase_count: number | null;
   first_purchase_product: string | null;
   first_purchase_value: number | null;
@@ -167,6 +168,7 @@ export interface LapsedRow extends Dims {
   unlimited: boolean;
   purchase_date: string | null;
   start_date: string | null;
+  start_ts: number | null;
   end_date: string | null;
   end_ts: number | null;
   churned_date: string | null;
@@ -195,8 +197,10 @@ export interface LapsedRow extends Dims {
   attendance_rate: number | null;
   churned: boolean;
   active: boolean;
+  frozen: boolean;
   days_elapsed: number | null;
   risk_score: number | null;
+  risk_inputs: number;        // 0–4: how many of the risk model's inputs were observed
   liability: number | null;
   multi_location: boolean;
   renewed: boolean;
@@ -311,7 +315,7 @@ export interface SheetLoad {
   key: SheetKey;
   title: string;
   spreadsheetId: string;
-  status: 'ok' | 'error' | 'empty' | 'derived' | 'pending';
+  status: 'ok' | 'error' | 'empty' | 'derived' | 'pending' | 'unused';
   rows: number;
   columns: string[];
   expected: string[];
@@ -348,7 +352,9 @@ export interface Dataset {
   bookings: BookingRow[];
   loads: SheetLoad[];
   defects: Defect[];
-  today: string;            // max date observed across sheets (YYYY-MM-DD)
+  today: string;            // operational today, IST wall clock (YYYY-MM-DD)
   todayTs: number;
+  dataThrough: string;      // latest observation on or before today — source freshness, not "now"
+
   loadedAt: number;
 }

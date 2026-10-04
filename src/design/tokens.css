@@ -101,6 +101,10 @@
   --r-none:0; --r-xs:3px; --r-s:8px; --r-m:14px; --r-l:18px; --r-full:999px;
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px;
   --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-14:56px;
+  /* One gutter for the whole chrome — title bar, filter strip, tab rail, canvas and status bar
+     all inset by the same amount, so every edge in the app lines up. It grows with the viewport
+     rather than being capped, so a wide screen gets breathing room instead of dead space. */
+  --gutter:clamp(20px, 2.6vw, 56px);
   --m-instant:90ms; --m-quick:150ms; --m-base:220ms;
   --m-emphasis:340ms; --m-data:480ms; --m-ribbon:900ms;
   --ease-out:cubic-bezier(.2,0,.38,.9);

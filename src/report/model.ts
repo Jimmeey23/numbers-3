@@ -406,22 +406,25 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
   });
 
   /* 04 — Funnel. */
-  const fun = [K('new_clients'), K('second_visit_rate'), K('conversion_rate'), K('avg_conversion_span'), K('median_ltv'), K('zero_return_rate')];
+  const fun = [K('new_clients'), K('second_visit_rate'), K('conversion_rate'), K('median_conversion_span'), K('median_ltv'), K('zero_return_rate')];
   const fresh = (scope.tables.newc ?? []).filter((r) => r.is_new);
   const mature = fresh.filter((r) => r.ts !== null && r.ts <= scope.ctx.todayTs - scope.ctx.matureDays * 864e5);
+  const bought = mature.filter((r) => r.converted);
+  const members = bought.filter((r) => (r.memberships_bought ?? 0) > 0);
+  const observed90 = members.filter((r) => r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5);
   const stages: [string, number][] = [
     ['Leads created', (scope.tables.leads ?? []).length],
     ['Took a trial', (scope.tables.leads ?? []).filter((r) => r.trialed).length],
     ['First visit', mature.length],
     ['Came back once', mature.filter((r) => (r.visits_post_trial ?? 0) > 0).length],
-    ['Bought something', mature.filter((r) => r.converted).length],
-    ['Bought a membership', mature.filter((r) => (r.memberships_bought ?? 0) > 0).length],
-    ['Still active at 90 days', mature.filter((r) => r.converted && (r.days_active ?? 0) >= 90).length],
+    ['Bought something', bought.length],
+    ['Bought a membership', members.length],
+    ['Still active at 90 days', observed90.filter((r) => (r.days_active ?? 0) >= 90).length],
   ];
   const top = stages[0][1] || 1;
   register({
     id: 'conversion-funnel', nav: 'Funnel', no: '04', title: 'New client conversion funnel',
-    standfirst: `From enquiry to a member still training at ninety days. Cohorts younger than ${scope.ctx.matureDays} days are held back, so the rates are settled rather than optimistic.`,
+    standfirst: `From enquiry to a member still training at ninety days. The stage counts use the ${mature.length.toLocaleString('en-IN')} first visits with at least ${scope.ctx.matureDays} days of history; the KPI cards above use all ${fresh.length.toLocaleString('en-IN')} first visits in the period, which is why the two differ.`,
     kpis: fun,
     narrative: [
       sentence([
@@ -448,7 +451,11 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
         numeric: [1, 2, 3], barColumn: 1,
         note: 'Leads and trials come from the Leads sheet, everything from the first visit onward from the New sheet. '
           + 'The first two steps are not a strict cohort of the third — a lead raised this month may convert next — so read '
-          + 'them as volumes at each stage rather than as one group walking through. From the first visit down it is a single cohort.',
+          + 'them as volumes at each stage rather than as one group walking through. From the first visit down each stage is a '
+          + 'strict subset of the one above it. '
+          + (observed90.length < members.length
+            ? `The ninety-day stage is measured on the ${observed90.length.toLocaleString('en-IN')} membership buyers whose first visit is at least ninety days old; the rest have not had the time yet and are not counted as lost.`
+            : ''),
       },
       groupTable(scope, { title: 'By acquisition source', metrics: ['new_clients', 'second_visit_rate', 'conversion_rate', 'median_ltv'], groupBy: 'source', limit: 10 }),
       groupTable(scope, { title: 'By first-visit trainer', metrics: ['new_clients', 'conversion_rate', 'retention_rate'], groupBy: 'trainer', limit: 10 }),
@@ -592,8 +599,17 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
      progress. A partial month would drag any trailing mean down, so everything after the month
      being reported on is dropped before projecting. */
   const reportMonth = scope.period.end.slice(0, 7);
-  const cut = months.indexOf(reportMonth);
-  const complete = <T,>(s: T[]) => (cut >= 0 ? s.slice(0, cut + 1) : s);
+  /* A month only counts as complete when the reporting window actually covers its last day.
+     The reporting month itself is dropped for MTD and for any custom window that stops short,
+     and a report month outside the thirteen-month series drops everything after it rather than
+     silently keeping the current months (the old `cut = -1` path). */
+  const lastDayOfReportMonth = new Date(Date.UTC(+reportMonth.slice(0, 4), +reportMonth.slice(5, 7), 0)).toISOString().slice(0, 10);
+  const reportMonthComplete = scope.period.end >= lastDayOfReportMonth;
+  const idx = months.indexOf(reportMonth);
+  const cut = idx >= 0 ? (reportMonthComplete ? idx : idx - 1)
+    : months.filter((m) => m <= reportMonth).length - 1;     // report month after the series end
+  const complete = <T,>(s: T[]) => s.slice(0, Math.max(0, cut + 1));
+  const completeMonths = complete(months);
   const revSeries = complete(exec[0].spark);
   const visSeries = complete(ses[1].spark);
   const revP = project(revSeries);
@@ -605,6 +621,9 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
     standfirst: 'A projection from the trailing run, plus the money already on the books.',
     kpis: [],
     narrative: [
+      completeMonths.length < 4
+        ? `Only ${completeMonths.length} complete month${completeMonths.length === 1 ? '' : 's'} of history fall inside this report, which is not enough to project from. Widen the period to at least four complete months.`
+        : '',
       revP
         ? `On the last three months' average adjusted for the six-month trend, next month lands near ${fmtCurrency(revP.mid)}, within a range of ${fmtCurrency(revP.low)} to ${fmtCurrency(revP.high)}.`
         : 'There is not enough month-on-month history in scope to project revenue.',
@@ -616,7 +635,7 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
         `and ${formatValue('integer', pipeline.open_leads.value)} open leads carry an estimated ${fmtCurrency(pipeline.pipeline_value.value)}.`,
         'Both are decided by what happens next month, not by what happened last month.',
       ]),
-      `Method: the midpoint is the mean of the last three complete months plus the slope of the last six; the range is the larger of that slope or eight per cent of the mean. Months after ${fmtMonthShort(reportMonth)} are excluded because they are still running. It is a run-rate, not a forecast — it assumes nothing changes.`,
+      `Method: the midpoint is the mean of the last three complete months plus the slope of the last six; the range is the larger of that slope or eight per cent of the mean. History runs to ${completeMonths.length ? fmtMonthShort(completeMonths[completeMonths.length - 1]) : 'no complete month'}${reportMonthComplete ? '' : `; ${fmtMonthShort(reportMonth)} is still in progress and is excluded`}. It is a run-rate, not a forecast — it assumes nothing changes.`,
     ].filter(Boolean),
     bullets: [],
     insights: [

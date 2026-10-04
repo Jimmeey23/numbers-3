@@ -12,12 +12,12 @@ export interface Thresholds {
   deadSlotFill: number; deadSlotMinOccurrences: number; slotDeclinePp: number; waitlistMin: number; dependencyShare: number;
   conversionSigma: number; secondVisitFloor: number; leadResponseHours: number; untouchedHours: number; discountCreepPp: number;
   dormantDays: number; zeroUsageDays: number; expiryCliffShare: number; utilisationFloor: number; noShowRate: number; mixShiftPp: number; integrityVariance: number;
-  riskHigh: number; matureDays: number; medianFirstMembership: number; coverageFloor: number;
+  riskHigh: number; matureDays: number; medianFirstMembership: number; coverageFloor: number; durationDefaultMin: number;
 }
 export const DEFAULT_THRESHOLDS: Thresholds = {
   deadSlotFill: 0.2, deadSlotMinOccurrences: 8, slotDeclinePp: 0.15, waitlistMin: 3, dependencyShare: 0.6, conversionSigma: 1.5, secondVisitFloor: 0.4,
   leadResponseHours: 4, untouchedHours: 48, discountCreepPp: 0.05, dormantDays: 21, zeroUsageDays: 7, expiryCliffShare: 0.15, utilisationFloor: 0.25, noShowRate: 0.15, mixShiftPp: 0.08, integrityVariance: 0.03,
-  riskHigh: 60, matureDays: 21, medianFirstMembership: 12599, coverageFloor: 0.4,
+  riskHigh: 60, matureDays: 21, medianFirstMembership: 12599, coverageFloor: 0.4, durationDefaultMin: 55,
 };
 
 const PRESET_VIEWS: SavedView[] = [

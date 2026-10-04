@@ -21,12 +21,19 @@ const { runRules } = await import('../src/insights/engine.ts');
 const { DEFAULT_THRESHOLDS } = await import('../src/state/view.ts');
 const { useData } = await import('../src/state/data.ts');
 
-const FILES: Record<string, string> = { new: 'New', checkins: 'Checkins', bookings: 'Bookings', sales: 'Sales', lapsed: 'Lapsed', payroll: 'Payroll', leads: 'Leads' };
+/* Every configured sheet, including Sessions — omitting it forced the derived-session fallback
+   and meant the live path was never the one under test. Falls back to the synthetic fixtures from
+   `scripts/make-fixtures.mts`, so a tab is always rendered against rows: with none, no
+   aggregation, join or chart scale can fail and every tab reports "ok" while real data crashes it. */
+const FILES: Record<string, string> = { sessions: 'Sessions', recurring: 'Recurring', teacherRecurring: 'Teacher Recurring',
+  new: 'New', checkins: 'Checkins', bookings: 'Bookings', sales: 'Sales', lapsed: 'Lapsed', payroll: 'Payroll', leads: 'Leads' };
+const DIRS = [process.env.FLOOR_FIXTURES ?? '', '/tmp', '/tmp/floor-fixtures'].filter(Boolean);
 globalThis.fetch = (async (url: string) => {
   const cfg = SHEETS.find((c) => resolveUrl(c) === url);
   const f = cfg ? FILES[cfg.key] : undefined;
-  if (!f || !fs.existsSync(`/tmp/${f}.csv`)) return new Response('', { status: 401, headers: { 'content-type': 'text/html' } });
-  return new Response(fs.readFileSync(`/tmp/${f}.csv`), { status: 200, headers: { 'content-type': 'text/csv' } });
+  const hit = f ? DIRS.map((d) => `${d}/${f}.csv`).find((p2) => fs.existsSync(p2)) : undefined;
+  if (!hit) return new Response('', { status: 401, headers: { 'content-type': 'text/html' } });
+  return new Response(fs.readFileSync(hit), { status: 200, headers: { 'content-type': 'text/csv' } });
 }) as any;
 const tB = performance.now();
 const ds = await loadDataset(undefined, true);

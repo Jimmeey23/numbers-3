@@ -21,15 +21,22 @@ export function CustomWidget({ spec, scope, onEdit }: { spec: WidgetSpec; scope:
   const cmpRows = scope.compare[table] ?? [];
   const months = useMemo(() => lastNMonths(scope.today.slice(0, 7), 13), [scope.today]);
 
-  const nodes = useMemo(() => {
-    if (!spec.groupBy || !GROUP_KEYS[spec.groupBy]) return [];
+  /* `nodes` is the truncated display list; `ranked` keeps every eligible group so a
+     strongest/weakest pair is drawn from the real extremes rather than from the top N. */
+  const { nodes, ranked } = useMemo(() => {
+    if (!spec.groupBy || !GROUP_KEYS[spec.groupBy]) return { nodes: [], ranked: [] };
     const all = rollupLevel(rows, [spec.groupBy], 0, spec.metrics, scope.ctx);
     const sortId = spec.sortBy && spec.metrics.includes(spec.sortBy) ? spec.sortBy : spec.metrics[0];
+    const def = metric(sortId);
     const dir = spec.sortDir === 'asc' ? 1 : -1;
-    return all
-      .filter((n) => n.values[sortId]?.value !== null)
-      .sort((a, b) => ((a.values[sortId]?.value ?? 0) - (b.values[sortId]?.value ?? 0)) * dir)
-      .slice(0, spec.limit ?? 12);
+    const eligible = all.filter((n) => n.values[sortId]?.value !== null && n.rows.length >= def.minSample);
+    // "Best" follows the metric's own direction of improvement, so a lower-is-better metric does
+    // not label its worst performers as strongest.
+    const best = [...eligible].sort((a, b) => ((b.values[sortId]!.value ?? 0) - (a.values[sortId]!.value ?? 0)) * (def.higherIsBetter ? 1 : -1));
+    return {
+      nodes: [...eligible].sort((a, b) => ((a.values[sortId]?.value ?? 0) - (b.values[sortId]?.value ?? 0)) * dir).slice(0, spec.limit ?? 12),
+      ranked: best,
+    };
   }, [rows, spec, scope.ctx]);
 
   const trend = useMemo(() => {
@@ -129,14 +136,20 @@ export function CustomWidget({ spec, scope, onEdit }: { spec: WidgetSpec; scope:
     const items = nodes.map((n) => ({ label: n.label, value: n.values[spec.metrics[0]]?.value ?? null, sub: `${n.rows.length}` }));
     body = spec.kind === 'bar'
       ? <HBars items={items} fmt={def.format} />
-      : (
-        <div className="two-up">
-          <div><div className="t-heading-xs muted" style={{ marginBottom: 6 }}>Strongest</div>
-            <HBars items={items.slice(0, Math.ceil(items.length / 2))} fmt={def.format} /></div>
-          <div><div className="t-heading-xs muted" style={{ marginBottom: 6 }}>Weakest</div>
-            <HBars items={[...items].reverse().slice(0, Math.floor(items.length / 2))} fmt={def.format} color="var(--neg)" /></div>
-        </div>
-      );
+      : (() => {
+        const half = Math.max(1, Math.ceil(Math.min(ranked.length, spec.limit ?? 12) / 2));
+        const asItem = (n: typeof ranked[number]) => ({ label: n.label, value: n.values[spec.metrics[0]]?.value ?? null, sub: `${n.rows.length}` });
+        const strongest = ranked.slice(0, half);
+        const weakest = ranked.slice(-half).reverse().filter((n) => !strongest.includes(n));
+        return (
+          <div className="two-up">
+            <div><div className="t-heading-xs muted" style={{ marginBottom: 6 }}>Strongest of {ranked.length}</div>
+              <HBars items={strongest.map(asItem)} fmt={def.format} /></div>
+            <div><div className="t-heading-xs muted" style={{ marginBottom: 6 }}>Weakest of {ranked.length}</div>
+              <HBars items={weakest.map(asItem)} fmt={def.format} color="var(--neg)" /></div>
+          </div>
+        );
+      })();
   } else {
     const kind = spec.kind === 'column' ? 'bar' : spec.kind === 'area' ? 'area' : 'line';
     body = <XYChart categories={nodes.map((n) => n.label)} height={260} fmtLeft={def.format}

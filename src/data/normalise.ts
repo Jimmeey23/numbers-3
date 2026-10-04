@@ -336,7 +336,7 @@ export const mapSessions = (raw: Raw[]): SessionRow[] => raw.map((r) => mapSessi
 export function deriveSessions(checkins: CheckinRow[], bookings?: BookingRow[]): SessionRow[] {
   const map = new Map<string, SessionRow>();
   for (const c of checkins) {
-    const id = c.session_id ?? c.slot_uid ?? `${c.date}|${c.time}|${c.trainer}|${c.location}`;
+    const id = c.session_id ?? c.session_key ?? `${c.date}|${c.time}|${c.trainer}|${c.location}`;
     let s = map.get(id);
     if (!s) {
       s = {
@@ -368,16 +368,17 @@ export function deriveSessions(checkins: CheckinRow[], bookings?: BookingRow[]):
   }
   // Fold in bookings that were cancelled before the class, which never produce a check-in row.
   if (bookings) {
-    const byUid = new Map<string, SessionRow>();
-    for (const s of map.values()) if (s.session_id) byUid.set(s.session_id, s);
+    const byOccurrence = new Map<string, SessionRow>();
+    for (const s of map.values()) {
+      const k = sessionKeyOf(s.date, s.time, s.location, s.class_name);
+      if (k) byOccurrence.set(k, s);
+    }
     for (const b of bookings) {
       if (!b.cancelled || b.late_cancelled) continue;
-      const s = (b.slot_uid && byUid.get(b.slot_uid)) || undefined;
+      const s = b.session_key ? byOccurrence.get(b.session_key) : undefined;
       if (s) s.booked = (s.booked ?? 0) + 1;
     }
   }
-  // Capacity is the physical room; a session can never seat more than it holds.
-  for (const s of map.values()) if (s.capacity !== null && (s.checked_in ?? 0) > s.capacity) s.capacity = s.checked_in;
   return [...map.values()];
 }
 
@@ -391,11 +392,13 @@ export function buildVisits(checkins: CheckinRow[], bookings: BookingRow[]): Vis
   /* A member cannot be in two classes at the same minute, so date+time+member identifies a visit
      uniquely and — unlike the sheet-local UniqueIDs — matches across both sources. */
   const key = (date: string | null, time: string | null, member: string | null) =>
-    `${date ?? '?'}|${time ?? '?'}|${member ?? '?'}`;
+    member ? `${date ?? '?'}|${time ?? '?'}|${member}` : null;
 
   for (const c of checkins) {
+    /* Rows carrying no member id cannot be deduplicated or matched — collapsing them would
+       silently delete attendance, so each is kept as its own unresolved visit. */
     const k = key(c.date, c.time, c.member_id);
-    if (index.has(k)) continue;                     // genuine duplicate check-in row
+    if (k !== null && index.has(k)) continue;       // genuine duplicate check-in row
     const v: VisitRow = {
       date: c.date, ts: c.ts, month: c.month, location: c.location, location_short: c.location_short,
       trainer: c.trainer, format: c.format, day: c.day, slot: c.slot, source: null,
@@ -409,13 +412,14 @@ export function buildVisits(checkins: CheckinRow[], bookings: BookingRow[]): Vis
       is_new_label: c.is_new_label, lead_time_days: c.lead_time_days, booked_ts: c.order_ts,
       in_checkins: true, in_bookings: false, duration_min: c.duration_min,
     };
-    index.set(k, v); out.push(v);
+    if (k !== null) index.set(k, v);
+    out.push(v);
   }
 
   for (const b of bookings) {
     if (b.derived) continue;                        // derived from checkins — nothing new to add
     const k = key(b.date, b.time, b.member_id);
-    const hit = index.get(k);
+    const hit = k === null ? undefined : index.get(k);
     if (hit) {
       hit.in_bookings = true;
       hit.cancelled = b.cancelled;                  // only Bookings knows about pre-class cancellations
@@ -439,7 +443,8 @@ export function buildVisits(checkins: CheckinRow[], bookings: BookingRow[]): Vis
       is_new_label: b.is_new_label, lead_time_days: b.lead_time_days, booked_ts: b.sale_ts,
       in_checkins: false, in_bookings: true, duration_min: null,
     };
-    index.set(k, v); out.push(v);
+    if (k !== null) index.set(k, v);
+    out.push(v);
   }
   return out;
 }
@@ -516,7 +521,7 @@ export function deriveSessionsFromBookings(bookings: BookingRow[], checkins: Che
   const map = new Map<string, SessionRow>();
   for (const b of bookings) {
     if (!b.date) continue;
-    const id = b.slot_uid ?? `${b.date}|${b.time}|${b.trainer}|${b.location}|${b.class_name}`;
+    const id = b.session_key ?? `${b.date}|${b.time}|${b.trainer}|${b.location}|${b.class_name}`;
     let s = map.get(id);
     if (!s) {
       const cap = (b.slot_uid ? capByUid.get(b.slot_uid) : undefined) ?? modal.get(`${b.location}|${b.class_name}`) ?? null;
@@ -624,6 +629,18 @@ export const mapSales = (raw: Raw[]): SaleRow[] => reconcileSales(raw.map((r) =>
 
 
 /* ---------- New ---------- */
+/* "Memberships Bought Post Trial" holds product descriptions, not a number — `Studio 1 Month
+   Unlimited, Studio 8 Class Package`. Passing it through num() erased every populated row. */
+const productList = (v: unknown): string[] =>
+  (trim(v) ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+/** Count only recurring memberships: the same column also lists single classes and packages. */
+const MEMBERSHIP_PRODUCT = /unlimited|month|membership|annual|year/i;
+const countProducts = (v: unknown): number | null => {
+  const list = productList(v);
+  if (!list.length) return num(v);                  // numeric exports still parse as a count
+  return list.filter((x) => MEMBERSHIP_PRODUCT.test(x)).length;
+};
+
 export function mapNewRow(r: Raw): NewRow {
     const dt = dateISO(r['First Visit Date']);
   const location = canonLocation(r['First Visit Location'] || r['Home Location']);
@@ -652,7 +669,8 @@ export function mapNewRow(r: Raw): NewRow {
       payment_method: catv(r['Payment Method']), memberships_used: memUsed, home_location: canonLocation(r['Home Location']),
       class_no: num(r['Class No']), is_new_label: isNewLabel,
       visits_post_trial: num(r['Visits Post Trial']), late_cancels_post_trial: num(r['Late Cancellations Post Trial']),
-      memberships_bought: num(r['Memberships Bought Post Trial']), purchase_count: num(r['Purchase Count Post Trial']),
+      memberships_bought: countProducts(r['Memberships Bought Post Trial']), memberships_bought_products: productList(r['Memberships Bought Post Trial']),
+      purchase_count: num(r['Purchase Count Post Trial']),
       first_purchase_product: trim(r['First Purchase Post Trial']), first_purchase_value: money(r['First Purchase Value']),
       ltv: money(r['Ltv']), retention_status: ret, conversion_status: conv,
       first_purchase_date: dateISO(r['First Purchase Date'])?.date ?? null, visits: num(r['No of Visits']),
@@ -687,6 +705,10 @@ export function mapLapsedRow(r: Raw, todayTs: number): LapsedRow {
     const daysElapsed = start ? Math.max(0, Math.floor((todayTs - start.ts) / 864e5)) : null;
     const util = sessions_limit && sessions_limit > 0 ? Math.min(1, (completed ?? 0) / sessions_limit) : usedPct;
     const recency = dsl === null ? 0.5 : Math.min(1, dsl / 60);
+    /* How much of the four-input model was measured rather than filled with a neutral default.
+       A score built from one observed input must not read like a score built from four. */
+    const riskInputs = (util !== null && util !== undefined ? 1 : 0) + (dsl !== null ? 1 : 0)
+      + (cancelRate !== null ? 1 : 0) + (attendanceRate !== null ? 1 : 0);
     const risk = Math.round(100 * (
       RISK_W.util * (1 - (util ?? 0.5)) + RISK_W.recency * recency +
       RISK_W.cancel * (cancelRate ?? 0) + RISK_W.attendance * (1 - (attendanceRate ?? 0.5))));
@@ -711,7 +733,7 @@ export function mapLapsedRow(r: Raw, todayTs: number): LapsedRow {
     is_new: null,
     is_import: false, member_name: personName(r['Member Name']), member_id: trim(r['Member ID']), email, phone, contactable: contactable(email, phone),
       status, membership_name: catv(r['Membership Name']), sessions_limit, unlimited,
-      purchase_date: purchase?.date ?? null, start_date: start?.date ?? null, end_date: end?.date ?? null, end_ts: end?.ts ?? null,
+      purchase_date: purchase?.date ?? null, start_date: start?.date ?? null, start_ts: start?.ts ?? null, end_date: end?.date ?? null, end_ts: end?.ts ?? null,
       churned_date: churn?.date ?? null, amount_paid: amount, discount_code: trim(r['Discount Code']), discount_value: money(r['Discount Value']),
       original_amount: money(r['Original Amount (Before Discount)']), sold_by: personName(r['Sold By']) ?? personName(r['Created By']),
       last_visit: dateDMY(r['Most Recent Visit Date'])?.date ?? null, first_visit: dateDMY(r['First Visit Date'])?.date ?? null,
@@ -720,7 +742,8 @@ export function mapLapsedRow(r: Raw, todayTs: number): LapsedRow {
       freeze_count: num(r['Membership Freeze Count']), days_frozen: num(r['Days Frozen']), duration_days: num(r['Membership Duration (Days)']),
       days_active: num(r['Days Active']), days_since_last_visit: dsl, avg_sessions_month: num(r['Average Sessions Per Month']),
       rev_per_session: revPerSession, attendance_rate: attendanceRate,
-      churned, active: status === 'Active' || status === 'Frozen' || status === 'New', days_elapsed: daysElapsed, risk_score: risk, liability,
+      churned, active: status === 'Active' || status === 'Frozen' || status === 'New', frozen: status === 'Frozen', days_elapsed: daysElapsed,
+      risk_score: risk, risk_inputs: riskInputs, liability,
     multi_location: (trim(r['Locations Attended']) ?? '').includes(','),
     renewed: status === 'Renewed',
       };

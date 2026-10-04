@@ -25,7 +25,7 @@ export function Acquisition({ scope }: { scope: Scope }) {
   const rows = scope.tables.newc;
   const [matured, setMatured] = useState(true);
   // A client who visited yesterday cannot have "returned" yet. Maturity excludes anyone whose
-  // first visit was inside 21 days so the return and conversion rates are settled, not optimistic.
+  // first visit was inside the maturity window in Settings, so the rates are settled, not optimistic.
   const matureTs = scope.ctx.todayTs - scope.ctx.matureDays * 864e5;
   const allFresh = useMemo(() => rows.filter((r) => r.is_new), [rows]);
   const fresh = useMemo(() => (matured ? allFresh.filter((r) => r.ts !== null && r.ts <= matureTs) : allFresh), [allFresh, matured, matureTs]);
@@ -36,16 +36,19 @@ export function Acquisition({ scope }: { scope: Scope }) {
   /* ── The full journey, stage by stage, with every drop-off priced ──
      Leads are real now (25k rows), so the funnel starts where the money is spent. */
   const funnel = useMemo(() => {
-    const afp = metricValues(fresh, ['avg_first_purchase'], scope.ctx).avg_first_purchase.value ?? 12599;
+    const afp = metricValues(fresh, ['avg_first_purchase'], scope.ctx).avg_first_purchase.value ?? scope.ctx.medianFirstMembership;
     const ltv = metricValues(fresh, ['avg_ltv'], scope.ctx).avg_ltv.value ?? afp;
     const leads = scope.tables.leads;
     const trialed = leads.filter((r) => r.trialed).length;
+    /* Each stage is a subset of the one above it. Counting them independently produced more
+       purchasers than third-visitors and a continuation rate above 100%. */
     const first = fresh.length;
     const second = fresh.filter((r) => (r.visits_post_trial ?? 0) > 0).length;
-    const third = fresh.filter((r) => (r.visits_post_trial ?? 0) >= 2).length;
-    const purchased = fresh.filter((r) => r.converted).length;
-    const member = fresh.filter((r) => (r.memberships_bought ?? 0) > 0).length;
-    const retained = fresh.filter((r) => r.converted && (r.days_active ?? 0) >= 90).length;
+    const purchasedRows = fresh.filter((r) => r.converted);
+    const purchased = purchasedRows.length;
+    const member = purchasedRows.filter((r) => (r.memberships_bought ?? 0) > 0).length;
+    const observed90 = purchasedRows.filter((r) => (r.memberships_bought ?? 0) > 0 && r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5);
+    const retained = observed90.filter((r) => (r.days_active ?? 0) >= 90).length;
     const stages: Stage[] = [];
     if (leads.length) {
       stages.push({ id: 'lead', label: 'Leads created', count: leads.length, note: 'Enquiries captured in the Leads sheet for this period.' });
@@ -53,19 +56,24 @@ export function Acquisition({ scope }: { scope: Scope }) {
     }
     stages.push({ id: 'first', label: 'First visit', count: first, lostValue: null, note: 'People who actually walked in for a first class.' });
     stages.push({ id: 'second', label: 'Came back once', count: second, lostValue: (first - second) * afp * 0.3, note: 'The single steepest step in the business — one visit and never again.' });
-    stages.push({ id: 'third', label: 'Came back twice', count: third, lostValue: (second - third) * afp * 0.3, note: 'Habit forms around the third visit; past here, conversion climbs sharply.' });
-    stages.push({ id: 'purchase', label: 'First purchase', count: purchased, lostValue: (third - purchased) * afp, note: 'Any paid product bought after the trial.' });
-    stages.push({ id: 'member', label: 'Bought a membership', count: member, lostValue: (purchased - member) * Math.max(0, ltv - afp), note: 'Converted to recurring revenue rather than a one-off.' });
-    stages.push({ id: 'retained', label: 'Still active at 90 days', count: retained, lostValue: (member - retained) * ltv * 0.5, note: 'Converted clients with at least 90 active days.' });
+    stages.push({ id: 'purchase', label: 'First purchase', count: purchased, lostValue: (first - purchased) * afp, note: 'Any paid product bought after the trial. Not every buyer visits twice first, so this counts all first-visitors who bought, not only those who came back.' });
+    stages.push({ id: 'member', label: 'Bought a membership', count: member, lostValue: (purchased - member) * Math.max(0, ltv - afp), note: 'Of those buyers, the ones who took recurring membership rather than a one-off.' });
+    stages.push({ id: 'retained', label: 'Still active at 90 days', count: retained, lostValue: observed90.length ? (observed90.length - retained) * ltv * 0.5 : null,
+      note: observed90.length < member
+        ? `Measured on the ${observed90.length.toLocaleString('en-IN')} membership buyers whose first visit is at least 90 days old. ${(member - observed90.length).toLocaleString('en-IN')} joined too recently for the outcome to exist yet and are not counted as failures.`
+        : 'Membership buyers with at least 90 active days.' });
     return stages;
   }, [fresh, scope.tables.leads, scope.ctx]);
 
-  const funnelRows = useMemo(() => ({
-    lead: scope.tables.leads, trial: scope.tables.leads.filter((r) => r.trialed), first: fresh,
-    second: fresh.filter((r) => (r.visits_post_trial ?? 0) > 0), third: fresh.filter((r) => (r.visits_post_trial ?? 0) >= 2),
-    purchase: fresh.filter((r) => r.converted), member: fresh.filter((r) => (r.memberships_bought ?? 0) > 0),
-    retained: fresh.filter((r) => r.converted && (r.days_active ?? 0) >= 90),
-  } as Record<string, Row[]>), [fresh, scope.tables.leads]);
+  const funnelRows = useMemo(() => {
+    const purchase = fresh.filter((r) => r.converted);
+    const member = purchase.filter((r) => (r.memberships_bought ?? 0) > 0);
+    return {
+      lead: scope.tables.leads, trial: scope.tables.leads.filter((r) => r.trialed), first: fresh,
+      second: fresh.filter((r) => (r.visits_post_trial ?? 0) > 0), purchase, member,
+      retained: member.filter((r) => r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5 && (r.days_active ?? 0) >= 90),
+    } as Record<string, Row[]>;
+  }, [fresh, scope.tables.leads, scope.ctx.todayTs]);
 
   /* ── The same funnel cut by source, so you can see which channel leaks where ── */
   const funnelBySource = useMemo(() => {
@@ -74,11 +82,17 @@ export function Acquisition({ scope }: { scope: Scope }) {
       .filter((n) => n.rows.length >= 20)
       .sort((a, b) => b.rows.length - a.rows.length).slice(0, 8)
       .map((n) => {
-        const f = n.rows.length;
-        const s2 = n.rows.filter((r) => (r.visits_post_trial ?? 0) > 0).length;
-        const p = n.rows.filter((r) => r.converted).length;
-        const ret = n.rows.filter((r) => r.converted && (r.days_active ?? 0) >= 90).length;
-        return { label: n.label, parts: [f - s2, s2 - p, p - ret, ret], total: f, keys };
+        /* One outcome per person, most advanced wins, so the parts always sum to the total.
+           Subtracting independently-counted stages produced negative bands the chart then hid. */
+        let retained = 0; let bought = 0; let returned = 0; let once = 0;
+        for (const r of n.rows) {
+          const observed = r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5;
+          if (r.converted && observed && (r.days_active ?? 0) >= 90) retained++;
+          else if (r.converted) bought++;
+          else if ((r.visits_post_trial ?? 0) > 0) returned++;
+          else once++;
+        }
+        return { label: n.label, parts: [once, returned, bought, retained], total: n.rows.length, keys };
       });
   }, [fresh, scope.ctx]);
 
@@ -96,12 +110,11 @@ export function Acquisition({ scope }: { scope: Scope }) {
     const conv = fresh.filter((r) => r.converted && r.conversion_span !== null);
     return bands.map(([lo, hi, label]) => {
       const rs = conv.filter((r) => (r.conversion_span ?? 0) >= lo && (r.conversion_span ?? 0) < hi);
-      return { label, n: rs.length, ltv: rs.length ? rs.reduce((a, r) => a + (r.ltv ?? 0), 0) / rs.length : null,
+      return { label, n: rs.length, ltv: metricValues(rs, ['avg_ltv'], scope.ctx).avg_ltv.value,
         retained: rs.length ? rs.filter((r) => r.retained).length / rs.length : null };
     });
-  }, [fresh]);
+  }, [fresh, scope.ctx]);
 
-  const maxLtv = useMemo(() => Math.max(1, ...speedCurve.map((s2) => s2.ltv ?? 0)), [speedCurve]);
 
   const columns: ColumnDef[] = [
     { id: 'new_clients', metricId: 'new_clients', family: 'Volume', bar: true }, { id: 'second_visit_rate', metricId: 'second_visit_rate', family: 'Behaviour', heat: true }, { id: 'conversion_rate', metricId: 'conversion_rate', family: 'Utilisation', heat: true },
@@ -111,13 +124,16 @@ export function Acquisition({ scope }: { scope: Scope }) {
     { id: 'avg_visits_post_trial', metricId: 'avg_visits_post_trial', family: 'Behaviour' }, { id: 'retention_rate', metricId: 'retention_rate', family: 'Utilisation', heat: true }, { id: 'new_churn_rate', metricId: 'new_churn_rate', family: 'Behaviour' }, { id: 'new_late_cancel_rate', metricId: 'new_late_cancel_rate', family: 'Behaviour', hidden: true }, { id: 'survival_90', metricId: 'survival_90', family: 'Utilisation' }, { id: 'contactable_rate', metricId: 'contactable_rate', family: 'Behaviour', hidden: true },
   ];
   const rankNodes = useMemo(() => rollupLevel(fresh, [rankKey], 0, A_METRICS, scope.ctx), [fresh, rankKey, scope.ctx]);
-  const rankPrev = useMemo(() => rollupLevel(scope.compare.newc.filter((r) => r.is_new), [rankKey], 0, A_METRICS, scope.ctx), [scope.compare.newc, rankKey, scope.ctx]);
+  // The comparison period gets the same maturity rule as the current one, or the ranking moves
+  // for no reason other than which side of the switch each period happened to be measured on.
+  const comparePool = useMemo(() => scope.compare.newc.filter((r) => r.is_new && (!matured || (r.ts !== null && r.ts <= matureTs))), [scope.compare.newc, matured, matureTs]);
+  const rankPrev = useMemo(() => rollupLevel(comparePool, [rankKey], 0, A_METRICS, scope.ctx), [comparePool, rankKey, scope.ctx]);
   const daySlot = useMemo(() => { const cells = []; for (const d of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) for (const s of ['Morning', 'Afternoon', 'Evening']) { const rs = fresh.filter((r) => r.day === d && r.slot === s); if (rs.length) cells.push({ x: s, y: d, value: metricValues(rs, ['conversion_rate'], scope.ctx).conversion_rate.value, n: rs.length }); } return cells; }, [fresh, scope.ctx]);
   const sourceQuality = useMemo(() => rollupLevel(fresh, ['source'], 0, ['new_clients', 'conversion_rate', 'avg_ltv', 'total_ltv'], scope.ctx).filter((n) => n.rows.length >= 5).sort((a, b) => (b.values.total_ltv.value ?? 0) - (a.values.total_ltv.value ?? 0)), [fresh, scope.ctx]);
   const speed = useMemo(() => rollupLevel(fresh, ['speed_bucket'], 0, ['new_clients', 'avg_ltv', 'retention_rate', 'avg_first_purchase'], scope.ctx).sort((a, b) => ['Same Day', '1-7 Days', '8-30 Days', '31-90 Days', '90+ Days', 'Not Converted'].indexOf(a.key) - ['Same Day', '1-7 Days', '8-30 Days', '31-90 Days', '90+ Days', 'Not Converted'].indexOf(b.key)), [fresh, scope.ctx]);
   const trainerScore = useMemo(() => rollupLevel(fresh, ['trainer'], 0, ['new_clients', 'second_visit_rate', 'conversion_rate', 'avg_ltv'], scope.ctx).filter((n) => n.rows.length >= 10).sort((a, b) => (b.values.conversion_rate.value ?? 0) - (a.values.conversion_rate.value ?? 0)), [fresh, scope.ctx]);
   const firstProduct = useMemo(() => rollupLevel(fresh.filter((r) => r.first_purchase_product), ['membership_type'], 0, ['new_clients', 'avg_first_purchase', 'avg_ltv', 'retention_rate'], scope.ctx).sort((a, b) => b.rows.length - a.rows.length), [fresh, scope.ctx]);
-  const atRisk = useMemo(() => rows.filter((r) => r.lifecycle === 'Active' && (r.days_since_last_visit ?? 0) > scope.ctx.dormantDays && r.contactable).sort((a, b) => (b.ltv ?? 0) - (a.ltv ?? 0)).slice(0, 25), [rows]);
+  const atRisk = useMemo(() => rows.filter((r) => r.lifecycle === 'Active' && (r.days_since_last_visit ?? 0) > scope.ctx.dormantDays && r.contactable).sort((a, b) => (b.ltv ?? 0) - (a.ltv ?? 0)).slice(0, 25), [rows, scope.ctx.dormantDays]);
   const winback = useMemo(() => rows.filter((r) => (r.lifecycle === 'Lapsed' || r.lifecycle === 'Churned') && (r.ltv ?? 0) > 0 && r.contactable).sort((a, b) => (b.ltv ?? 0) - (a.ltv ?? 0)).slice(0, 25), [rows]);
   if (!rows.length) return <div style={{ paddingTop: 20 }}><SectionEmpty what="new clients" scope={scope} /></div>;
   return (
@@ -164,18 +180,22 @@ export function Acquisition({ scope }: { scope: Scope }) {
           table={{ columns: ['Speed', 'Converted', 'Avg LTV', 'Retained'], rows: speedCurve.map((s2) => [s2.label, s2.n, Math.round(s2.ltv ?? 0), formatValue('percent', s2.retained)]) }}>
           <XYChart categories={speedCurve.map((s2) => s2.label)} height={230} fmtLeft="integer" fmtRight="currency"
             series={[{ id: 'n', label: 'Clients converting in this window', color: 'var(--hue-growth)', kind: 'bar', values: speedCurve.map((s2) => s2.n) },
-              { id: 'l', label: 'Average LTV', color: 'var(--hue-revenue)', axis: 'right', fmt: 'currency', values: speedCurve.map((s2) => s2.ltv) },
-              { id: 'r', label: 'Retained share', color: 'var(--hue-people)', axis: 'right', fmt: 'percent', values: speedCurve.map((s2) => (s2.retained === null ? null : s2.retained * (maxLtv || 1))) }]} />
+              { id: 'l', label: 'Average LTV', color: 'var(--hue-revenue)', axis: 'right', fmt: 'currency', values: speedCurve.map((s2) => s2.ltv) }]} />
+        </ChartModule>
+        <ChartModule title="Retained share by conversion speed" subtitle="Plotted on its own percentage scale — a retention fraction has no place on a rupee axis"
+          table={{ columns: ['Speed', 'Converted', 'Retained'], rows: speedCurve.map((s2) => [s2.label, s2.n, formatValue('percent', s2.retained)]) }}>
+          <XYChart categories={speedCurve.map((s2) => s2.label)} height={180} fmtLeft="percent"
+            series={[{ id: 'r', label: 'Retained share', color: 'var(--hue-people)', kind: 'bar', fmt: 'percent', values: speedCurve.map((s2) => s2.retained) }]} />
         </ChartModule>
       </Register>
 
       <Register title="Drill down" index="④ Detail" subtitle="Source → first-visit location → first trainer → time slot. Regroup by dragging the chips." domain="growth" id="drill-table">
-        <NestedTable title="Acquisition" rows={fresh} compareRows={scope.compare.newc.filter((r) => r.is_new)} table="newc" groupKeys={['source', 'location', 'trainer', 'timeslot']} availableKeys={['source', 'location', 'trainer', 'timeslot', 'daypart', 'day', 'weekpart', 'first_visit_type', 'is_new_label', 'lifecycle', 'speed_bucket', 'membership_type', 'month', 'quarter', 'year', 'member', 'spend_band', 'recency_band', 'contactable']} columns={columns} ctx={scope.ctx} domain="growth" defaultSort={{ id: 'new_clients', dir: 'desc' }} filtersLabel={filtersLabel(scope)} rankBy="conversion_rate" leafLabel="clients" />
+        <NestedTable title="Acquisition" rows={fresh} compareRows={comparePool} table="newc" groupKeys={['source', 'location', 'trainer', 'timeslot']} availableKeys={['source', 'location', 'trainer', 'timeslot', 'daypart', 'day', 'weekpart', 'first_visit_type', 'is_new_label', 'lifecycle', 'speed_bucket', 'membership_type', 'month', 'quarter', 'year', 'member', 'spend_band', 'recency_band', 'contactable']} columns={columns} ctx={scope.ctx} domain="growth" defaultSort={{ id: 'new_clients', dir: 'desc' }} filtersLabel={filtersLabel(scope)} rankBy="conversion_rate" leafLabel="clients" />
       </Register>
       <Register title="Best and worst converters; cohort survival" domain="growth" lazy actions={<div style={{ display: 'flex', gap: 2 }}>{([['source', 'Sources'], ['trainer', 'Trainers'], ['timeslot', 'Slots'], ['first_visit_type', 'Entry products']] as const).map(([k, l]) => <button key={k} className="btn btn-xs" aria-pressed={rankKey === k} onClick={() => setRankKey(k)}>{l}</button>)}</div>}>
         <Two a={<RankingList title="Ranked by" nodes={rankNodes} compareNodes={rankPrev} metricOptions={['conversion_rate', 'second_visit_rate', 'avg_ltv', 'retention_rate', 'new_clients']} ctx={scope.ctx} table="newc" domain="growth" minSample={10} sampleLabel="clients" />}
-          b={<ChartModule title="Cohort triangle" subtitle="Acquisition month × months since first visit, coloured by share still active (last visit inside the offset)" table={{ columns: ['Month', 'Clients'], rows: months.map((m) => [m, scope.all.newc.filter((r) => r.is_new && r.month === m).length]) }}>
-            <CohortTriangle rows={scope.all.newc.filter((r) => r.is_new)} cohortOf={(r) => r.month} alive={(r, o) => { if (!r.last_visit || !r.date) return false; const monthsActive = (new Date(r.last_visit).getTime() - new Date(r.date).getTime()) / (30.4 * 864e5); return monthsActive >= o; }} scope={scope} valueLabel="still visiting" />
+          b={<ChartModule title="Cohort triangle" subtitle="Acquisition month × months since first visit, coloured by the share whose first-to-last visit span reaches that offset. This is reach, not month-by-month activity: a member who visited in month 0 and month 6 counts as reaching month 6." table={{ columns: ['Month', 'Clients'], rows: months.map((m) => [m, scope.all.newc.filter((r) => r.is_new && r.month === m).length]) }}>
+            <CohortTriangle rows={scope.all.newc.filter((r) => r.is_new)} cohortOf={(r) => r.month} alive={(r, o) => { if (!r.last_visit || !r.date) return false; const monthsActive = (new Date(r.last_visit).getTime() - new Date(r.date).getTime()) / (30.4 * 864e5); return monthsActive >= o; }} scope={scope} valueLabel="reached this offset" />
           </ChartModule>} />
       </Register>
       <Register title="Which trial times convert" subtitle="First-visit day × time slot by conversion rate" domain="growth" lazy>
@@ -190,7 +210,7 @@ export function Acquisition({ scope }: { scope: Scope }) {
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Conversion speed buckets</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Bucket</th><th className="t-heading-s">Clients</th><th className="t-heading-s">Avg first purchase</th><th className="t-heading-s">Avg LTV</th><th className="t-heading-s">Retention</th></tr></thead><tbody>{speed.map((n) => <tr key={n.id}><td className="t-body-s">{n.label}</td><td className="t-num">{n.values.new_clients.value}</td><td className="t-num">{fmtCurrency(n.values.avg_first_purchase.value)}</td><td className="t-num">{fmtCurrency(n.values.avg_ltv.value)}</td><td className="t-num">{formatValue('percent', n.values.retention_rate.value)}</td></tr>)}</tbody></table></div></div>
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Trainer conversion scorecard (≥10 first visits)</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Trainer</th><th className="t-heading-s">First visits</th><th className="t-heading-s">Second visit</th><th className="t-heading-s">Conversion</th><th className="t-heading-s">Avg LTV</th></tr></thead><tbody>{trainerScore.map((n) => <tr key={n.id}><td className="t-body-s">{n.label}</td><td className="t-num">{n.values.new_clients.value}</td><td className="t-num">{formatValue('percent', n.values.second_visit_rate.value)}</td><td className="t-num">{formatValue('percent', n.values.conversion_rate.value)}</td><td className="t-num">{fmtCurrency(n.values.avg_ltv.value)}</td></tr>)}</tbody></table></div></div>
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>First-purchase product mix</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Product type</th><th className="t-heading-s">Clients</th><th className="t-heading-s">Avg first purchase</th><th className="t-heading-s">Avg LTV</th><th className="t-heading-s">Retention</th></tr></thead><tbody>{firstProduct.map((n) => <tr key={n.id}><td className="t-body-s">{n.label}</td><td className="t-num">{n.rows.length}</td><td className="t-num">{fmtCurrency(n.values.avg_first_purchase.value)}</td><td className="t-num">{fmtCurrency(n.values.avg_ltv.value)}</td><td className="t-num">{formatValue('percent', n.values.retention_rate.value)}</td></tr>)}</tbody></table></div></div>
-          <Two a={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>At-risk new members — active, absent 21+ days, contactable</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Client</th><th className="t-heading-s">Days absent</th><th className="t-heading-s">LTV</th><th className="t-heading-s">Last visit</th></tr></thead><tbody>{atRisk.map((r) => <tr key={r.member_id}><td className="t-body-s">{r.name}</td><td className="t-num warn">{r.days_since_last_visit}</td><td className="t-num">{fmtCurrency(r.ltv)}</td><td className="t-num">{fmtDate(r.last_visit)}</td></tr>)}</tbody></table></div></div>}
+          <Two a={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>At-risk new members — active, absent {scope.ctx.dormantDays}+ days, contactable</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Client</th><th className="t-heading-s">Days absent</th><th className="t-heading-s">LTV</th><th className="t-heading-s">Last visit</th></tr></thead><tbody>{atRisk.map((r) => <tr key={r.member_id}><td className="t-body-s">{r.name}</td><td className="t-num warn">{r.days_since_last_visit}</td><td className="t-num">{fmtCurrency(r.ltv)}</td><td className="t-num">{fmtDate(r.last_visit)}</td></tr>)}</tbody></table></div></div>}
             b={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>Win-back pool — lapsed or churned, ranked by prior LTV</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Client</th><th className="t-heading-s">Status</th><th className="t-heading-s">LTV</th><th className="t-heading-s">Last visit</th></tr></thead><tbody>{winback.map((r) => <tr key={r.member_id}><td className="t-body-s">{r.name}</td><td className="t-body-s">{r.lifecycle}</td><td className="t-num">{fmtCurrency(r.ltv)}</td><td className="t-num">{fmtDate(r.last_visit)}</td></tr>)}</tbody></table></div></div>} />
         </div>
       </Register>

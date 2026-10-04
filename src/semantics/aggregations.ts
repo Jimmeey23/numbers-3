@@ -7,7 +7,29 @@ export type Row = any;
 
 export interface GroupKeyDef { id: string; label: string; accessor: (r: Row) => string | null; display?: (k: string) => string; sort?: (a: string, b: string) => number }
 
+/* People are grouped by identity, never by display name: two members called "Priya Sharma" are two
+   members. The key carries the id, the label shows the name, and an id-less row stays on its own. */
+const NAME_SEP = '\u0000';
+const identity = (name: string | null | undefined, id: string | null | undefined): string | null =>
+  id ? `${name ?? 'Unidentified'}${NAME_SEP}${id}` : (name ?? null);
+const showName = (k: string) => { const i = k.indexOf(NAME_SEP); return i < 0 ? k : k.slice(0, i); };
+
 const DAY_ORDER: Record<string, number> = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
+
+/* The risk ladder hangs off the operator's high-risk cut-off, so the bands, the KPI cards and the
+   insight rail can never disagree about where "high risk" starts. computeScope keeps this in sync. */
+let riskHigh = 60;
+export const setRiskHigh = (v: number) => { riskHigh = v; };
+const bandBounds = () => ({ critical: Math.min(100, riskHigh + 20), high: riskHigh, watch: Math.max(0, riskHigh - 20) });
+export const riskBandLabels = (): string[] => {
+  const b = bandBounds();
+  return [`Critical (${b.critical}+)`, `High (${b.high}–${b.critical - 1})`, `Watch (${b.watch}–${b.high - 1})`, `Healthy (<${b.watch})`];
+};
+export const riskBandOf = (score: number | null | undefined): string | null => {
+  if (score === null || score === undefined) return null;
+  const b = bandBounds(); const l = riskBandLabels();
+  return score >= b.critical ? l[0] : score >= b.high ? l[1] : score >= b.watch ? l[2] : l[3];
+};
 
 export const GROUP_KEYS: Record<string, GroupKeyDef> = {
   format: { id: 'format', label: 'Format', accessor: (r) => r.format },
@@ -32,10 +54,10 @@ export const GROUP_KEYS: Record<string, GroupKeyDef> = {
   lifecycle: { id: 'lifecycle', label: 'Lifecycle', accessor: (r) => r.lifecycle },
   speed_bucket: { id: 'speed_bucket', label: 'Conversion speed', accessor: (r) => r.speed_bucket },
   first_visit_type: { id: 'first_visit_type', label: 'Entry product', accessor: (r) => r.first_visit_entity },
-  member: { id: 'member', label: 'Member', accessor: (r) => r.name ?? r.member_name ?? r.customer ?? r.member_id },
+  member: { id: 'member', label: 'Member', accessor: (r) => identity(r.name ?? r.member_name ?? r.customer, r.member_id), display: showName },
   channel: { id: 'channel', label: 'Channel', accessor: (r) => r.channel },
   associate: { id: 'associate', label: 'Associate', accessor: (r) => r.associate },
-  lead: { id: 'lead', label: 'Lead', accessor: (r) => r.name },
+  lead: { id: 'lead', label: 'Lead', accessor: (r) => identity(r.name, r.id ?? r.member_id ?? r.email), display: showName },
   stage: { id: 'stage', label: 'Stage', accessor: (r) => r.stage },
   teacher: { id: 'teacher', label: 'Teacher', accessor: (r) => r.teacher ?? r.trainer },
   booking_method: { id: 'booking_method', label: 'Booking channel', accessor: (r) => r.booking_method },
@@ -48,7 +70,7 @@ export const GROUP_KEYS: Record<string, GroupKeyDef> = {
   /* ── Visit-grain and behavioural groupings ── */
   session: { id: 'session', label: 'Class occurrence', accessor: (r) => r.session_key ?? r.session_id },
   slot_uid: { id: 'slot_uid', label: 'Recurring slot', accessor: (r) => r.slot_uid },
-  member_name: { id: 'member_name', label: 'Member', accessor: (r) => r.member_name ?? r.name ?? r.customer ?? r.member_id },
+  member_name: { id: 'member_name', label: 'Member', accessor: (r) => identity(r.member_name ?? r.name ?? r.customer, r.member_id), display: showName },
   hour_of_day: { id: 'hour_of_day', label: 'Hour of day', accessor: (r) => (r.time ? `${r.time.slice(0, 2)}:00` : null), sort: (a, b) => a.localeCompare(b) },
   daypart: { id: 'daypart', label: 'Daypart', accessor: (r) => { const h = r.time ? +r.time.slice(0, 2) : null; if (h === null) return null; return h < 7 ? 'Early (before 7)' : h < 10 ? 'Prime morning (7–10)' : h < 12 ? 'Late morning (10–12)' : h < 17 ? 'Midday (12–17)' : h < 20 ? 'Prime evening (17–20)' : 'Late (20+)'; },
     sort: (a, b) => ['Early (before 7)', 'Prime morning (7–10)', 'Late morning (10–12)', 'Midday (12–17)', 'Prime evening (17–20)', 'Late (20+)'].indexOf(a) - ['Early (before 7)', 'Prime morning (7–10)', 'Late morning (10–12)', 'Midday (12–17)', 'Prime evening (17–20)', 'Late (20+)'].indexOf(b) },
@@ -60,8 +82,8 @@ export const GROUP_KEYS: Record<string, GroupKeyDef> = {
     sort: (a, b) => ['1st visit', '2nd visit', '3rd–5th', '6th–10th', '11th–25th', '26th+'].indexOf(a) - ['1st visit', '2nd visit', '3rd–5th', '6th–10th', '11th–25th', '26th+'].indexOf(b) },
   spend_band: { id: 'spend_band', label: 'Spend band', accessor: (r) => { const v = r.amount_paid ?? r.value ?? r.paid ?? r.ltv; if (v === null || v === undefined) return null; return v === 0 ? '₹0' : v < 2000 ? 'Under ₹2k' : v < 6000 ? '₹2k–6k' : v < 15000 ? '₹6k–15k' : v < 40000 ? '₹15k–40k' : '₹40k+'; },
     sort: (a, b) => ['₹0', 'Under ₹2k', '₹2k–6k', '₹6k–15k', '₹15k–40k', '₹40k+'].indexOf(a) - ['₹0', 'Under ₹2k', '₹2k–6k', '₹6k–15k', '₹15k–40k', '₹40k+'].indexOf(b) },
-  risk_band: { id: 'risk_band', label: 'Risk band', accessor: (r) => { const s2 = r.risk_score; if (s2 === null || s2 === undefined) return null; return s2 >= 80 ? 'Critical (80+)' : s2 >= 60 ? 'High (60–79)' : s2 >= 40 ? 'Watch (40–59)' : 'Healthy (<40)'; },
-    sort: (a, b) => ['Critical (80+)', 'High (60–79)', 'Watch (40–59)', 'Healthy (<40)'].indexOf(a) - ['Critical (80+)', 'High (60–79)', 'Watch (40–59)', 'Healthy (<40)'].indexOf(b) },
+  risk_band: { id: 'risk_band', label: 'Risk band', accessor: (r) => riskBandOf(r.risk_score),
+    sort: (a, b) => riskBandLabels().indexOf(a) - riskBandLabels().indexOf(b) },
   tenure_band: { id: 'tenure_band', label: 'Tenure band', accessor: (r) => { const d = r.duration_days ?? r.days_active; if (d === null || d === undefined) return null; return d < 31 ? 'Under a month' : d < 92 ? '1–3 months' : d < 183 ? '3–6 months' : d < 366 ? '6–12 months' : 'Over a year'; },
     sort: (a, b) => ['Under a month', '1–3 months', '3–6 months', '6–12 months', 'Over a year'].indexOf(a) - ['Under a month', '1–3 months', '3–6 months', '6–12 months', 'Over a year'].indexOf(b) },
   recency_band: { id: 'recency_band', label: 'Recency', accessor: (r) => { const d = r.days_since_last_visit; if (d === null || d === undefined) return null; return d <= 7 ? 'This week' : d <= 21 ? 'Within 3 weeks' : d <= 60 ? '3–8 weeks' : d <= 180 ? '2–6 months' : 'Over 6 months'; },

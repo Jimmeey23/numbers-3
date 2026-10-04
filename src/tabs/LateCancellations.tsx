@@ -10,7 +10,7 @@ import { rollupLevel, seriesBy } from '../semantics/aggregations';
 import { fmtMonthShort } from '../semantics/formats';
 import { KpiStrip, SectionEmpty, Two, filtersLabel, useMonths } from './common';
 
-const IDS = ['v_late_cancels', 'v_late_cancel_rate', 'v_booked', 'v_show_up_rate', 'v_no_show_rate'];
+const IDS = ['v_late_cancels', 'v_late_cancel_rate', 'v_no_shows', 'v_no_show_rate', 'v_cancel_rate', 'v_booked', 'v_show_up_rate', 'v_effective_attendance'];
 export function LateCancellations({ scope }: { scope: Scope }) {
   const months = useMonths(scope);
   const rows = scope.tables.visits;

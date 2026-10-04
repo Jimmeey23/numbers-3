@@ -3,7 +3,7 @@ import { TitleBar, TabRail, SignalRail, StatusBar, CommandPalette, SettingsPanel
 import { FilterStrip } from './components/shell/FilterDrawer';
 import { TooltipLayer } from './components/Tooltip/Tooltip';
 import { DrillPanel } from './components/DrillPanel/DrillPanel';
-import { useData, useScope, type Scope } from './state/data';
+import { isHardRefresh, useData, useScope, type Scope } from './state/data';
 import { encodeFilters, useFilters } from './state/filters';
 import { TABS, useView, type TabId } from './state/view';
 import { useDrill } from './state/drill';
@@ -70,7 +70,7 @@ function LoadingScreen() {
       <div className="t-body-s muted">Reading ten tabs across six spreadsheets by title. Structure renders now; values animate in as each sheet lands.</div>
       <div className="travel-barre" />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-        {loads.map((l) => <div key={l.key} className="t-label-m" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', border: '1px solid var(--hairline)' }}><span>{l.title}</span><span className={l.status === 'ok' ? 'pos' : l.status === 'error' ? 'neg' : l.status === 'derived' ? 'warn' : 'muted'}>{l.status === 'pending' ? 'reading' : l.status === 'ok' ? `${l.rows.toLocaleString('en-IN')} rows` : l.status === 'derived' ? 'derived' : l.status}</span></div>)}
+        {loads.map((l) => <div key={l.key} className="t-label-m" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', border: '1px solid var(--hairline)' }}><span>{l.title}</span><span className={l.status === 'ok' ? 'pos' : l.status === 'error' ? 'neg' : l.status === 'derived' ? 'warn' : 'muted'}>{l.status === 'pending' ? 'reading' : l.status === 'ok' ? `${l.rows.toLocaleString('en-IN')} rows` : l.status === 'derived' ? 'derived' : l.status === 'unused' ? 'not used' : l.status}</span></div>)}
       </div>
     </div>
   );
@@ -129,7 +129,9 @@ export default function App() {
     (window as unknown as Record<string, unknown>).floor = api;
     window.dispatchEvent(new CustomEvent('floor:ready', { detail: { version: api.version } }));
   }, [scope, thresholds, setFilters]);
-  useEffect(() => { load(); }, [load]);
+  /* Cached sheets are reused on every ordinary page load. Only a hard refresh goes back to the
+     network on its own; everything else waits for the Reload button. */
+  useEffect(() => { load(isHardRefresh()); }, [load]);
   useEffect(() => { const h = () => { const hash = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; if (TABS.some((t) => t.id === hash)) useView.getState().setTab(hash); }; window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h); }, []);
   // 90ms crossfade on scope change, no layout shift
   const sig = scope ? `${scope.period.start}${scope.period.end}${JSON.stringify(scope.filters)}${scope.ctx.ratePerSession}` : '';
@@ -145,7 +147,7 @@ export default function App() {
       <FilterStrip />
       <TabRail />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <main id="canvas" style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '0 24px 40px', maxWidth: 1920, position: 'relative' }} className={swapping ? 'dim fade-swap' : 'fade-swap'} aria-busy={swapping || status === 'loading'}>
+        <main id="canvas" className={`canvas ${swapping ? 'dim fade-swap' : 'fade-swap'}`} aria-busy={swapping || status === 'loading'}>
           {swapping && <div className="travel-barre" style={{ position: 'sticky', top: 0, zIndex: 5 }} />}
           <BlockedBanner />
           {status === 'error' && error ? <ErrorScreen error={error} /> : !scope ? <LoadingScreen /> : (
