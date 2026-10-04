@@ -16,10 +16,10 @@ export interface AISignal {
   impactINR?: number; entity?: string; metricId?: string;
 }
 
-const CONFIG_KEY = 'floor.ai.config.v1';
-const KEY_LOCAL = 'floor.ai.openai.key';
-const KEY_SESSION = 'floor.ai.openai.key.session';
-export const AI_EVENT = 'floor:ai-settings';
+const CONFIG_KEY = 'atlas.ai.config.v1';
+const KEY_LOCAL = 'atlas.ai.openai.key';
+const KEY_SESSION = 'atlas.ai.openai.key.session';
+export const AI_EVENT = 'atlas:ai-settings';
 
 export function readAIConfig(): AIConfig {
   try { return { provider: 'openai', model: 'gpt-4.1-mini', baseUrl: 'https://api.openai.com/v1', rememberKey: false, ...JSON.parse(localStorage.getItem(CONFIG_KEY) ?? '{}') }; }
@@ -106,7 +106,7 @@ export async function generateAIReport(model: ReportModel): Promise<AIReportInte
 export async function generateAISignals(tab: TabId, payload: unknown): Promise<{ fingerprint: string; signals: AISignal[]; cached: boolean }> {
   const config = readAIConfig();
   const fingerprint = await digest({ version: 2, model: config.model, tab, payload });
-  const key = `floor.ai.signal-cache.${fingerprint}`;
+  const key = `atlas.ai.signal-cache.${fingerprint}`;
   try { const cached = localStorage.getItem(key); if (cached) return { fingerprint, signals: JSON.parse(cached), cached: true }; } catch { /* ignore */ }
   const response = await openAIJson<{ signals: AISignal[] }>(
     `You are a senior boutique-fitness operations analyst. Analyze the supplied scoped tab snapshot. Return JSON {"signals": [...]} with 5 to 10 non-overlapping signals. Each signal must have title, body with exact evidence, action, severity critical|attention|opportunity|context, optional impactINR, entity and metricId. Do not invent facts or add generic advice. Prioritize controllable changes, anomalies, leading indicators and cross-metric contradictions.`,

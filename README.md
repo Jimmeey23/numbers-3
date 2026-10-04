@@ -1,4 +1,4 @@
-# Floor — Physique 57 India performance
+# Atlas — Physique 57 India performance
 
 A fourteen-tab analytics environment for a boutique fitness operator: Overview, Sales, Leads, Acquisition, Retention, Classes, Slots, Bookings, Attendance, Trainers, Payroll, Late cancellations, Format comparison and Data health, in two themes (Matte black with neon accents, Gloss white lacquer with crimson/cobalt).
 
@@ -82,12 +82,12 @@ and lists the nearest metrics; it never claims the data does not exist when it d
 
 The thread persists across reloads, ↑/↓ recalls earlier questions, any answer can be pinned to a tab as
 a signal card, and the whole conversation exports. The same resolver is on the agent API as
-`floor.ask('draw premium')`, so an external agent gets identical answers.
+`atlas.ask('draw premium')`, so an external agent gets identical answers.
 
 ## Custom decision reports
 
 Press **R** or the **Report** button. Choose any relative or custom date range, one or more locations,
-and class formats without changing the dashboard. Floor then emits a self-contained HTML or JSON report
+and class formats without changing the dashboard. Atlas then emits a self-contained HTML or JSON report
 with eleven decision chapters plus a month-on-month appendix.
 
 | # | Chapter | What it carries |
@@ -127,7 +127,7 @@ includes its data, scope and model: requesting the exact report again reuses the
 OpenAI a second time. API keys remain session-only unless **Remember API key** is explicitly enabled. The
 Signals rail uses the same saved-by-fingerprint behavior through **Generate with AI**.
 
-Agents can generate the deterministic artefact: `floor.report('html')` or `floor.report('json')`.
+Agents can generate the deterministic artefact: `atlas.report('html')` or `atlas.report('json')`.
 
 ## Building widgets
 
@@ -159,9 +159,9 @@ heatmaps without a second axis are all caught.
 Agents build the same way:
 
 ```js
-floor.addWidget({ tab: 'classes', kind: 'column', metrics: ['v_fill_rate'],
+atlas.addWidget({ tab: 'classes', kind: 'column', metrics: ['v_fill_rate'],
                   groupBy: 'daypart', title: 'Fill by time of day', placement: 'top' })
-floor.listWidgets() · floor.updateWidget(id, patch) · floor.removeWidget(id) · floor.widgetKinds()
+atlas.listWidgets() · atlas.updateWidget(id, patch) · atlas.removeWidget(id) · atlas.widgetKinds()
 ```
 
 ## Agent and streaming APIs
@@ -188,22 +188,22 @@ Run these same-origin endpoints with `npm run dev`, `npm run preview`, or `npm r
 ### In-page API
 
 Every tab is also addressable from the browser console or an automation. The surface is published on
-`window.floor` and rebuilt on every filter change, so it always reflects what is on screen. Every
+`window.atlas` and rebuilt on every filter change, so it always reflects what is on screen. Every
 response carries the scope it was computed under — an agent cannot quote a number without knowing
 the period and filters behind it.
 
 ```js
-await floor.describe()                       // catalogue: 14 endpoints, 9 methods
-await floor.get('retention')                 // KPIs, grouped breakdown, groupings, metrics, signals
-await floor.get('classes', { groupBy: 'daypart', limit: 10 })
-await floor.query({ tab: 'bookings',
+await atlas.describe()                       // catalogue: 14 endpoints, 9 methods
+await atlas.get('retention')                 // KPIs, grouped breakdown, groupings, metrics, signals
+await atlas.get('classes', { groupBy: 'daypart', limit: 10 })
+await atlas.query({ tab: 'bookings',
   metrics: ['visits', 'v_no_show_rate', 'v_lead_time'],
   groupBy: ['location', 'day'], sortBy: 'visits' })   // up to four grouping levels
-await floor.insights()                       // netted rupee impact by basis
-await floor.metrics()                        // the whole registry with formulas and sources
-floor.push({ tab: 'retention', severity: 'critical', title: '…', body: '…', action: '…', impactINR: 180000 })
-floor.setFilters({ preset: 'month', locations: ['Kenkere House'] })
-floor.export('sales', 'markdown')            // json · csv · markdown
+await atlas.insights()                       // netted rupee impact by basis
+await atlas.metrics()                        // the whole registry with formulas and sources
+atlas.push({ tab: 'retention', severity: 'critical', title: '…', body: '…', action: '…', impactINR: 180000 })
+atlas.setFilters({ preset: 'month', locations: ['Kenkere House'] })
+atlas.export('sales', 'markdown')            // json · csv · markdown
 ```
 
 Cards pushed by an agent appear in that tab's Signal rail marked "From an agent" and persist across

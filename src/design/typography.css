@@ -5,7 +5,7 @@
    align and a value never jumps width as it animates.
    ════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Display: the figures a room reads from across the floor ──────────────── */
+/* ── Display: the figures a room reads from across the studio ──────────────── */
 .t-display-xl {
   font-family: var(--font-display);
   font-size: clamp(40px, 4.2vw, 62px);

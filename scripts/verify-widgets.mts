@@ -51,7 +51,7 @@ for(const [q,want] of [
 console.log('\nPERSISTENCE + LIVE RECOMPUTE');
 const {id,error}=addWidget({tab:'classes',kind:'table',metrics:['visits','v_fill_rate'],groupBy:'location',source:'agent'});
 chk(!!id&&!error, `widget saved (${id})`);
-chk(readWidgets().length===1 && store.has('floor.widgets.v1'), 'persisted to storage');
+chk(readWidgets().length===1 && store.has('atlas.widgets.v1'), 'persisted to storage');
 const w=readWidgets()[0];
 const nodes=rollupLevel(sc.tables[metric(w.metrics[0]).table],[w.groupBy!],0,w.metrics,sc.ctx);
 chk(nodes.length>0, `renders ${nodes.length} rows: ${nodes.slice(0,3).map(n=>`${n.label}=${n.values.visits.value}`).join(', ')}`);

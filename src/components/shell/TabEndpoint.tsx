@@ -29,7 +29,7 @@ export function TabEndpoint({ tab, bare = false }: { tab: TabId; bare?: boolean 
         <code className="tab-endpoint-url" title={url}>{url}</code>
         <button className="btn btn-xs" onClick={() => copy(url, 'Endpoint URL')}>{copied === 'Endpoint URL' ? 'Copied' : 'Copy URL'}</button>
         <a className="btn btn-xs" href={url} target="_blank" rel="noreferrer">Open</a>
-        <button className="btn btn-xs" onClick={() => copy(`await window.floor.get('${tab}')`, 'In-page call')}>
+        <button className="btn btn-xs" onClick={() => copy(`await window.atlas.get('${tab}')`, 'In-page call')}>
           {copied === 'In-page call' ? 'Copied' : 'Copy in-page call'}
         </button>
       </div>
@@ -44,7 +44,7 @@ export function TabEndpoint({ tab, bare = false }: { tab: TabId; bare?: boolean 
       <p className="t-label-s faint tab-endpoint-note">
         On a static deployment with no server running, the same payload is rendered by the page itself at
         {' '}<code className="tab-endpoint-alt">{fallback}</code> — that one needs a caller that executes JavaScript.
-        An agent already inside the page should call <code>window.floor.get('{tab}')</code>.
+        An agent already inside the page should call <code>window.atlas.get('{tab}')</code>.
       </p>
     </>
   );

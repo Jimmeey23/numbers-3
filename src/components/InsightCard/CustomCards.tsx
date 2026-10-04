@@ -10,9 +10,9 @@ export function useCustomCards(tab: TabId) {
   const [cards, setCards] = useState<AgentCard[]>(readCards);
   useEffect(() => {
     const sync = () => setCards(readCards());
-    window.addEventListener('floor:cards', sync);
+    window.addEventListener('atlas:cards', sync);
     window.addEventListener('storage', sync);
-    return () => { window.removeEventListener('floor:cards', sync); window.removeEventListener('storage', sync); };
+    return () => { window.removeEventListener('atlas:cards', sync); window.removeEventListener('storage', sync); };
   }, []);
   return useMemo(() => cards.filter((c) => c.tab === tab).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.createdAt - a.createdAt), [cards, tab]);
 }

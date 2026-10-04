@@ -182,7 +182,7 @@ enrichment.
 
 ```
 npx tsx scripts/make-fixtures.mts
-FLOOR_FIXTURES=/tmp/floor-fixtures npx tsx scripts/render-test.mts
+ATLAS_FIXTURES=/tmp/atlas-fixtures npx tsx scripts/render-test.mts
 ```
 
 ## The Attendance crash

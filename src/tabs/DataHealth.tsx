@@ -194,19 +194,19 @@ GET /api/v1/report?format=json&preset=last_week&location=Kenkere%20House
           </div>
           <div className="panel">
             <div className="t-heading-m" style={{ marginBottom: 8 }}>In-page live API</div>
-            <pre className="api-code">{`await floor.describe()                      // the full catalogue
-await floor.get('retention')                // KPIs, groups, insights for a tab
-await floor.get('classes', { groupBy: 'daypart', limit: 10 })
-await floor.query({ tab: 'bookings',
+            <pre className="api-code">{`await atlas.describe()                      // the full catalogue
+await atlas.get('retention')                // KPIs, groups, insights for a tab
+await atlas.get('classes', { groupBy: 'daypart', limit: 10 })
+await atlas.query({ tab: 'bookings',
   metrics: ['visits','v_no_show_rate','v_lead_time'],
   groupBy: ['location','day'], sortBy: 'visits' })
-await floor.insights()                      // netted rupee impact by basis
-floor.push({ tab: 'retention', severity: 'critical',
+await atlas.insights()                      // netted rupee impact by basis
+atlas.push({ tab: 'retention', severity: 'critical',
   title: 'Bandra 7am is bleeding regulars',
   body: '9 of 14 regulars have not booked in 3 weeks.',
   action: 'Call them before Friday.', impactINR: 180000 })
-floor.setFilters({ preset: 'month', locations: ['Kenkere House'] })
-floor.export('sales', 'markdown')`}</pre>
+atlas.setFilters({ preset: 'month', locations: ['Kenkere House'] })
+atlas.export('sales', 'markdown')`}</pre>
             <div className="t-label-s faint" style={{ marginTop: 8 }}>
               Cards pushed by an agent appear in the Insight rail on that tab, marked "From an agent", and persist across reloads.
               The API is rebuilt on every filter change, so it always reflects what is on screen.
@@ -217,7 +217,7 @@ floor.export('sales', 'markdown')`}</pre>
               <thead><tr><th className="t-heading-s" style={{ textAlign: 'left' }}>Endpoint</th><th className="t-heading-s">Grain</th><th className="t-heading-s">Headline</th><th className="t-heading-s">Groupings</th><th className="t-heading-s">Metrics</th></tr></thead>
               <tbody>{ENDPOINTS.map((e) => (
                 <tr key={e.tab}>
-                  <td className="t-body-s"><code>floor.get('{e.tab}')</code></td>
+                  <td className="t-body-s"><code>atlas.get('{e.tab}')</code></td>
                   <td className="t-body-s">{e.table}</td>
                   <td className="t-num">{e.headline.length}</td>
                   <td className="t-num">{e.groupBy.length}</td>

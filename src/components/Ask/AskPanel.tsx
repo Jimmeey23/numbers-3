@@ -9,9 +9,9 @@ import { WidgetBuilder } from '../Widgets/WidgetSection';
 import { addWidget, type WidgetSpec } from '../../api/widgets';
 import { scopeLine } from '../../api/export';
 
-export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult }
+export interface Turn { id: string; role: 'you' | 'atlas'; text: string; at: number; result?: AskResult }
 
-const KEY = 'floor.conversation.v1';
+const KEY = 'atlas.conversation.v1';
 const readTurns = (): Turn[] => { try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; } };
 const writeTurns = (t: Turn[]) => { try { localStorage.setItem(KEY, JSON.stringify(t.slice(-200))); } catch { /* quota */ } };
 
@@ -21,7 +21,7 @@ export function AskDock() {
   const open = useView((s) => s.askOpen);
   const setOpen = useView((s) => s.setAskOpen);
   const [hint, setHint] = useState(() => {
-    try { return !localStorage.getItem('floor.askSeen'); } catch { return true; }
+    try { return !localStorage.getItem('atlas.askSeen'); } catch { return true; }
   });
   if (open) return null;
   return (
@@ -31,10 +31,10 @@ export function AskDock() {
           <div className="t-label-m">Ask anything about this data</div>
           <div className="t-label-s muted">“worst slots by fill rate”, “what is draw premium”</div>
           <button className="ask-dock-dismiss" aria-label="Dismiss"
-            onClick={() => { setHint(false); try { localStorage.setItem('floor.askSeen', '1'); } catch { /* ignore */ } }}>×</button>
+            onClick={() => { setHint(false); try { localStorage.setItem('atlas.askSeen', '1'); } catch { /* ignore */ } }}>×</button>
         </div>
       )}
-      <button className="ask-dock-btn" onClick={() => { setOpen(true); setHint(false); try { localStorage.setItem('floor.askSeen', '1'); } catch { /* ignore */ } }}
+      <button className="ask-dock-btn" onClick={() => { setOpen(true); setHint(false); try { localStorage.setItem('atlas.askSeen', '1'); } catch { /* ignore */ } }}
         aria-label="Ask a question about your data (press A)" title="Ask a question (A)">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.7-.8L3 21l1.9-4.9A8.4 8.4 0 0 1 4 11.5a8.4 8.4 0 0 1 8.5-8.4A8.4 8.4 0 0 1 21 11.5Z"
@@ -85,7 +85,7 @@ export function AskPanel() {
     }
     setTurns((t) => [...t,
       { id: `u${now}`, role: 'you', text: q, at: now },
-      { id: `f${now}`, role: 'floor', text: result.answer, at: now + 1, result }]);
+      { id: `f${now}`, role: 'atlas', text: result.answer, at: now + 1, result }]);
     setDraft(''); setHistIdx(-1);
   };
 
@@ -170,9 +170,9 @@ function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 
   const [tweaking, setTweaking] = useState(false);
   const [built, setBuilt] = useState<string | null>(null);
   const announce = useView((s) => s.announce);
-  if (!r) return <div className="ask-turn floor"><div className="ask-bubble">{turn.text}</div></div>;
+  if (!r) return <div className="ask-turn atlas"><div className="ask-bubble">{turn.text}</div></div>;
   return (
-    <div className="ask-turn floor">
+    <div className="ask-turn atlas">
       <div className="ask-bubble">
         {r.unresolved && <span className="status-pill warn" style={{ marginBottom: 6, display: 'inline-flex' }}>Not in the registry</span>}
         {r.confidence === 'guess' && !r.unresolved && <span className="status-pill warn" style={{ marginBottom: 6, display: 'inline-flex' }}>Best guess</span>}

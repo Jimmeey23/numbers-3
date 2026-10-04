@@ -1,4 +1,4 @@
-# Floor — audit
+# Atlas — audit
 
 > **Status: historical.** This document describes a snapshot taken before the October 2026 review.
 > Several of its findings have since changed in code, and its conclusion that "the arithmetic is

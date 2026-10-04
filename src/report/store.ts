@@ -5,7 +5,7 @@ export interface SavedReport {
   scopeLine: string; aiGenerated: boolean; aiModel?: string; model: ReportModel;
 }
 
-const DB = 'floor-report-library'; const STORE = 'reports'; const VERSION = 1;
+const DB = 'atlas-report-library'; const STORE = 'reports'; const VERSION = 1;
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, VERSION);

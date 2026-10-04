@@ -211,7 +211,7 @@ money → demand → funnel → retention → outlook → actions, a month-on-mo
 each chapter writes into, one master shell owning the document, and a single chapter list driving the
 nav, the contents and the anchors so they cannot disagree. Output is one self-contained HTML file.
 
-**The departure is the narrative.** The template calls an LLM per section and caches the result. Floor
+**The departure is the narrative.** The template calls an LLM per section and caches the result. Atlas
 composes the prose from the metric registry and the insight engine instead. That is a deliberate
 trade: it gives up range of expression and gains the guarantee that the number in a sentence and the
 number in the table beneath it are the same computation. A cached LLM narrative can describe last
@@ -247,16 +247,16 @@ translucent surface, which survives both dark themes and 12px type.
 
 **Domain hue.** Every tab carries `data-domain`, which rebinds `--hue`, `--hue-ink`, `--hue-wash`,
 `--hue-edge` and `--hue-veil`. The accent is therefore a property of *where you are* — revenue tabs
-are warm, floor tabs cool — and no component hardcodes a colour.
+are warm, studio tabs cool — and no component hardcodes a colour.
 
 **Typography.** Archivo (variable, display) for numbers, labels and headings; Instrument Sans for
 prose. A single scale — `t-display-*`, `t-heading-*`, `t-body-*`, `t-label-*` — with tabular,
 width-narrowed figures for every measured value, so columns of numbers align on the decimal.
 
 **Navigation.** The tab strip became a persistent, collapsible side rail grouped into
-Pulse · Commercial · Floor · People · Quality (`TAB_GROUPS` in `src/state/view.ts`), with a line icon
+Pulse · Commercial · Studio · People · Quality (`TAB_GROUPS` in `src/state/view.ts`), with a line icon
 per tab, the keyboard shortcut shown on the right, a failed-sheet badge on Data health, and the row
-count in scope pinned to the foot. Collapse persists in `localStorage['floor.nav.collapsed']`. The old
+count in scope pinned to the foot. Collapse persists in `localStorage['atlas.nav.collapsed']`. The old
 horizontal rail is retained for viewports under 1100px, where the side rail is hidden.
 
 **Page header.** Every tab now opens with the same block: its group as an eyebrow, the tab name, a

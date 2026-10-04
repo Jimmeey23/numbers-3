@@ -34,8 +34,10 @@
   --sp-6: 24px; --sp-7: 28px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
   --sp-14: 56px; --sp-16: 64px;
 
-  /* One gutter for the whole chrome, growing with the viewport. */
-  --gutter: clamp(18px, 2.2vw, 44px);
+  /* One gutter for the whole chrome, growing with the viewport. The work area is given
+     generous margins: a dense table needs air at its edges more than it needs 40 more pixels
+     of column. */
+  --gutter: clamp(22px, 3.4vw, 72px);
 
   /* Chrome geometry. */
   --nav-w: 244px;
@@ -234,22 +236,23 @@
    GLOSS — luminous daylight. Cool white with saturated, confident accents.
    ════════════════════════════════════════════════════════════════════════════ */
 :root[data-theme="gloss"] {
-  /* GLOSS — white neumorphism. A soft grey ground so white surfaces can lift off it,
-     one blue doing all the accent work, and light grey carrying everything secondary. */
-  --canvas: #EBEFF5;
-  --canvas-tint-1: rgba(37, 99, 235, .10);
-  --canvas-tint-2: rgba(100, 116, 139, .08);
-  --canvas-tint-3: rgba(14, 165, 233, .07);
+  /* GLOSS — white neumorphism. The ground is white and the surfaces are the same white:
+     nothing is separated by colour, only by the way light falls on it. One blue does all the
+     accent work and light grey carries everything secondary. */
+  --canvas: #FFFFFF;
+  --canvas-tint-1: rgba(37, 99, 235, .05);
+  --canvas-tint-2: rgba(100, 116, 139, .04);
+  --canvas-tint-3: rgba(14, 165, 233, .03);
   --surface-1: #FFFFFF;
-  --surface-2: #F7F9FC;
-  --surface-3: #EDF1F7;
-  --surface-inset: #E7ECF3;
+  --surface-2: #FAFBFD;
+  --surface-3: #F2F5F9;
+  --surface-inset: #F4F6FA;
   --surface-raised: #FFFFFF;
   --surface-float: #FFFFFF;
-  --hairline: rgba(15, 23, 42, .07);
-  --hairline-strong: rgba(15, 23, 42, .16);
-  --rule: rgba(15, 23, 42, .07);
-  --overlay: rgba(15, 23, 42, .28);
+  --hairline: rgba(15, 23, 42, .055);
+  --hairline-strong: rgba(15, 23, 42, .13);
+  --rule: rgba(15, 23, 42, .055);
+  --overlay: rgba(15, 23, 42, .20);
 
   --text-1: #0F172A;
   --text-2: #475569;
@@ -273,16 +276,16 @@
   --focus: #2563EB; --glow: 0 0 20px;
   --heat-text-invert: #FFFFFF; --on-hue: #FFFFFF;
 
-  --glass: rgba(255, 255, 255, .80);
-  --glass-strong: rgba(255, 255, 255, .94);
-  --glass-blur: saturate(140%) blur(18px);
+  --glass: rgba(255, 255, 255, .86);
+  --glass-strong: rgba(255, 255, 255, .96);
+  --glass-blur: saturate(130%) blur(16px);
   --sheen: linear-gradient(180deg, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0) 55%);
-  --ring: 0 0 0 1px rgba(15, 23, 42, .06);
+  --ring: 0 0 0 1px rgba(15, 23, 42, .05);
 
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, .05);
-  --shadow-2: 0 4px 12px -4px rgba(15, 23, 42, .10), 0 1px 3px rgba(15, 23, 42, .04);
-  --shadow-3: 0 16px 36px -18px rgba(15, 23, 42, .18), 0 4px 12px -8px rgba(15, 23, 42, .10);
-  --shadow-4: 0 36px 80px -30px rgba(15, 23, 42, .24), 0 10px 24px -14px rgba(15, 23, 42, .12);
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, .04);
+  --shadow-2: 0 4px 12px -6px rgba(15, 23, 42, .08);
+  --shadow-3: 0 14px 30px -18px rgba(15, 23, 42, .14);
+  --shadow-4: 0 28px 60px -30px rgba(15, 23, 42, .18);
   color-scheme: light;
 }
 
@@ -579,25 +582,25 @@
    ground, a wide cool shadow and a hard white highlight. Everything else stays near-flat. */
 :root[data-theme="gloss"] {
   --relief-light: #FFFFFF;
-  --relief-dark: rgba(148, 163, 184, .55);
+  --relief-dark: rgba(163, 177, 198, .40);
   --relief-up:
-    -3px -3px 7px 0 var(--relief-light),
-    4px 5px 12px -4px var(--relief-dark);
+    -2px -2px 6px 0 var(--relief-light),
+    3px 4px 12px -5px var(--relief-dark);
   --relief-up-lg:
-    -5px -5px 12px 0 var(--relief-light),
-    10px 14px 30px -12px var(--relief-dark);
+    -3px -3px 10px 0 var(--relief-light),
+    8px 12px 28px -14px var(--relief-dark);
   --relief-hover:
-    -4px -4px 9px 0 var(--relief-light),
-    7px 9px 20px -8px var(--relief-dark);
+    -3px -3px 8px 0 var(--relief-light),
+    5px 7px 18px -9px var(--relief-dark);
   --relief-in:
-    inset 3px 3px 7px -2px var(--relief-dark),
-    inset -3px -3px 6px 0 var(--relief-light);
-  --relief-in-soft:
-    inset 2px 2px 4px -1px rgba(148, 163, 184, .38),
-    inset -2px -2px 4px 0 #FFFFFF;
-  --relief-press:
-    inset 3px 3px 6px -1px var(--relief-dark),
+    inset 2px 2px 5px -2px var(--relief-dark),
     inset -2px -2px 5px 0 var(--relief-light);
+  --relief-in-soft:
+    inset 1px 1px 3px -1px rgba(163, 177, 198, .30),
+    inset -1px -1px 3px 0 #FFFFFF;
+  --relief-press:
+    inset 2px 2px 5px -1px var(--relief-dark),
+    inset -2px -2px 4px 0 var(--relief-light);
 }
 
 [data-domain="attendance"] { --hue: var(--hue-attendance); --hue-ink: var(--ink-attendance); --hue-next: var(--hue-people); }

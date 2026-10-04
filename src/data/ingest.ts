@@ -12,7 +12,7 @@ import {
 } from './normalise';
 
 type Raw = Record<string, string>;
-const CACHE_NAME = 'floor-sheets-v1';
+const CACHE_NAME = 'atlas-sheets-v1';
 
 async function readCache(url: string): Promise<{ text: string; at: number } | null> {
   if (typeof caches === 'undefined') return null;
@@ -20,7 +20,7 @@ async function readCache(url: string): Promise<{ text: string; at: number } | nu
     const c = await caches.open(CACHE_NAME);
     const res = await c.match(url);
     if (!res) return null;
-    const at = Number(res.headers.get('x-floor-cached-at') ?? 0);
+    const at = Number(res.headers.get('x-atlas-cached-at') ?? 0);
     if (!at) return null;
     /* No time-based expiry. A cached sheet is served however old it is; only an explicit
        refresh — the Reload button, or a hard refresh of the page — goes back to the network. */
@@ -31,7 +31,7 @@ async function writeCache(url: string, text: string) {
   if (typeof caches === 'undefined') return;
   try {
     const c = await caches.open(CACHE_NAME);
-    await c.put(url, new Response(text, { headers: { 'content-type': 'text/csv', 'x-floor-cached-at': String(Date.now()) } }));
+    await c.put(url, new Response(text, { headers: { 'content-type': 'text/csv', 'x-atlas-cached-at': String(Date.now()) } }));
   } catch { /* quota — the sheet simply refetches next time */ }
 }
 export async function clearCache() {

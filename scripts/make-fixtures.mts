@@ -1,6 +1,6 @@
 /* Generate a small, realistic synthetic dataset so every tab can be rendered with rows in it.
  *
- *   npx tsx scripts/make-fixtures.mts [outDir]        # default /tmp/floor-fixtures
+ *   npx tsx scripts/make-fixtures.mts [outDir]        # default /tmp/atlas-fixtures
  *
  * The render test used to run against whatever CSVs happened to be in /tmp, and with none there it
  * rendered every tab against zero rows — which is exactly the state in which no aggregation, no
@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const outDir = process.argv[2] ?? '/tmp/floor-fixtures';
+const outDir = process.argv[2] ?? '/tmp/atlas-fixtures';
 fs.mkdirSync(outDir, { recursive: true });
 
 const { SHEETS } = await import('../src/data/sheets.config.ts');

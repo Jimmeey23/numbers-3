@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 
 // Same-origin API middleware for development and `vite preview`. Production can run
 // `npm run serve`, which uses the identical handler while serving the built single file.
-const floorApi = () => ({
-  name: 'floor-data-api',
+const atlasApi = () => ({
+  name: 'atlas-data-api',
   configureServer(server: { middlewares: { use: (fn: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) {
     server.middlewares.use(async (req, res, next) => { const { handleApiRequest } = await import('./server/api.mts'); if (!(await handleApiRequest(req, res))) next(); });
   },
@@ -22,7 +22,7 @@ const floorApi = () => ({
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), floorApi(), viteSingleFile()],
+  plugins: [react(), tailwindcss(), atlasApi(), viteSingleFile()],
   server: { host: '0.0.0.0', allowedHosts: true },
   preview: { host: '0.0.0.0', allowedHosts: true },
   resolve: {

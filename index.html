@@ -16,14 +16,20 @@
          repeated here on purpose: it is three names, and importing the registry would mean waiting
          for the bundle. Keep it in step with src/design/ramps.ts. */
       (function(){try{
+        /* Settings saved under the app's former name are carried over once, so a rename
+           does not cost anyone their theme, saved views or thresholds. */
+        for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);
+          if(k&&k.indexOf('floor.')===0){var nk='atlas.'+k.slice(6);
+            if(localStorage.getItem(nk)===null)localStorage.setItem(nk,localStorage.getItem(k));
+            localStorage.removeItem(k);}}
         var DARK={matte:1,carbon:1,aurora:1};
         var ALL={matte:1,gloss:1,carbon:1,aurora:1,paper:1,contrast:1,linen:1,blueprint:1};
-        var t=(localStorage.getItem('floor.theme')||'').replace(/"/g,'');
+        var t=(localStorage.getItem('atlas.theme')||'').replace(/"/g,'');
         if(!ALL[t])t='matte';
         var r=document.documentElement;
         r.setAttribute('data-theme',t);
         r.setAttribute('data-mode',DARK[t]?'dark':'light');
-        var d=localStorage.getItem('floor.density');if(d)r.setAttribute('data-density',d.replace(/"/g,''));
+        var d=localStorage.getItem('atlas.density');if(d)r.setAttribute('data-density',d.replace(/"/g,''));
       }catch(e){}})();
     </script>
   </head>

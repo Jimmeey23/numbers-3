@@ -1,15 +1,15 @@
 /* Agent API — a stable, documented surface over every tab's data.
  *
  * The app is a static single file, so there is no server to host REST routes. Instead every tab
- * exposes its data through one addressable namespace, published on `window.floor`, which an AI
+ * exposes its data through one addressable namespace, published on `window.atlas`, which an AI
  * agent (or a browser extension, or a Playwright script) can call to read exactly what the
  * operator is looking at and to push insights back into the Insight rail in real time.
  *
- *   await floor.describe()                    → the endpoint catalogue, self-documenting
- *   await floor.get('retention')              → KPIs, groupings, tables and insights for a tab
- *   await floor.query({ tab, groupBy, metrics })→ arbitrary rollup against the live scope
- *   floor.push({ tab, title, body, ... })     → add an insight card to a tab (persists)
- *   floor.setFilters({ ... }) / floor.scope() → drive or read the global filter state
+ *   await atlas.describe()                    → the endpoint catalogue, self-documenting
+ *   await atlas.get('retention')              → KPIs, groupings, tables and insights for a tab
+ *   await atlas.query({ tab, groupBy, metrics })→ arbitrary rollup against the live scope
+ *   atlas.push({ tab, title, body, ... })     → add an insight card to a tab (persists)
+ *   atlas.setFilters({ ... }) / atlas.scope() → drive or read the global filter state
  *
  * Every response carries the scope it was computed under, so an agent can never quote a number
  * without knowing the period and filters that produced it.
@@ -156,13 +156,13 @@ export interface AgentCardInput {
 }
 export interface AgentCard extends AgentCardInput { id: string; createdAt: number; severity: NonNullable<AgentCardInput['severity']>; source: string }
 
-const CARD_KEY = 'floor.cards.v1';
+const CARD_KEY = 'atlas.cards.v1';
 export function readCards(): AgentCard[] {
   try { return JSON.parse(localStorage.getItem(CARD_KEY) ?? '[]'); } catch { return []; }
 }
 export function writeCards(cards: AgentCard[]) {
   try { localStorage.setItem(CARD_KEY, JSON.stringify(cards)); } catch { /* private mode */ }
-  window.dispatchEvent(new CustomEvent('floor:cards'));
+  window.dispatchEvent(new CustomEvent('atlas:cards'));
 }
 export function addCard(input: AgentCardInput): AgentCard {
   const card: AgentCard = {

@@ -72,7 +72,7 @@ function LoadingScreen() {
     <div className="rise" style={{ padding: '60px 0', display: 'grid', gap: 18, maxWidth: 760 }}>
       <div>
         <span className="eyebrow">Initialising</span>
-        <div className="t-display-m" style={{ marginTop: 6 }}>Reading the floor</div>
+        <div className="t-display-m" style={{ marginTop: 6 }}>Reading Atlas</div>
         <div className="t-body-m muted" style={{ marginTop: 8, maxWidth: '62ch' }}>
           Ten tabs across six spreadsheets, resolved by title. The structure renders now; every value animates in as its sheet lands.
         </div>
@@ -173,8 +173,8 @@ function Workspace() {
     const api = buildAgentApi(scope, thresholds, (patch) => setFilters(patch as never));
     // Same resolver the in-app Ask uses, so an external agent gets identical answers.
     (api as unknown as Record<string, unknown>).ask = (q: string) => askQuestion(q, scope, thresholds);
-    (window as unknown as Record<string, unknown>).floor = api;
-    window.dispatchEvent(new CustomEvent('floor:ready', { detail: { version: api.version } }));
+    (window as unknown as Record<string, unknown>).atlas = api;
+    window.dispatchEvent(new CustomEvent('atlas:ready', { detail: { version: api.version } }));
   }, [scope, thresholds, setFilters]);
   /* Cached sheets are reused on every ordinary page load. Only a hard refresh goes back to the
      network on its own; everything else waits for the Reload button. */

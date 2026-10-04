@@ -47,12 +47,12 @@ const tabFromHash = (): TabId => { const h = window.location.hash.replace(/^#\/?
 
 export const useView = create<ViewState>((set) => ({
   theme: initialTheme, density: initialDensity, tab: tabFromHash(), railOpen: window.innerWidth >= 1600, filtersOpen: false, comparison: false, paletteOpen: false, settingsOpen: false, askOpen: false, reportOpen: false,
-  ratePerSession: ls('floor.rate', 1200), thresholds: { ...DEFAULT_THRESHOLDS, ...ls('floor.thresholds', {}) },
-  savedViews: [...PRESET_VIEWS, ...ls<SavedView[]>('floor.views', [])], dismissed: ls('floor.dismissed', {}), announcement: '',
+  ratePerSession: ls('atlas.rate', 1200), thresholds: { ...DEFAULT_THRESHOLDS, ...ls('atlas.thresholds', {}) },
+  savedViews: [...PRESET_VIEWS, ...ls<SavedView[]>('atlas.views', [])], dismissed: ls('atlas.dismissed', {}), announcement: '',
   /* `data-mode` rides alongside `data-theme`: the chrome rules that care only whether the
      material is dark or light are written against the mode, so a new theme needs no new CSS. */
-  setTheme: (theme) => { applyAttr('data-theme', theme); applyAttr('data-mode', isDark(theme) ? 'dark' : 'light'); localStorage.setItem('floor.theme', theme); set({ theme }); },
-  setDensity: (density) => { applyAttr('data-density', density); localStorage.setItem('floor.density', density); set({ density }); },
+  setTheme: (theme) => { applyAttr('data-theme', theme); applyAttr('data-mode', isDark(theme) ? 'dark' : 'light'); localStorage.setItem('atlas.theme', theme); set({ theme }); },
+  setDensity: (density) => { applyAttr('data-density', density); localStorage.setItem('atlas.density', density); set({ density }); },
   setTab: (tab) => set({ tab }),
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
@@ -61,16 +61,16 @@ export const useView = create<ViewState>((set) => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setAskOpen: (askOpen) => set({ askOpen }),
   setReportOpen: (reportOpen) => set({ reportOpen }),
-  setRate: (ratePerSession) => { save('floor.rate', ratePerSession); set({ ratePerSession }); },
-  setThresholds: (t) => set((s) => { const thresholds = { ...s.thresholds, ...t }; save('floor.thresholds', thresholds); return { thresholds }; }),
-  saveView: (v) => set((s) => { const savedViews = [...s.savedViews.filter((x) => x.id !== v.id), v]; save('floor.views', savedViews.filter((x) => !x.preset)); return { savedViews }; }),
-  deleteView: (id) => set((s) => { const savedViews = s.savedViews.filter((x) => x.id !== id); save('floor.views', savedViews.filter((x) => !x.preset)); return { savedViews }; }),
-  dismiss: (key) => set((s) => { const dismissed = { ...s.dismissed, [key]: Date.now() }; save('floor.dismissed', dismissed); return { dismissed }; }),
+  setRate: (ratePerSession) => { save('atlas.rate', ratePerSession); set({ ratePerSession }); },
+  setThresholds: (t) => set((s) => { const thresholds = { ...s.thresholds, ...t }; save('atlas.thresholds', thresholds); return { thresholds }; }),
+  saveView: (v) => set((s) => { const savedViews = [...s.savedViews.filter((x) => x.id !== v.id), v]; save('atlas.views', savedViews.filter((x) => !x.preset)); return { savedViews }; }),
+  deleteView: (id) => set((s) => { const savedViews = s.savedViews.filter((x) => x.id !== id); save('atlas.views', savedViews.filter((x) => !x.preset)); return { savedViews }; }),
+  dismiss: (key) => set((s) => { const dismissed = { ...s.dismissed, [key]: Date.now() }; save('atlas.dismissed', dismissed); return { dismissed }; }),
   announce: (announcement) => set({ announcement }),
 }));
 
 /** Navigation groups, in the order an operator works through the day. */
-export type TabGroup = 'Pulse' | 'Commercial' | 'Floor' | 'People' | 'Quality';
+export type TabGroup = 'Pulse' | 'Commercial' | 'Studio' | 'People' | 'Quality';
 
 export interface TabMeta {
   id: TabId;
@@ -89,10 +89,10 @@ export const TABS: TabMeta[] = [
   { id: 'leads', label: 'Leads', domain: 'people', key: '3', group: 'Commercial', blurb: 'Enquiry volume, response speed, follow-up discipline and the pipeline each source actually produces.' },
   { id: 'acquisition', label: 'Acquisition', domain: 'growth', key: '4', group: 'Commercial', blurb: 'First visits, trial conversion, second-visit return and the lifetime value of each cohort.' },
   { id: 'retention', label: 'Retention', domain: 'risk', key: '5', group: 'Commercial', blurb: 'Membership health: utilisation, dormancy, expiry concentration, churn and revenue at risk.' },
-  { id: 'classes', label: 'Classes', domain: 'attendance', key: '6', group: 'Floor', blurb: 'Every class occurrence — capacity, fill, attendance and the revenue attributed to it.' },
-  { id: 'slots', label: 'Slots', domain: 'attendance', key: '7', group: 'Floor', blurb: 'The recurring timetable judged as a schedule: which slots earn their place and which do not.' },
-  { id: 'bookings', label: 'Bookings', domain: 'attendance', key: '8', group: 'Floor', blurb: 'Booking lifecycle, lead time, waitlist pressure, cancellation and no-show behaviour.' },
-  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '9', group: 'Floor', blurb: 'Reconciled check-in grain — who came, how often, and how that visit pattern is trending.' },
+  { id: 'classes', label: 'Classes', domain: 'attendance', key: '6', group: 'Studio', blurb: 'Every class occurrence — capacity, fill, attendance and the revenue attributed to it.' },
+  { id: 'slots', label: 'Slots', domain: 'attendance', key: '7', group: 'Studio', blurb: 'The recurring timetable judged as a schedule: which slots earn their place and which do not.' },
+  { id: 'bookings', label: 'Bookings', domain: 'attendance', key: '8', group: 'Studio', blurb: 'Booking lifecycle, lead time, waitlist pressure, cancellation and no-show behaviour.' },
+  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '9', group: 'Studio', blurb: 'Reconciled check-in grain — who came, how often, and how that visit pattern is trending.' },
   { id: 'trainers', label: 'Trainers', domain: 'people', key: '0', group: 'People', blurb: 'Trainer performance across fill, retention, conversion and commercial contribution.' },
   { id: 'payroll', label: 'Payroll', domain: 'people', key: '-', group: 'People', blurb: 'Sessions taught, customers served, cost per session and contribution per trainer month.' },
   { id: 'late-cancellations', label: 'Late cancellations', domain: 'risk', key: '', group: 'Quality', blurb: 'Late cancellation and no-show clusters by member, class, slot and trainer.' },
@@ -100,5 +100,5 @@ export const TABS: TabMeta[] = [
   { id: 'health', label: 'Data health', domain: 'neutral', key: '=', group: 'Quality', blurb: 'Source reconciliation, coverage, duplicates and anything that would make a number untrustworthy.' },
 ];
 
-export const TAB_GROUPS: TabGroup[] = ['Pulse', 'Commercial', 'Floor', 'People', 'Quality'];
+export const TAB_GROUPS: TabGroup[] = ['Pulse', 'Commercial', 'Studio', 'People', 'Quality'];
 export const tabMeta = (id: TabId): TabMeta => TABS.find((t) => t.id === id) ?? TABS[0];

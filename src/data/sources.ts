@@ -18,7 +18,7 @@ export interface SourceOverride {
   url?: string;
 }
 
-const KEY = 'floor.sources.v1';
+const KEY = 'atlas.sources.v1';
 
 export function readOverrides(): Partial<Record<SheetKey, SourceOverride>> {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '{}'); } catch { return {}; }

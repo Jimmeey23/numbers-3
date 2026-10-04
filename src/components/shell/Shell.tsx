@@ -38,7 +38,7 @@ export function SideNav() {
   const tab = useView((s) => s.tab);
   const setTab = useView((s) => s.setTab);
   const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem('floor.nav.collapsed') === '1'; } catch { return false; }
+    try { return localStorage.getItem('atlas.nav.collapsed') === '1'; } catch { return false; }
   });
   const scope = useScope();
   const loads = useData((s) => s.loads);
@@ -48,7 +48,7 @@ export function SideNav() {
     ref.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [tab]);
   const toggle = () => setCollapsed((c) => {
-    try { localStorage.setItem('floor.nav.collapsed', c ? '0' : '1'); } catch { /* private mode */ }
+    try { localStorage.setItem('atlas.nav.collapsed', c ? '0' : '1'); } catch { /* private mode */ }
     return !c;
   });
   const domain = tabMeta(tab).domain;
@@ -287,33 +287,60 @@ const SWATCHES: Record<Theme, string[]> = Object.fromEntries(THEMES.map((t) => [
 export function PageHeader() {
   const tab = useView((s) => s.tab);
   const scope = useScope();
-  const setFiltersOpen = useView((s) => s.setFiltersOpen);
+  const { setFiltersOpen, comparison, toggleComparison, railOpen, toggleRail, setAskOpen, thresholds, dismissed } = useView();
   const meta = tabMeta(tab);
   const filters = useFilters((s) => s.filters);
+  const status = useData((s) => s.status);
+  const signals = useMemo(
+    () => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key) && (tab === 'overview' || i.tab === tab)).length : 0),
+    [scope, thresholds, dismissed, tab]);
   const studios = filters.locations.length
     ? filters.locations.map((l) => l.split(',')[0]).join(', ')
     : 'All studios';
-  /* The page opens the tab rather than announcing it: group, name, the line that says what the
-     view answers, and the four facts that qualify every number under it. No card, no frame —
-     it is the top of the page, not an object sitting on top of the page. */
+
+  /* The head is the top of the tab, not a card laid on top of it: it runs the full width of the
+     work area, its tint dissolves into the page beneath, and the first section starts straight
+     after the rule. The frame is shared by all fourteen tabs — only the motif, the pattern and
+     the accent change, so every tab is recognisably the same product and still its own place. */
   return (
-    <header className="page-head" data-domain={meta.domain}>
+    <header className="page-head" data-domain={meta.domain} data-tab={tab}>
+      <div className="page-head-pattern" aria-hidden="true" />
+      <div className="page-head-art" aria-hidden="true"><HeroGraphic tab={tab} /></div>
+
       <div className="page-head-row">
         <div className="page-head-main">
           <div className="page-eyebrow">
             <span className="page-eyebrow-rule" aria-hidden="true" />
             {meta.group}
-            {meta.key && <span className="page-eyebrow-key">{meta.key}</span>}
+            {meta.key && <span className="page-eyebrow-key">Press {meta.key}</span>}
           </div>
           <h1 className="page-title">{meta.label}</h1>
           <p className="page-sub">{meta.blurb}</p>
         </div>
-        <HeroGraphic tab={tab} />
+
+        <div className="page-head-actions">
+          <button className="btn btn-xs" onClick={() => setFiltersOpen(true)} title="Period, studios, trainers, formats (F)">
+            {Icon.filter}<span className="desktop-only">Filters</span>
+            {(filters.locations.length + filters.trainers.length) > 0 && <span className="page-action-dot" aria-hidden="true" />}
+          </button>
+          <button className="btn btn-xs" aria-pressed={comparison} onClick={toggleComparison} title="Show the comparison value under every figure (C)">
+            {Icon.compare}<span className="desktop-only">Compare</span>
+          </button>
+          <button className="btn btn-xs" aria-pressed={railOpen} onClick={toggleRail} title="Insights for this tab (S)">
+            {Icon.insight}<span className="desktop-only">Insights</span>
+            {signals > 0 && <span className="page-action-count">{signals}</span>}
+          </button>
+          <button className="btn btn-xs" onClick={() => setAskOpen(true)} title="Ask a question about this tab (A)">
+            {Icon.ask}<span className="desktop-only">Ask</span>
+          </button>
+          <TabExport />
+        </div>
       </div>
+
       <dl className="page-facts">
         <div className="page-fact">
           <dt>Period</dt>
-          <dd><button className="page-fact-edit" onClick={() => setFiltersOpen(true)} title="Edit the period (F)">{scope ? scope.period.label : '—'}</button></dd>
+          <dd><button className="page-fact-edit" onClick={() => setFiltersOpen(true)} title="Edit the period (F)">{scope ? scope.period.label : status === 'loading' ? 'Reading sources…' : '—'}</button></dd>
         </div>
         <div className="page-fact">
           <dt>Rows in scope</dt>
@@ -327,6 +354,12 @@ export function PageHeader() {
           <dt>Studios</dt>
           <dd title={studios}>{studios}</dd>
         </div>
+        {filters.trainers.length > 0 && (
+          <div className="page-fact">
+            <dt>Trainers</dt>
+            <dd>{filters.trainers.length} selected</dd>
+          </div>
+        )}
       </dl>
     </header>
   );
@@ -360,10 +393,16 @@ export function InsightRail() {
   };
   return (
     <aside aria-label="Insights" className={`insight-rail ${railOpen ? 'is-open' : 'is-closed'}`}>
-      <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : 'Expand insights'}>
+      {/* Closed, the rail is a labelled handle on the right edge with its count on it — a
+          door you can see, not a hotspot you have to find. */}
+      <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : `Expand insights, ${forTab.length + custom.length} for this tab`}>
         {railOpen
           ? <><span>Signals <span className="insight-rail-count">{forTab.length + custom.length}</span></span><span className="insight-rail-chevron" aria-hidden="true">›</span></>
-          : <><span className="insight-rail-chevron" aria-hidden="true">‹</span><span className="insight-rail-vertical">Signals</span></>}
+          : <>
+              <span className="insight-rail-chevron" aria-hidden="true">‹</span>
+              <span className="insight-rail-vertical">Insights</span>
+              <span className={`insight-rail-count ${counts.critical ? 'is-critical' : ''}`}>{forTab.length + custom.length}</span>
+            </>}
       </button>
       {railOpen && (
         <div className="insight-rail-content">

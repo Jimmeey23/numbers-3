@@ -46,5 +46,6 @@ export const Icon = {
   filter: <svg {...base} width={15} height={15}><path d="M4 6h16M7 12h10M10 18h4" /></svg>,
   chevron: <svg {...base} width={14} height={14}><path d="m9 5 6 7-6 7" /></svg>,
   collapse: <svg {...base} width={14} height={14}><path d="M15 5 9 12l6 7" /></svg>,
+  insight: <svg {...base} width={15} height={15}><path d="M9.3 17.5h5.4" /><path d="M10 20.5h4" /><path d="M12 3.5a6 6 0 0 0-3.4 10.9c.5.4.8 1 .8 1.6h5.2c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3.5z" /></svg>,
   ask: <svg {...base} width={16} height={16}><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4.5 3.5V6.5A2.5 2.5 0 0 1 7 4h10.5A2.5 2.5 0 0 1 20 6.5z" /><path d="M9.8 9.2a2.3 2.3 0 1 1 3 2.2v1.1" /><path d="M12.8 14.9h.01" /></svg>,
 };

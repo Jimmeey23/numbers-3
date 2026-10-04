@@ -28,7 +28,7 @@ const { useData } = await import('../src/state/data.ts');
    aggregation, join or chart scale can fail and every tab reports "ok" while real data crashes it. */
 const FILES: Record<string, string> = { sessions: 'Sessions', recurring: 'Recurring', teacherRecurring: 'Teacher Recurring',
   new: 'New', checkins: 'Checkins', bookings: 'Bookings', sales: 'Sales', lapsed: 'Lapsed', payroll: 'Payroll', leads: 'Leads' };
-const DIRS = [process.env.FLOOR_FIXTURES ?? '', '/tmp', '/tmp/floor-fixtures'].filter(Boolean);
+const DIRS = [process.env.ATLAS_FIXTURES ?? '', '/tmp', '/tmp/atlas-fixtures'].filter(Boolean);
 globalThis.fetch = (async (url: string) => {
   const cfg = SHEETS.find((c) => resolveUrl(c) === url);
   const f = cfg ? FILES[cfg.key] : undefined;

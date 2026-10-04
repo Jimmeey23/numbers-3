@@ -10,7 +10,7 @@
  * endpoint is served by the app itself. A GET that executes JavaScript — a browser, Playwright, a
  * headless fetch tool, an agent with a browser — receives the JSON document. A plain `curl` gets
  * the HTML shell, because there is no origin to render it. Agents already inside the page can skip
- * the round trip entirely and call `window.floor.get(tab)`, which returns the same consolidated
+ * the round trip entirely and call `window.atlas.get(tab)`, which returns the same consolidated
  * block without the raw rows.
  */
 import type { Scope } from '../state/data';

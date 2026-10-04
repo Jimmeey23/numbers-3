@@ -46,8 +46,8 @@ export interface WidgetSpec {
   freezeScope?: { start: string; end: string; label: string };
 }
 
-const KEY = 'floor.widgets.v1';
-export const WIDGET_EVENT = 'floor:widgets';
+const KEY = 'atlas.widgets.v1';
+export const WIDGET_EVENT = 'atlas:widgets';
 
 export function readWidgets(): WidgetSpec[] {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; }
