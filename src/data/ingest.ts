@@ -7,7 +7,7 @@ import { readOverrides, resolveConfig, resolveUrl } from './sources';
 import type { Dataset, Defect, SheetKey, SheetLoad } from './types';
 import {
   buildVisits, deriveBookings, deriveSessions, deriveSessionsFromBookings, mapBookingRow, mapCheckinRow, mapLapsedRow,
-  mapLeadRow, mapNewRow, mapPayrollRow, mapSaleRow, mapSessionRow, resetPool, type CheckinStats,
+  mapLeadRow, mapNewRow, mapPayrollRow, mapSaleRow, mapSessionRow, reconcileSales, resetPool, type CheckinStats,
 } from './normalise';
 
 type Raw = Record<string, string>;
@@ -214,7 +214,7 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
     rowsAffected: ckOnly + bkOnly,
     impact: 'Visits are counted once from the reconciled visit grain (Checkins authoritative), so every tab agrees. Booking-lifecycle metrics — cancellation rate, lead time — can only be measured on rows Bookings does carry.', status: 'mitigated' });
 
-  const sales = await consume('sales', (r) => mapSaleRow(r));
+  const sales = reconcileSales(await consume('sales', (r) => mapSaleRow(r)));
   const payroll = await consume('payroll', (r) => mapPayrollRow(r));
 
   /* The sheet's own net-of-VAT column does not reconcile with payment minus VAT on some rows. */
@@ -237,6 +237,17 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
 
   const lapsed = await consume('lapsed', (r) => mapLapsedRow(r, todayTs));
   const leads = await consume('leads', (r) => mapLeadRow(r, todayTs));
+
+  /* Carry member-acquisition dimensions onto downstream financial and membership rows. Without
+     this join, selecting a trainer, source or first-visit format would silently stop filtering on
+     Sales and Retention. The original sale owner remains available as `sold_by`. */
+  const profile = new Map<string, { trainer: string | null; format: typeof newc[number]['format']; source: string | null }>();
+  for (const r of newc) if (r.member_id && !profile.has(r.member_id)) profile.set(r.member_id, { trainer: r.trainer, format: r.format, source: r.source });
+  for (const r of sales) { const p = r.member_id ? profile.get(r.member_id) : null; if (p) { r.trainer = p.trainer; r.source = p.source; if (r.format === 'Unknown' || r.format === 'Other') r.format = p.format; } }
+  for (const r of lapsed) { const p = r.member_id ? profile.get(r.member_id) : null; if (p) { r.trainer = p.trainer; r.format = p.format; r.source = p.source; } }
+  const trainerFormats = new Map<string, Map<string, number>>();
+  for (const r of sessions) if (r.trainer && r.format && r.format !== 'Unknown') { let m = trainerFormats.get(r.trainer); if (!m) { m = new Map(); trainerFormats.set(r.trainer, m); } m.set(r.format, (m.get(r.format) ?? 0) + 1); }
+  for (const r of payroll) { const m = r.trainer ? trainerFormats.get(r.trainer) : null; if (m?.size) r.format = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0] as typeof r.format; }
 
   let importCount = 0;
   for (const r of newc) if (r.is_import) importCount++;

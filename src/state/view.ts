@@ -3,7 +3,7 @@ import { DEFAULT_FILTERS, type Filters } from './filters';
 
 export type Theme = 'matte' | 'gloss';
 export type Density = 'comfortable' | 'compact' | 'dense';
-export const TAB_IDS = ['overview', 'classes', 'slots', 'trainers', 'sales', 'acquisition', 'retention', 'bookings', 'leads', 'attendance', 'payroll', 'health'] as const;
+export const TAB_IDS = ['overview', 'sales', 'leads', 'acquisition', 'retention', 'classes', 'slots', 'bookings', 'attendance', 'trainers', 'payroll', 'late-cancellations', 'format-comparison', 'health'] as const;
 export type TabId = typeof TAB_IDS[number];
 
 export interface SavedView { id: string; name: string; tab: TabId; filters: Filters; density: Density; comparison: boolean; createdAt: number; preset?: boolean }
@@ -67,15 +67,17 @@ export const useView = create<ViewState>((set) => ({
 
 export const TABS: { id: TabId; label: string; domain: string; key: string }[] = [
   { id: 'overview', label: 'Overview', domain: 'attendance', key: '1' },
-  { id: 'classes', label: 'Classes', domain: 'attendance', key: '2' },
-  { id: 'slots', label: 'Slots', domain: 'attendance', key: '3' },
-  { id: 'trainers', label: 'Trainers', domain: 'people', key: '4' },
-  { id: 'sales', label: 'Sales', domain: 'revenue', key: '5' },
-  { id: 'acquisition', label: 'Acquisition', domain: 'growth', key: '6' },
-  { id: 'retention', label: 'Retention', domain: 'risk', key: '7' },
+  { id: 'sales', label: 'Sales', domain: 'revenue', key: '2' },
+  { id: 'leads', label: 'Leads', domain: 'people', key: '3' },
+  { id: 'acquisition', label: 'Acquisition', domain: 'growth', key: '4' },
+  { id: 'retention', label: 'Retention', domain: 'risk', key: '5' },
+  { id: 'classes', label: 'Classes', domain: 'attendance', key: '6' },
+  { id: 'slots', label: 'Slots', domain: 'attendance', key: '7' },
   { id: 'bookings', label: 'Bookings', domain: 'attendance', key: '8' },
-  { id: 'leads', label: 'Leads', domain: 'people', key: '9' },
-  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '0' },
+  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '9' },
+  { id: 'trainers', label: 'Trainers', domain: 'people', key: '0' },
   { id: 'payroll', label: 'Payroll', domain: 'people', key: '-' },
+  { id: 'late-cancellations', label: 'Late cancellations', domain: 'risk', key: '' },
+  { id: 'format-comparison', label: 'Format comparison', domain: 'growth', key: '' },
   { id: 'health', label: 'Data health', domain: 'neutral', key: '=' },
 ];

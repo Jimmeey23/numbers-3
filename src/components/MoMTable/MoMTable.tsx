@@ -29,11 +29,20 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
   const cells = useMemo(() => build(rows), [rows, months, metricIds, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
   const groupCells = useMemo(() => (groups ?? []).map((g) => ({ label: g.label, cells: build(g.rows) })), [groups, months, metricIds, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A custom metric can legitimately produce no value for a month. Treat every non-finite
+  // intermediate as missing before it reaches the colour ramp; passing NaN to the ramp used to
+  // throw while switching to the MoM or index views and took the whole tab down.
+  const finite = (v: number | null | undefined): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   const transform = (series: (number | null)[], i: number) => {
-    const v = series[i];
+    const v = finite(series[i]);
     if (mode === 'abs') return v;
-    if (mode === 'mom') { const p = series[i - 1]; return v === null || p === null || p === 0 ? null : (v - p) / Math.abs(p); }
-    const first = series.find((x) => x !== null && x !== 0); return v === null || first === undefined || first === null ? null : (v / first) * 100;
+    if (mode === 'mom') {
+      const p = finite(series[i - 1]);
+      if (v === null || p === null || p === 0) return null;
+      return finite((v - p) / Math.abs(p));
+    }
+    const first = series.map(finite).find((x) => x !== null && x !== 0);
+    return v === null || first === undefined || first === null ? null : finite((v / first) * 100);
   };
 
   const exportCsv = () => {
@@ -72,7 +81,9 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
         <button className="btn btn-xs" aria-pressed={seasonality} onClick={() => setSeasonality((s) => !s)}>Seasonality</button>
         <button className="btn btn-xs" onClick={exportCsv}>Export CSV</button>
       </div>
-      <div style={{ overflow: 'auto', border: '1px solid var(--hairline)', maxHeight: 520 }}>
+      <div className="table-scroll" style={{ overflow: 'auto', border: '1px solid var(--hairline)', maxHeight: 520 }}
+        data-summary={`${title} places each registered metric on a row and the latest twelve calendar months across columns. Absolute, month-on-month and indexed views transform the same underlying monthly rollups.`}
+        data-calculation="Absolute values use the metric registry formula. MoM % is (current − previous) ÷ |previous| and stays blank when the previous value is zero or missing. Index = 100 divides each month by the first non-zero month. Heat is normalized within each row; rates are recomputed from monthly numerators and denominators.">
         <table className="tbl" style={{ minWidth: 200 + months.length * 72 }}>
           <thead><tr><th className="pin-l t-heading-s" style={{ minWidth: 200 }}>Metric</th>{months.map((m, i) => <th key={m} className="t-heading-s" style={{ minWidth: 72, borderRight: i === months.length - 1 ? '1px solid var(--hue)' : undefined }}>{fmtMonthShort(m)}</th>)}</tr></thead>
           <tbody className="fade-swap" key={mode}>

@@ -4,10 +4,18 @@ import { useData, useOptions } from '../../state/data';
 import { useView } from '../../state/view';
 import { fmtDate } from '../../semantics/formats';
 
+const QUICK_PRESETS: { id: Preset; label: string }[] = [
+  { id: 'last_week', label: 'Last week' },
+  { id: 'this_week', label: 'This week' },
+  { id: 'this_month', label: 'This month' },
+  { id: 'month', label: 'Last month' },
+];
 const PRESETS: { id: Preset; label: string }[] = [
-  { id: 'month', label: 'Last month' }, { id: 'mtd', label: 'Month to date' }, { id: '30d', label: 'Last 30 days' },
-  { id: '90d', label: 'Last 90 days' }, { id: 'quarter', label: 'Quarter' }, { id: 'ytd', label: 'Year to date' },
-  { id: '12m', label: 'Last 12 months' }, { id: 'all', label: 'All time' }, { id: 'custom', label: 'Custom' },
+  { id: 'today', label: 'Today' }, { id: 'yesterday', label: 'Yesterday' },
+  ...QUICK_PRESETS,
+  { id: '30d', label: 'Last 30 days' }, { id: '90d', label: 'Last 90 days' },
+  { id: 'quarter', label: 'Quarter to date' }, { id: 'ytd', label: 'Year to date' },
+  { id: '12m', label: 'Last 12 months' }, { id: 'all', label: 'All time' }, { id: 'custom', label: 'Custom range' },
 ];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -89,6 +97,14 @@ export function FilterStrip() {
         <span className="filter-summary">
           {chips.map((c, i) => <span key={i} className="t-label-m summary-chip">{c}</span>)}
         </span>
+        <div className="quick-date-filters" aria-label="Quick date filters">
+          {QUICK_PRESETS.map((p) => (
+            <button key={p.id} className="quick-date-btn" aria-pressed={filters.preset === p.id || (p.id === 'month' && filters.preset === 'last_month')}
+              onClick={(e) => { e.stopPropagation(); set({ preset: p.id, start: null, end: null }); useView.getState().announce(`${p.label} selected`); }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
         {filters.transient.length > 0 && (
           <span className="filter-transients">
             {filters.transient.map((t, i) => <span key={`${t.dim}${t.value}`} className="chip chip-transient t-label-s">{t.label ?? t.value}<button aria-label={`Remove filter ${t.value}`} onClick={() => removeTransient(i)}>×</button></span>)}

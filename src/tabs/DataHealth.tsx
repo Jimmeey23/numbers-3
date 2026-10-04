@@ -129,11 +129,28 @@ export function DataHealth({ scope }: { scope: Scope }) {
         <div className="table-scroll" style={{ maxHeight: 480 }}><table className="tbl"><thead><tr><th className="t-heading-s">Sheet</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Column</th><th className="t-heading-s">Rows</th><th className="t-heading-s">Null rate</th><th className="t-heading-s">Distinct</th><th className="t-heading-s">Min</th><th className="t-heading-s">Max</th><th className="t-heading-s">Negatives</th></tr></thead>
             <tbody>{completeness.map((c) => { const bg = c.nullRate === null ? undefined : diverging(theme, -c.nullRate * 2); return <tr key={c.table + c.col}><td className="t-body-s">{c.table}</td><td className="t-body-s" style={{ textAlign: 'left' }}>{c.col}</td><td className="t-num">{c.rows.toLocaleString('en-IN')}</td><td className="t-num" style={{ background: bg, color: bg && needsInvert(bg, theme) ? 'var(--heat-text-invert)' : undefined }}>{formatValue('percent', c.nullRate)}</td><td className="t-num">{c.distinctCapped ? '5,000+' : c.distinct.toLocaleString('en-IN')}</td><td className="t-num">{c.min === null ? '—' : c.min.toLocaleString('en-IN')}</td><td className="t-num">{c.max === null ? '—' : c.max.toLocaleString('en-IN')}</td><td className={`t-num ${c.anomalies ? 'warn' : ''}`}>{c.anomalies}</td></tr>; })}</tbody></table></div>
       </Register>
-      <Register title="Agent API" index="Integration" domain="neutral" collapsed lazy
-        subtitle="Every tab is addressable from the browser console or an automation. Responses always carry the scope they were computed under, so an agent cannot quote a number without its period and filters.">
+      <Register title="Agent and streaming API" index="Integration" domain="neutral" collapsed lazy
+        subtitle="Same-origin HTTP endpoints stream normalized, PII-redacted records for every source; the in-page API exposes the live dashboard scope. Both publish schemas, formulas and provenance for agents.">
         <div className="subgrid">
           <div className="panel">
-            <div className="t-heading-m" style={{ marginBottom: 8 }}>Try it</div>
+            <div className="t-heading-m" style={{ marginBottom: 8 }}>HTTP endpoints for agents and third-party apps</div>
+            <pre className="api-code">{`GET /api/v1                              # discovery document
+GET /api/v1/sources/sales?start=2026-04-01&end=2026-04-30
+GET /api/v1/sources/visits/stream?location=Kenkere%20House
+GET /api/v1/consolidated/stream?sources=sales,visits,memberships
+GET /api/v1/semantic-layer?table=sales    # formulas + aggregation rules
+GET /api/v1/ask?q=how%20much%20did%20Kwality%20House%20do%20in%20April%202026
+GET /api/v1/report?format=json&preset=last_week&location=Kenkere%20House
+
+# Streaming response: NDJSON schema event, record events, complete event.
+# Add transport=sse for Server-Sent Events.`}</pre>
+            <div className="t-label-s faint" style={{ marginTop: 8 }}>
+              Records use snake_case fields, ISO dates and numeric INR. Names, email and phone are removed and IDs are pseudonymised by default.
+              Each stream begins with field roles, sampled coverage, grain, null policy and a link to its metric registry.
+            </div>
+          </div>
+          <div className="panel">
+            <div className="t-heading-m" style={{ marginBottom: 8 }}>In-page live API</div>
             <pre className="api-code">{`await floor.describe()                      // the full catalogue
 await floor.get('retention')                // KPIs, groups, signals for a tab
 await floor.get('classes', { groupBy: 'daypart', limit: 10 })

@@ -27,7 +27,10 @@ const toHex = (rgb: number[]) => '#' + rgb.map((v) => Math.round(Math.max(0, Mat
 
 /** Sample a ramp at t ∈ [0,1] with linear interpolation. */
 export function sample(ramp: string[], t: number): string {
-  const x = Math.max(0, Math.min(1, t)) * (ramp.length - 1);
+  // Missing/invalid analytical values should disappear into the neutral midpoint, never crash a
+  // view while a user switches a table from absolute values to MoM or index mode.
+  const safe = Number.isFinite(t) ? t : 0.5;
+  const x = Math.max(0, Math.min(1, safe)) * (ramp.length - 1);
   const i = Math.floor(x); const f = x - i;
   if (i >= ramp.length - 1) return ramp[ramp.length - 1];
   const a = hex(ramp[i]); const b = hex(ramp[i + 1]);

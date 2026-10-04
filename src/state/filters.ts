@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import type { Dims } from '../data/types';
 import type { TableName } from '../semantics/metrics';
 
-export type Preset = 'mtd' | '30d' | '90d' | 'month' | 'quarter' | 'ytd' | '12m' | 'all' | 'custom';
+export type Preset =
+  | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month'
+  | 'mtd' | '30d' | '90d' | 'month' | 'quarter' | 'ytd' | '12m' | 'all' | 'custom';
 export type Compare = 'prior' | 'yoy' | 'none';
 export interface Transient { dim: string; value: string; label?: string }
 
@@ -89,10 +91,22 @@ export function resolvePeriod(f: Filters, today: string): Period {
   const t = new Date(today + 'T00:00:00Z');
   let start: string; let end = today; let label = '';
   switch (f.preset) {
-    case 'mtd': start = today.slice(0, 8) + '01'; label = `${MON[t.getUTCMonth()]} ${t.getUTCFullYear()} to date`; break;
+    case 'today': start = today; label = `Today · ${+today.slice(8, 10)} ${MON[t.getUTCMonth()]}`; break;
+    case 'yesterday': start = addDays(today, -1); end = start; label = `Yesterday · ${+start.slice(8, 10)} ${MON[+start.slice(5, 7) - 1]}`; break;
+    case 'this_week': {
+      const mondayOffset = (t.getUTCDay() + 6) % 7;
+      start = addDays(today, -mondayOffset); label = 'This week'; break;
+    }
+    case 'last_week': {
+      const mondayOffset = (t.getUTCDay() + 6) % 7;
+      end = addDays(today, -(mondayOffset + 1)); start = addDays(end, -6); label = 'Last week'; break;
+    }
+    case 'mtd':
+    case 'this_month': start = today.slice(0, 8) + '01'; label = `${MON[t.getUTCMonth()]} ${t.getUTCFullYear()} to date`; break;
     case '30d': start = addDays(today, -29); label = 'Last 30 days'; break;
     case '90d': start = addDays(today, -89); label = 'Last 90 days'; break;
-    case 'month': { const d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 1, 1)); start = iso(d); end = iso(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 0))); label = `${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; break; }
+    case 'month':
+    case 'last_month': { const d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 1, 1)); start = iso(d); end = iso(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 0))); label = `${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; break; }
     case 'quarter': { const q = Math.floor(t.getUTCMonth() / 3); start = iso(new Date(Date.UTC(t.getUTCFullYear(), q * 3, 1))); label = `Q${q + 1} ${t.getUTCFullYear()} to date`; break; }
     case 'ytd': start = `${t.getUTCFullYear()}-01-01`; label = `${t.getUTCFullYear()} to date`; break;
     case '12m': start = addDays(iso(new Date(Date.UTC(t.getUTCFullYear() - 1, t.getUTCMonth(), t.getUTCDate()))), 1); label = 'Last 12 months'; break;
@@ -114,11 +128,13 @@ export function resolvePeriod(f: Filters, today: string): Period {
   };
   if (f.compare === 'yoy') {
     prevStart = shiftYears(sd, 1); prevEnd = shiftYears(ed, 1); prevLabel = 'same period last year';
-  } else if (f.preset === 'month') {
+  } else if (f.preset === 'this_week') {
+    prevStart = addDays(start, -7); prevEnd = addDays(end, -7); prevLabel = 'same days last week';
+  } else if (f.preset === 'month' || f.preset === 'last_month') {
     prevStart = iso(new Date(Date.UTC(sd.getUTCFullYear(), sd.getUTCMonth() - 1, 1)));
     prevEnd = iso(new Date(Date.UTC(sd.getUTCFullYear(), sd.getUTCMonth(), 0)));
     prevLabel = `${MON[new Date(prevStart + 'T00:00:00Z').getUTCMonth()]} ${prevStart.slice(0, 4)}`;
-  } else if (f.preset === 'mtd') {
+  } else if (f.preset === 'mtd' || f.preset === 'this_month') {
     prevStart = shiftMonths(sd, 1); prevEnd = shiftMonths(ed, 1);
     prevLabel = `${MON[new Date(prevStart + 'T00:00:00Z').getUTCMonth()]} 1–${new Date(prevEnd + 'T00:00:00Z').getUTCDate()}`;
   } else if (f.preset === 'quarter') {
@@ -141,10 +157,10 @@ export const TABLE_DIMS: Record<TableName, (keyof Dims)[]> = {
   sessions: ['location', 'trainer', 'format', 'day', 'slot'],
   checkins: ['location', 'trainer', 'format', 'day', 'slot', 'membership_type', 'is_new'],
   bookings: ['location', 'trainer', 'format', 'day', 'slot', 'membership_type', 'is_new'],
-  sales: ['location', 'membership_type', 'day', 'slot'],
+  sales: ['location', 'trainer', 'format', 'day', 'slot', 'source', 'membership_type'],
   newc: ['location', 'trainer', 'format', 'day', 'slot', 'source', 'membership_type', 'is_new'],
-  lapsed: ['location', 'membership_type'],
-  payroll: ['location', 'trainer'],
+  lapsed: ['location', 'trainer', 'format', 'source', 'membership_type'],
+  payroll: ['location', 'trainer', 'format'],
   leads: ['location', 'trainer', 'format', 'source'],
 };
 

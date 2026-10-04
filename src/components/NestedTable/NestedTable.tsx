@@ -233,6 +233,8 @@ export function NestedTable(p: NestedTableProps) {
 
       {/* table */}
       <div ref={scroller} className="table-scroll" style={{ maxHeight: maxH, position: 'relative' }}
+        data-summary={`This drill-down shows ${p.title.toLowerCase()} grouped from left to right by ${keys.map((k) => GROUP_KEYS[k].label).join(', ')}. Expand a row to reveal the next level; the sticky total always describes the complete filtered scope.`}
+        data-calculation="Each metric is calculated from the source rows inside that group. Sums add contributing values, distinct counts de-duplicate their registry key, and rates recompute summed numerators over summed denominators. The total is never an average of the displayed rows. Comparison values use the matched prior window."
         onScroll={(e) => { const t = e.currentTarget; setCompressed(t.scrollTop > 40); setScrolledX(t.scrollLeft > 0); if (virtual) setScrollTop(t.scrollTop); }}>
         <table className={`tbl ${compressed ? 'compressed' : ''} ${scrolledX ? 'scrolled-x' : ''}`} role="grid" aria-rowcount={flat.length}>
           <thead>

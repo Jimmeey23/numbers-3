@@ -52,7 +52,7 @@ export function DrillPanel() {
   }, [t, ctx]);
   const trend = useMemo(() => {
     if (!t || !ctx || !scope) return null;
-    const months = lastNMonths(scope.today.slice(0, 7), 12);
+    const months = lastNMonths(scope.today.slice(0, 7), 13);
     const id = t.metricIds[0];
     const own = seriesBy(t.rows, (r) => r.month, [id], ctx, months).map((s) => s.values[id].value);
     const peerSeries = (t.peers ?? []).map((p) => seriesBy(p.rows, (r) => r.month, [id], ctx, months).map((s) => s.values[id].value));
@@ -96,7 +96,7 @@ export function DrillPanel() {
           </div>
           {trend && (
             <div style={{ marginTop: 18 }}>
-              <div className="t-heading-m" style={{ marginBottom: 6 }}>{metric(trend.id).label}, 12 months vs peer median</div>
+              <div className="t-heading-m" style={{ marginBottom: 6 }}>{metric(trend.id).label}, 13 months vs peer median</div>
               <XYChart categories={trend.months.map(fmtMonthShort)} series={[{ id: 'own', label: t.title, color: 'var(--hue)', values: trend.own, fmt: metric(trend.id).format }, { id: 'med', label: 'Peer median', color: 'var(--text-3)', values: trend.median, fmt: metric(trend.id).format, ghost: true }]} height={180} fmtLeft={metric(trend.id).format} />
             </div>
           )}

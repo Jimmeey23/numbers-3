@@ -10,9 +10,11 @@ import { METRIC_LIST } from '../../semantics/metrics';
 import { useDrill } from '../../state/drill';
 import { clearCache } from '../../data/ingest';
 import { ExportMenu } from '../ExportMenu';
-import { buildAgentApi, ENDPOINTS } from '../../api/agent';
+import { addCard, buildAgentApi, ENDPOINTS, readCards } from '../../api/agent';
 import { scopeLine } from '../../api/export';
 import { useScope as useScopeForExport } from '../../state/data';
+import { AI_EVENT, clearAIKey, generateAISignals, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
+import { clearSavedReports, listSavedReports } from '../../report/store';
 
 export function TitleBar() {
   const { theme, setTheme, density, setDensity, comparison, toggleComparison, setPaletteOpen, setSettingsOpen, savedViews, saveView, deleteView, tab, setTab } = useView();
@@ -132,13 +134,29 @@ export function TabRail() {
 }
 
 export function SignalRail() {
-  const { railOpen, toggleRail, thresholds, dismissed, tab } = useView();
+  const { railOpen, toggleRail, thresholds, dismissed, tab, setSettingsOpen, announce } = useView();
   const scope = useScope();
+  const [aiBusy, setAiBusy] = useState(false); const [aiError, setAiError] = useState('');
   const insights = useMemo(() => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key)) : []), [scope, thresholds, dismissed]);
-  const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 7);
+  const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 12);
   const impact = useMemo(() => summariseImpact(forTab), [forTab]);
   const custom = useCustomCards(tab);
   const counts = { critical: forTab.filter((i) => i.severity === 'critical').length, attention: forTab.filter((i) => i.severity === 'attention').length, opportunity: forTab.filter((i) => i.severity === 'opportunity').length };
+  const generateAI = async () => {
+    if (!scope || aiBusy) return;
+    if (!readOpenAIKey()) { setSettingsOpen(true); announce('Add an OpenAI API key to generate AI signals'); return; }
+    setAiBusy(true); setAiError('');
+    try {
+      const api = buildAgentApi(scope, thresholds, () => undefined);
+      const snapshot = api.get(tab, { limit: 30 });
+      const result = await generateAISignals(tab, snapshot);
+      const source = `openai:${result.fingerprint}`;
+      const existing = readCards().filter((c) => c.tab === tab && c.source === source);
+      if (!existing.length) for (const s of result.signals) addCard({ tab, title: s.title, body: s.body, action: s.action, severity: s.severity, impactINR: s.impactINR, entity: s.entity, metricId: s.metricId, source });
+      announce(result.cached || existing.length ? 'Reused saved AI signals for this data scope' : `Saved ${result.signals.length} AI signals to this tab`);
+    } catch (e) { setAiError(e instanceof Error ? e.message : 'AI signal generation failed.'); }
+    finally { setAiBusy(false); }
+  };
   return (
     <aside aria-label="Signal rail" style={{ width: railOpen ? 320 : 44, flexShrink: 0, borderLeft: '1px solid var(--hairline)', background: 'var(--surface-1)', transition: 'width var(--m-base) var(--ease-out)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <button onClick={toggleRail} aria-expanded={railOpen} className="t-heading-s" style={{ height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--hairline)', whiteSpace: 'nowrap' }} title="Signal rail (S)">
@@ -157,10 +175,13 @@ export function SignalRail() {
               ))}
             </div>
           )}
+          <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
+          <div className="t-label-s faint">AI signals are fingerprinted, saved on this device, and reused while the displayed data and scope stay the same.</div>
+          {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}
           <CardComposer tab={tab} />
-          {!forTab.length && <div className="t-body-s muted">No rule has fired for this scope. Widen the period or check Data health if sheets failed to load.</div>}
+          {!forTab.length && !custom.length && <div className="t-body-s muted">No rule has fired for this scope. Widen the period, generate with AI, or check Data health if sheets failed to load.</div>}
           <div className="t-label-s faint">Sorted by rupee impact within severity. Totals count each member once, so they will be lower than the sum of the cards. Dismissals persist 30 days.</div>
         </div>
       )}
@@ -232,27 +253,61 @@ export function CommandPalette() {
 }
 
 export function SettingsPanel() {
-  const { settingsOpen, setSettingsOpen, ratePerSession, setRate, thresholds, setThresholds } = useView();
+  const { settingsOpen, setSettingsOpen, ratePerSession, setRate, thresholds, setThresholds, theme, setTheme, density, setDensity, comparison, toggleComparison } = useView();
+  const load = useData((s) => s.load); const status = useData((s) => s.status); const loads = useData((s) => s.loads);
+  const [ai, setAi] = useState<AIConfig>(readAIConfig);
+  const [apiKey, setApiKey] = useState(readOpenAIKey);
+  const [showKey, setShowKey] = useState(false); const [saved, setSaved] = useState(false); const [reportCount, setReportCount] = useState(0);
+  useEffect(() => { if (settingsOpen) listSavedReports().then((x) => setReportCount(x.length)).catch(() => setReportCount(0)); }, [settingsOpen]);
+  useEffect(() => { const sync = () => { setAi(readAIConfig()); setApiKey(readOpenAIKey()); }; window.addEventListener(AI_EVENT, sync); return () => window.removeEventListener(AI_EVENT, sync); }, []);
   if (!settingsOpen) return null;
-  const T: { k: keyof typeof thresholds; label: string; pct?: boolean }[] = [
-    { k: 'deadSlotFill', label: 'Dead slot fill below', pct: true }, { k: 'deadSlotMinOccurrences', label: 'Dead slot min occurrences' }, { k: 'slotDeclinePp', label: 'Slot decline (pp)', pct: true }, { k: 'waitlistMin', label: 'Waitlist overbooked count' },
-    { k: 'dependencyShare', label: 'Trainer dependency share', pct: true }, { k: 'conversionSigma', label: 'Conversion outlier σ' }, { k: 'secondVisitFloor', label: 'Second-visit floor', pct: true }, { k: 'leadResponseHours', label: 'Lead response hours' },
-    { k: 'discountCreepPp', label: 'Discount creep (pp)', pct: true }, { k: 'dormantDays', label: 'Dormant days' }, { k: 'zeroUsageDays', label: 'Zero-usage days' }, { k: 'expiryCliffShare', label: 'Expiry cliff share', pct: true }, { k: 'utilisationFloor', label: 'Utilisation floor', pct: true }, { k: 'noShowRate', label: 'No-show cluster rate', pct: true }, { k: 'mixShiftPp', label: 'Mix shift (pp)', pct: true }, { k: 'integrityVariance', label: 'Integrity variance', pct: true },
+  const T: { k: keyof typeof thresholds; label: string; pct?: boolean; help: string }[] = [
+    { k: 'deadSlotFill', label: 'Dead slot fill below', pct: true, help: 'Flags recurring classes that are persistently underfilled.' }, { k: 'deadSlotMinOccurrences', label: 'Dead slot min occurrences', help: 'Minimum sample before a recurring slot can be flagged.' },
+    { k: 'slotDeclinePp', label: 'Slot decline', pct: true, help: 'Period-over-period fill loss that triggers attention.' }, { k: 'waitlistMin', label: 'Waitlist overbooked count', help: 'Demand above capacity needed to flag an expansion opportunity.' },
+    { k: 'dependencyShare', label: 'Trainer dependency share', pct: true, help: 'Share of a format or location attached to one trainer.' }, { k: 'conversionSigma', label: 'Conversion outlier σ', help: 'Distance from peer conversion needed to flag an outlier.' },
+    { k: 'secondVisitFloor', label: 'Second-visit floor', pct: true, help: 'Minimum acceptable return after a first visit.' }, { k: 'leadResponseHours', label: 'Lead response SLA (hours)', help: 'Target elapsed time to first contact.' },
+    { k: 'untouchedHours', label: 'Untouched lead age (hours)', help: 'How long a lead can remain without an interaction.' }, { k: 'discountCreepPp', label: 'Discount creep', pct: true, help: 'Increase in discount rate that triggers a warning.' },
+    { k: 'dormantDays', label: 'Dormant member days', help: 'No-visit interval used for reactivation worklists.' }, { k: 'zeroUsageDays', label: 'Zero-usage grace days', help: 'Elapsed membership days before zero usage becomes risky.' },
+    { k: 'expiryCliffShare', label: 'Expiry cliff share', pct: true, help: 'Share expiring together that creates renewal concentration risk.' }, { k: 'utilisationFloor', label: 'Utilisation floor', pct: true, help: 'Minimum package utilisation before churn risk rises.' },
+    { k: 'noShowRate', label: 'No-show cluster rate', pct: true, help: 'Rate that flags a class or member cluster.' }, { k: 'mixShiftPp', label: 'Mix shift', pct: true, help: 'Change in product or format mix worth surfacing.' },
+    { k: 'integrityVariance', label: 'Integrity variance', pct: true, help: 'Tolerance used by source reconciliation checks.' }, { k: 'riskHigh', label: 'High-risk score', help: 'Member-risk score at which intervention becomes urgent.' },
+    { k: 'matureDays', label: 'Mature acquisition days', help: 'Days allowed before judging conversion or retention.' }, { k: 'medianFirstMembership', label: 'First membership baseline (₹)', help: 'Scenario baseline used when observed values are unavailable.' },
+    { k: 'coverageFloor', label: 'Minimum data coverage', pct: true, help: 'Coverage below which a metric is explicitly cautioned.' },
   ];
+  const saveAi = () => { saveAISettings(ai, apiKey.trim()); setSaved(true); window.setTimeout(() => setSaved(false), 2000); };
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'var(--overlay)', display: 'flex', justifyContent: 'flex-end' }} onClick={() => setSettingsOpen(false)}>
-      <div className="slide-in" style={{ width: 420, background: 'var(--surface-1)', borderLeft: '1px solid var(--hairline-strong)', padding: 20, overflow: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Settings">
-        <div style={{ display: 'flex', alignItems: 'center' }}><h2 className="t-heading-l" style={{ margin: 0 }}>Settings</h2><div style={{ flex: 1 }} /><button className="btn btn-xs" onClick={() => setSettingsOpen(false)}>Close</button></div>
-        <div style={{ marginTop: 16 }}>
-          <div className="t-heading-s">Assumed trainer rate per session</div>
-          <div className="t-display-s tabular" style={{ margin: '6px 0' }}>₹{ratePerSession.toLocaleString('en-IN')}</div>
-          <input type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} style={{ width: '100%' }} aria-label="Rate per session" />
-          <div className="t-label-s muted">Every margin, break-even and payroll figure recomputes live as this moves.</div>
-        </div>
-        <div style={{ marginTop: 20 }}>
-          <div className="t-heading-s" style={{ marginBottom: 8 }}>Insight thresholds</div>
-          <div style={{ display: 'grid', gap: 6 }}>{T.map((t) => <label key={t.k} className="t-label-m" style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center', gap: 8 }}>{t.label}<input className="input" type="number" step={t.pct ? 1 : 1} value={t.pct ? Math.round(thresholds[t.k] * 100) : thresholds[t.k]} onChange={(e) => setThresholds({ [t.k]: t.pct ? +e.target.value / 100 : +e.target.value })} aria-label={t.label} /></label>)}</div>
-        </div>
+    <div className="settings-backdrop" onClick={() => setSettingsOpen(false)}>
+      <div className="settings-panel slide-in" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Settings">
+        <div className="settings-head"><div><span className="eyebrow">Workspace controls</span><h2>Settings</h2><p>AI, analytical assumptions, signal policy, appearance, data and local storage.</p></div><button className="btn btn-xs" onClick={() => setSettingsOpen(false)}>Close</button></div>
+
+        <section className="settings-section" id="ai-settings"><div className="settings-section-head"><div><h3>AI intelligence</h3><p>Use your own OpenAI key for smarter reports and saved signals. The key goes directly from this browser to the configured endpoint.</p></div><span className={`status-pill ${readOpenAIKey() ? 'pos' : 'warn'}`}>{readOpenAIKey() ? 'Configured' : 'Not configured'}</span></div>
+          <label className="settings-field"><span>OpenAI API key<small>Stored only for this browser session unless “remember” is enabled.</small></span><div className="settings-inline"><input className="input" type={showKey ? 'text' : 'password'} autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-…" /><button className="btn btn-xs" onClick={() => setShowKey((x) => !x)}>{showKey ? 'Hide' : 'Show'}</button></div></label>
+          <label className="settings-field"><span>Model<small>A smaller model is quicker; a larger reasoning model may give deeper interpretation.</small></span><select className="input" value={ai.model} onChange={(e) => setAi({ ...ai, model: e.target.value })}><option value="gpt-4.1-mini">gpt-4.1-mini</option><option value="gpt-4.1">gpt-4.1</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5">gpt-5</option></select></label>
+          <label className="settings-field"><span>API base URL<small>Leave unchanged for OpenAI; compatible gateways may use another HTTPS endpoint.</small></span><input className="input" value={ai.baseUrl} onChange={(e) => setAi({ ...ai, baseUrl: e.target.value })} /></label>
+          <label className="report-option"><input type="checkbox" checked={ai.rememberKey} onChange={(e) => setAi({ ...ai, rememberKey: e.target.checked })} /><span><b>Remember API key on this device</b><small>Uses browser local storage. Leave off on shared computers.</small></span></label>
+          <div className="settings-actions"><button className="btn btn-primary" onClick={saveAi}>Save AI configuration</button><button className="btn" onClick={() => { clearAIKey(); setApiKey(''); }}>Remove key</button>{saved && <span className="t-label-m pos">Saved</span>}</div>
+          <div className="privacy-note"><b>Privacy:</b> only compact, scoped aggregates and report evidence are sent for AI generation—not the API key and not the full raw source sheets. Evidence can include entity labels or member names already present in a report worklist. Deterministic reports work without AI.</div>
+        </section>
+
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Economics & report assumptions</h3><p>Changes recompute cards, tables, signals and custom reports immediately.</p></div></div>
+          <label className="settings-field"><span>Assumed trainer rate per session<small>Used where the payroll source has no directly observed session cost.</small></span><div><div className="t-display-s tabular">₹{ratePerSession.toLocaleString('en-IN')}</div><input type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} /></div></label>
+        </section>
+
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Signal thresholds</h3><p>Fine-tune when deterministic alerts fire. Percent inputs are percentage points.</p></div></div>
+          <div className="threshold-grid">{T.map((t) => <label key={t.k}><span>{t.label}<small>{t.help}</small></span><div className="number-suffix"><input className="input" type="number" step={t.pct ? 1 : 1} value={t.pct ? Number((thresholds[t.k] * 100).toFixed(1)) : thresholds[t.k]} onChange={(e) => setThresholds({ [t.k]: t.pct ? +e.target.value / 100 : +e.target.value })} />{t.pct && <i>%</i>}</div></label>)}</div>
+          <button className="btn btn-xs" onClick={() => setThresholds({ deadSlotFill: .2, deadSlotMinOccurrences: 8, slotDeclinePp: .15, waitlistMin: 3, dependencyShare: .6, conversionSigma: 1.5, secondVisitFloor: .4, leadResponseHours: 4, untouchedHours: 48, discountCreepPp: .05, dormantDays: 21, zeroUsageDays: 7, expiryCliffShare: .15, utilisationFloor: .25, noShowRate: .15, mixShiftPp: .08, integrityVariance: .03, riskHigh: 60, matureDays: 21, medianFirstMembership: 12599, coverageFloor: .4 })}>Restore recommended thresholds</button>
+        </section>
+
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Appearance & comparison</h3><p>Presentation preferences are stored on this device.</p></div></div>
+          <label className="settings-field"><span>Theme</span><select className="input" value={theme} onChange={(e) => setTheme(e.target.value as typeof theme)}><option value="matte">Matte</option><option value="gloss">Gloss</option></select></label>
+          <label className="settings-field"><span>Table density</span><select className="input" value={density} onChange={(e) => setDensity(e.target.value as typeof density)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="dense">Dense</option></select></label>
+          <label className="report-option"><input type="checkbox" checked={comparison} onChange={toggleComparison} /><span><b>Show period comparisons</b><small>Add prior-period values beneath metrics and table cells.</small></span></label>
+        </section>
+
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Data & local storage</h3><p>{loads.filter((x) => x.status === 'ok').length} sources loaded · {loads.filter((x) => x.status === 'error').length} unavailable · {reportCount} saved report {reportCount === 1 ? 'copy' : 'copies'}.</p></div></div>
+          <div className="settings-actions"><button className="btn" disabled={status === 'loading'} onClick={async () => { await clearCache(); load(true); }}>{status === 'loading' ? 'Refreshing…' : 'Clear source cache & refresh'}</button><button className="btn" disabled={!reportCount} onClick={async () => { if (confirm('Delete all saved report copies from this browser?')) { await clearSavedReports(); setReportCount(0); } }}>Delete saved reports</button></div>
+          <div className="privacy-note">Raw source cache, saved views, AI signal cache and saved reports stay in this browser. Download report HTML or JSON before clearing browser storage if you need an external copy.</div>
+        </section>
       </div>
     </div>
   );

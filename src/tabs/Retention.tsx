@@ -14,7 +14,7 @@ import { metricValues, rollupLevel, type Row } from '../semantics/aggregations';
 import { categorical } from '../design/ramps';
 import { useView } from '../state/view';
 import { useDrill } from '../state/drill';
-import { fmtCurrency, fmtDate, fmtPercent, formatValue } from '../semantics/formats';
+import { fmtCurrency, fmtDate, fmtMonthShort, fmtPercent, formatValue } from '../semantics/formats';
 import { maxBy } from '../semantics/stats';
 
 const R_METRICS = ['risk_score', 'utilisation', 'avg_days_since_visit', 'churn_rate', 'l_revenue', 'memberships'];
@@ -209,7 +209,27 @@ export function Retention({ scope }: { scope: Scope }) {
     }).filter((r) => r.total > 0).sort((a, b) => b.total - a.total);
   }, [rows, RISK_BANDS]);
 
-  if (!rows.length) return <div style={{ paddingTop: 20 }}><SectionEmpty what="memberships" scope={scope} /></div>;
+  /* Renewal calendar is anchored to membership end date, not purchase date. It intentionally
+     reads dimension-filtered `all` rows so a membership bought last year still appears in the
+     month it becomes due. Three forward months turn the same view into an outreach plan. */
+  const renewalMonths = useMemo(() => {
+    const out = [...months]; const [y, m] = months[months.length - 1].split('-').map(Number);
+    for (let i = 1; i <= 3; i++) { const d = new Date(Date.UTC(y, m - 1 + i, 1)); out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`); }
+    return out;
+  }, [months]);
+  const renewalCalendar = useMemo(() => renewalMonths.map((month) => {
+    const due = scope.all.lapsed.filter((r) => r.end_date?.slice(0, 7) === month);
+    const renewed = due.filter((r) => r.renewed || r.status === 'Renewed').length;
+    const lapsed = due.filter((r) => !r.renewed && (r.churned || r.status === 'Lapsed')).length;
+    const frozen = due.filter((r) => !r.renewed && r.status === 'Frozen').length;
+    const notActivated = due.filter((r) => !r.renewed && r.status === 'Not Activated').length;
+    const pending = due.filter((r) => !r.renewed && !r.churned && r.status !== 'Lapsed' && r.status !== 'Frozen' && r.status !== 'Not Activated').length;
+    const decided = renewed + lapsed;
+    return { month, due: due.length, renewed, lapsed, frozen, notActivated, pending, rate: decided ? renewed / decided : null,
+      value: due.reduce((a, r) => a + (r.amount_paid ?? 0), 0) };
+  }), [renewalMonths, scope.all.lapsed]);
+
+  if (!rows.length && !scope.all.lapsed.length) return <div style={{ paddingTop: 20 }}><SectionEmpty what="memberships" scope={scope} /></div>;
   const activeCount = rows.filter((r) => r.active).length;
 
   return (
@@ -224,7 +244,22 @@ export function Retention({ scope }: { scope: Scope }) {
         </div>
       </Register>
 
-      <Register title="Risk ladder" index="② Triage" domain="risk"
+      <Register title="Monthly renewal outcomes" index="② Renewals" domain="risk"
+        subtitle="Memberships are counted in the month their end date makes them due—not the month they were sold. The final three months are forward-looking outreach cohorts.">
+        <ChartModule title="Due for renewal: renewed, lapsed and unresolved" subtitle="Renewal rate uses decided outcomes only (renewed ÷ renewed + lapsed); frozen, not activated and pending remain visible separately."
+          table={{ columns: ['Due month', 'Due', 'Renewed', 'Lapsed', 'Frozen', 'Not activated', 'Pending / other', 'Renewal rate', 'Membership value'], rows: renewalCalendar.map((r) => [r.month, r.due, r.renewed, r.lapsed, r.frozen, r.notActivated, r.pending, r.rate, r.value]) }}>
+          <XYChart categories={renewalMonths.map(fmtMonthShort)} stacked height={270} fmtLeft="integer" fmtRight="percent" series={[
+            { id: 'renewed', label: 'Renewed', color: 'var(--pos)', kind: 'bar', values: renewalCalendar.map((r) => r.renewed) },
+            { id: 'lapsed', label: 'Lapsed', color: 'var(--neg)', kind: 'bar', values: renewalCalendar.map((r) => r.lapsed) },
+            { id: 'frozen', label: 'Frozen', color: 'var(--info)', kind: 'bar', values: renewalCalendar.map((r) => r.frozen) },
+            { id: 'not-activated', label: 'Not activated', color: 'var(--warn)', kind: 'bar', values: renewalCalendar.map((r) => r.notActivated) },
+            { id: 'pending', label: 'Pending / other', color: 'var(--text-3)', kind: 'bar', values: renewalCalendar.map((r) => r.pending) },
+            { id: 'rate', label: 'Renewal rate (decided)', color: 'var(--hue-revenue)', axis: 'right', fmt: 'percent', values: renewalCalendar.map((r) => r.rate) },
+          ]} />
+        </ChartModule>
+      </Register>
+
+      <Register title="Risk ladder" index="③ Triage" domain="risk"
         subtitle="Every active membership scored, banded, and priced. This is the call list, top band first.">
         <div className="risk-bands">
           {riskBands.map((b) => (
