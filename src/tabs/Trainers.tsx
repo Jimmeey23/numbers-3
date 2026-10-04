@@ -23,8 +23,22 @@ export function Trainers({ scope }: { scope: Scope }) {
   const rows = scope.tables.sessions;
   const trainerNodes = useMemo(() => rollupLevel(rows, ['trainer'], 0, T_METRICS, scope.ctx), [rows, scope.ctx]);
   const trainerPrev = useMemo(() => rollupLevel(scope.compare.sessions, ['trainer'], 0, T_METRICS, scope.ctx), [scope.compare.sessions, scope.ctx]);
-  // conversion + retention per trainer from New, for the composite
-  const convByTrainer = useMemo(() => { const m = new Map<string, { conv: number | null; ret: number | null }>(); for (const n of rollupLevel(scope.tables.newc, ['trainer'], 0, ['conversion_rate', 'retention_rate'], scope.ctx)) m.set(n.key, { conv: n.values.conversion_rate.value, ret: n.values.retention_rate.value }); return m; }, [scope.tables.newc, scope.ctx]);
+  /* Acquisition outcomes come from the New sheet, keyed by first-visit trainer. The table itself
+     is on the session grain, so these are joined in per trainer rather than computed over the
+     rows in scope — the same pattern the composite already used for trial conversion. */
+  const ACQ = ['new_clients', 'converted_count', 'conversion_rate', 'retention_rate', 'second_visit_rate', 'median_ltv'];
+  const acqByTrainer = useMemo(() => {
+    const m = new Map<string, Record<string, number | null>>();
+    for (const n of rollupLevel(scope.tables.newc.filter((r) => r.is_new), ['trainer'], 0, ACQ, scope.ctx)) {
+      m.set(n.key, Object.fromEntries(ACQ.map((id) => [id, n.values[id].value])));
+    }
+    return m;
+  }, [scope.tables.newc, scope.ctx]);          // eslint-disable-line react-hooks/exhaustive-deps
+  const convByTrainer = useMemo(() => {
+    const m = new Map<string, { conv: number | null; ret: number | null }>();
+    for (const [k, v] of acqByTrainer) m.set(k, { conv: v.conversion_rate, ret: v.retention_rate });
+    return m;
+  }, [acqByTrainer]);
   const composite = useMemo(() => {
     const nodes = trainerNodes.map((n) => ({ ...n, values: { ...n.values, conv: { value: convByTrainer.get(n.key)?.conv ?? null, n: 0, contributing: 0, coverage: null, suspect: null }, ret: { value: convByTrainer.get(n.key)?.ret ?? null, n: 0, contributing: 0, coverage: null, suspect: null } } }));
     return compositeScore(nodes, [{ id: 'fill_rate', w: 0.3 }, { id: 'revenue_per_session', w: 0.25 }, { id: 'conv', w: 0.25 }, { id: 'ret', w: 0.2 }]);
@@ -36,6 +50,24 @@ export function Trainers({ scope }: { scope: Scope }) {
     { id: 'revenue', metricId: 'revenue', family: 'Revenue', bar: true }, { id: 'revenue_per_session', metricId: 'revenue_per_session', family: 'Revenue' }, { id: 'rev_pac', metricId: 'rev_pac', family: 'Revenue' }, { id: 'rev_pas', metricId: 'rev_pas', family: 'Revenue', heat: true },
     { id: 'teaching_hours', metricId: 'teaching_hours', family: 'Volume' }, { id: 'revenue_per_hour', metricId: 'revenue_per_hour', family: 'Revenue' }, { id: 'attendance_cv', metricId: 'attendance_cv', family: 'Behaviour' },
     { id: 'versatility', metricId: 'versatility', family: 'Behaviour' }, { id: 'locations_taught', metricId: 'locations_taught', family: 'Behaviour' }, { id: 'prime_time_share', metricId: 'prime_time_share', family: 'Behaviour', heat: true },
+    { id: 'acq_new', label: 'New members', family: 'Acquisition', bar: true,
+      value: (n) => (n.level === 0 ? acqByTrainer.get(n.key)?.new_clients ?? null : null), format: 'integer',
+      render: (n) => <span className="t-num">{n.level === 0 ? formatValue('integer', acqByTrainer.get(n.key)?.new_clients ?? null) : ''}</span> },
+    { id: 'acq_converted', label: 'Converted', family: 'Acquisition',
+      value: (n) => (n.level === 0 ? acqByTrainer.get(n.key)?.converted_count ?? null : null), format: 'integer',
+      render: (n) => <span className="t-num">{n.level === 0 ? formatValue('integer', acqByTrainer.get(n.key)?.converted_count ?? null) : ''}</span> },
+    { id: 'acq_value', label: 'Conversion value', family: 'Acquisition', bar: true,
+      value: (n) => { const c = n.level === 0 ? acqByTrainer.get(n.key)?.converted_count ?? null : null; return c === null ? null : c * scope.ctx.medianFirstMembership; }, format: 'currency',
+      render: (n) => { const c = n.level === 0 ? acqByTrainer.get(n.key)?.converted_count ?? null : null; return <span className="t-num">{c === null ? '' : formatValue('currency', c * scope.ctx.medianFirstMembership)}</span>; } },
+    { id: 'acq_second', label: 'Second-visit rate', family: 'Acquisition', hidden: true,
+      value: (n) => (n.level === 0 ? acqByTrainer.get(n.key)?.second_visit_rate ?? null : null), format: 'percent',
+      render: (n) => <span className="t-num">{n.level === 0 ? formatValue('percent', acqByTrainer.get(n.key)?.second_visit_rate ?? null) : ''}</span> },
+    { id: 'acq_retention', label: 'Retention of new members', family: 'Acquisition',
+      value: (n) => (n.level === 0 ? acqByTrainer.get(n.key)?.retention_rate ?? null : null), format: 'percent',
+      render: (n) => <span className="t-num">{n.level === 0 ? formatValue('percent', acqByTrainer.get(n.key)?.retention_rate ?? null) : ''}</span> },
+    { id: 'acq_ltv', label: 'Median LTV of their members', family: 'Acquisition', hidden: true,
+      value: (n) => (n.level === 0 ? acqByTrainer.get(n.key)?.median_ltv ?? null : null), format: 'currency',
+      render: (n) => <span className="t-num">{n.level === 0 ? formatValue('currency', acqByTrainer.get(n.key)?.median_ltv ?? null) : ''}</span> },
     { id: 'conv', label: 'Trial conversion', family: 'Score', value: (n) => (n.level === 0 ? convByTrainer.get(n.key)?.conv ?? null : null), format: 'percent', render: (n) => <span className="t-num">{n.level === 0 ? formatValue('percent', convByTrainer.get(n.key)?.conv) : ''}</span> },
     { id: 'composite', label: 'Composite score', family: 'Score', value: (n) => (n.level === 0 ? composite.get(n.id) ?? null : null), format: 'decimal', render: (n) => <span className="t-num">{n.level === 0 ? formatValue('decimal', composite.get(n.id) ?? null) : ''}</span> },
   ], [convByTrainer, composite]);

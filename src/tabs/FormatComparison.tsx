@@ -11,14 +11,21 @@ import { formatValue, fmtMonthShort } from '../semantics/formats';
 import { KpiStrip, SectionEmpty, filtersLabel, useMonths } from './common';
 
 const FORMATS = ['Barre', 'PowerCycle', 'Strength Lab'] as const;
-const bucket = (r: VisitRow): typeof FORMATS[number] | null => {
+/* Barre is the residual, not a keyword match. Classifying it by the word "barre" meant every
+   visit whose class name said none of the three — a workshop, a hosted class, a renamed slot —
+   was dropped, so this tab's visit total silently disagreed with Attendance and Bookings.
+   The two specialised formats are identified; everything else is Barre, so the buckets are
+   exhaustive and the totals reconcile. */
+const bucket = (r: VisitRow): typeof FORMATS[number] => {
   const value = `${r.format ?? ''} ${r.class_name ?? ''}`.toLowerCase();
-  if (value.includes('barre')) return 'Barre';
+  /* Matches the reference implementation's `getClassFormat` exactly: PowerCycle and Strength Lab
+     are the only two named formats, everything else is Barre. "cycle" and "power cycle" are
+     accepted as spelling variants of the same format. */
   if (value.includes('powercycle') || value.includes('power cycle') || value.includes('cycle')) return 'PowerCycle';
-  if (value.includes('strength lab') || value.includes('strength')) return 'Strength Lab';
-  return null;
+  if (value.includes('strength lab')) return 'Strength Lab';
+  return 'Barre';
 };
-const relabel = (rows: VisitRow[]) => rows.flatMap((r) => { const format = bucket(r); return format ? [{ ...r, format }] : []; });
+const relabel = (rows: VisitRow[]) => rows.map((r) => ({ ...r, format: bucket(r) }));
 const METRICS = ['visits', 'v_booked', 'v_show_up_rate', 'v_fill_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_unique_members', 'v_repeat_rate', 'v_revenue', 'v_rev_per_visit'];
 
 export function FormatComparison({ scope }: { scope: Scope }) {
@@ -37,10 +44,10 @@ export function FormatComparison({ scope }: { scope: Scope }) {
     { id: 'v_late_cancel_rate', metricId: 'v_late_cancel_rate', family: 'Behaviour' }, { id: 'v_no_show_rate', metricId: 'v_no_show_rate', family: 'Behaviour' },
     { id: 'v_repeat_rate', metricId: 'v_repeat_rate', family: 'Behaviour' }, { id: 'v_revenue', metricId: 'v_revenue', family: 'Revenue', bar: true }, { id: 'v_rev_per_visit', metricId: 'v_rev_per_visit', family: 'Revenue' },
   ];
-  if (!rows.length) return <SectionEmpty what="Barre, PowerCycle or Strength Lab visits" scope={scope} />;
+  if (!rows.length) return <SectionEmpty what="visits" scope={scope} />;
   return <>
     <WidgetSection tab="format-comparison" scope={scope} placement="top" />
-    <Register title="Format comparison" subtitle="Barre vs PowerCycle vs Strength Lab on the same globally filtered basis" domain="growth">
+    <Register title="Format comparison" subtitle="Barre vs PowerCycle vs Strength Lab on the same globally filtered basis. PowerCycle and Strength Lab are matched by class name; every other visit is Barre, so the three add up to the same total Attendance and Bookings show." domain="growth">
       <KpiStrip scope={scope} table="visits" rows={rows} ids={['visits', 'v_unique_members', 'v_fill_rate', 'v_show_up_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_repeat_rate', 'v_rev_per_visit']} />
       <div className="format-scorecards">{nodes.map((n) => <article className="format-scorecard" key={n.label}><span>{n.label}</span><strong>{formatValue('integer', n.values.visits.value)}</strong><small>visits</small><dl><div><dt>Fill</dt><dd>{formatValue('percent', n.values.v_fill_rate.value)}</dd></div><div><dt>Attendance</dt><dd>{formatValue('percent', n.values.v_show_up_rate.value)}</dd></div><div><dt>Revenue</dt><dd>{formatValue('currency', n.values.v_revenue.value)}</dd></div><div><dt>Per visit</dt><dd>{formatValue('currency', n.values.v_rev_per_visit.value)}</dd></div></dl></article>)}</div>
     </Register>

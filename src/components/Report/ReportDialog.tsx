@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { generateAIReport, readAIConfig, readOpenAIKey, reportFingerprint } from '../../ai/client';
 import { renderReport } from '../../report/shell';
 import { buildReport, CHAPTERS, type ChapterId, type ReportModel } from '../../report/model';
@@ -62,11 +63,7 @@ export function ReportDialog() {
   useEffect(() => { if (reportOpen) { setLocations(filters.locations); setFormats(filters.formats); setCustomStart(current?.period.start ?? ''); setCustomEnd(current?.period.end ?? ''); setModel(null); } }, [reportOpen, filters.locations, filters.formats, current?.period.start, current?.period.end]);
   useEffect(() => { if (!reportOpen) { setPreview(false); setError(''); setNotice(''); } }, [reportOpen]);
   useEffect(() => { if (!reportOpen) return; listSavedReports().then(setLibrary).catch(() => setLibrary([])); }, [reportOpen]);
-  useEffect(() => {
-    if (!reportOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (preview) setPreview(false); else setReportOpen(false); } };
-    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [reportOpen, preview, setReportOpen]);
+  useOverlay(reportOpen, useCallback(() => { if (preview) setPreview(false); else setReportOpen(false); }, [preview, setReportOpen]));
 
   if (!reportOpen) return null;
   const toggle = (id: ChapterId) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);

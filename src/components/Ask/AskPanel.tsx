@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { ask, defaultSuggestions, type AskResult } from '../../api/ask';
 import { useScope } from '../../state/data';
 import { useView } from '../../state/view';
@@ -61,12 +62,7 @@ export function AskPanel() {
 
   useEffect(() => { writeTurns(turns); }, [turns]);
   useEffect(() => { if (open) { inputRef.current?.focus(); bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight }); } }, [open, turns.length]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, setOpen]);
+  useOverlay(open, useCallback(() => setOpen(false), [setOpen]));
 
   const myQuestions = useMemo(() => turns.filter((t) => t.role === 'you').map((t) => t.text), [turns]);
 
@@ -112,7 +108,7 @@ export function AskPanel() {
           {turns.length > 0 && (
             <>
               <ExportMenu label="Thread" payload={() => ({
-                name: 'Floor conversation',
+                name: 'Atlas conversation',
                 columns: ['When', 'Who', 'Message', 'Metric', 'Confidence'],
                 rows: turns.map((t) => [new Date(t.at).toISOString(), t.role, t.text, t.result?.metricId ?? '', t.result?.confidence ?? '']),
                 scopeLine: scope ? scopeLine(scope) : '',

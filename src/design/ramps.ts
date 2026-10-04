@@ -3,22 +3,22 @@ export type Theme = 'matte' | 'gloss';
 
 export const RAMPS = {
   matte: {
-    diverging: ['#FF3D8A', '#B8306C', '#6B2A4E', '#2A2F38', '#1E5A63', '#0FA5B8', '#00E0FF'],
-    seqAttendance: ['#0D0F12', '#0B2A32', '#084754', '#05707F', '#00A3B8', '#00E0FF'],
-    seqRevenue: ['#0D0F12', '#2E0F22', '#55163A', '#8A1D54', '#C42B72', '#FF3D8A'],
-    categorical: ['#00E0FF', '#FF3D8A', '#00F5A0', '#FFA62B', '#9B5CFF', '#4DD8FF', '#FF7EB0', '#6BFFC4', '#FFC96B', '#BC94FF'],
-    format: { 'Barre 57': '#FF3D8A', Cycle: '#00E0FF', Strength: '#FFA62B', Pilates: '#9B5CFF', Hosted: '#00F5A0', Other: '#00F5A0', Unknown: '#4A515E' } as Record<string, string>,
-    domain: { attendance: '#00E0FF', revenue: '#FF3D8A', growth: '#00F5A0', people: '#9B5CFF', risk: '#FFA62B', neutral: '#4A515E' } as Record<string, string>,
-    pos: '#00F5A0', neg: '#FF4D6D', warn: '#FFC53D', text3: '#6E7787', hairline: '#22262E', surface: '#0D0F12',
+    diverging: ['#F2718F', '#C25874', '#7A4356', '#2A2F38', '#2C6B66', '#3DA891', '#4FC3F7'],
+    seqAttendance: ['#0E1116', '#102A3A', '#13455F', '#176488', '#2E92C4', '#4FC3F7'],
+    seqRevenue: ['#0E1116', '#2C1620', '#4E2335', '#7C354F', '#B9526F', '#F2718F'],
+    categorical: ['#4FC3F7', '#F2718F', '#43D9A3', '#F5B74E', '#A78BFA', '#7AD3F9', '#F794AB', '#6FE3BA', '#F8CA7E', '#C0ABFC'],
+    format: { 'Barre 57': '#F2718F', Cycle: '#4FC3F7', Strength: '#F5B74E', Pilates: '#A78BFA', Hosted: '#43D9A3', Other: '#43D9A3', Unknown: '#49515F' } as Record<string, string>,
+    domain: { attendance: '#4FC3F7', revenue: '#F2718F', growth: '#43D9A3', people: '#A78BFA', risk: '#F5B74E', neutral: '#49515F' } as Record<string, string>,
+    pos: '#43D9A3', neg: '#F2666F', warn: '#F5B74E', text3: '#78828F', hairline: '#232833', surface: '#0E1116',
   },
   gloss: {
-    diverging: ['#8A0A29', '#C10F3A', '#E8214F', '#F4A0B0', '#F2F4F8', '#9CB6F5', '#3B72FF', '#1D4ED8', '#0B2A6B'],
-    seqAttendance: ['#F2F5FA', '#D3E0FA', '#A9C4F6', '#6E97EE', '#3B72FF', '#1D4ED8', '#0B2A6B'],
-    seqRevenue: ['#FDF2F5', '#F9D3DC', '#F1A3B6', '#E56685', '#C10F3A', '#8A0A29'],
-    categorical: ['#1D4ED8', '#C10F3A', '#0E7C86', '#A26A00', '#7A2E7E', '#3B72FF', '#E8214F', '#14A0AC', '#C98A16', '#A052A4'],
-    format: { 'Barre 57': '#C10F3A', Cycle: '#1D4ED8', Strength: '#A26A00', Pilates: '#7A2E7E', Hosted: '#0E7C86', Other: '#0E7C86', Unknown: '#AFB8C6' } as Record<string, string>,
-    domain: { attendance: '#1D4ED8', revenue: '#C10F3A', growth: '#0E7C86', people: '#7A2E7E', risk: '#A26A00', neutral: '#AFB8C6' } as Record<string, string>,
-    pos: '#0E7C86', neg: '#C10F3A', warn: '#A26A00', text3: '#8390A3', hairline: '#DFE4EC', surface: '#FFFFFF',
+    diverging: ['#8C1D3D', '#C2325C', '#DE4473', '#EFA7BA', '#F1F4F9', '#A8C2EE', '#3B7FE8', '#2563C9', '#123A70'],
+    seqAttendance: ['#F4F7FC', '#DCE7F8', '#B4CBF0', '#7CA3E2', '#3B7FE8', '#2563C9', '#123A70'],
+    seqRevenue: ['#FCF3F6', '#F6D9E1', '#EBAEC0', '#DD7D99', '#C2325C', '#8C1D3D'],
+    categorical: ['#2563C9', '#C2325C', '#17876B', '#A5700F', '#7449C6', '#3B7FE8', '#DE4473', '#1BA383', '#C48D28', '#9268D6'],
+    format: { 'Barre 57': '#C2325C', Cycle: '#2563C9', Strength: '#A5700F', Pilates: '#7449C6', Hosted: '#17876B', Other: '#17876B', Unknown: '#AFB8C6' } as Record<string, string>,
+    domain: { attendance: '#2563C9', revenue: '#C2325C', growth: '#17876B', people: '#7449C6', risk: '#A5700F', neutral: '#AFB8C6' } as Record<string, string>,
+    pos: '#17876B', neg: '#C2325C', warn: '#A5700F', text3: '#8390A3', hairline: '#DFE4EC', surface: '#FFFFFF',
   },
 };
 

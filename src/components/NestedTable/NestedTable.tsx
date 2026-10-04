@@ -11,7 +11,7 @@ import { TipBody, useTooltip } from '../Tooltip/Tooltip';
 import { maxBy, maxOf } from '../../semantics/stats';
 
 export interface ColumnDef {
-  id: string; metricId?: string; label?: string; family?: 'Volume' | 'Utilisation' | 'Revenue' | 'Behaviour' | 'Score';
+  id: string; metricId?: string; label?: string; family?: 'Volume' | 'Utilisation' | 'Revenue' | 'Behaviour' | 'Acquisition' | 'Score';
   heat?: boolean; bar?: boolean; threshold?: (ctx: QueryContext) => number | null;
   spark?: (rows: Row[]) => (number | null)[]; mix?: (rows: Row[]) => { label: string; value: number; color: string }[]; dist?: (rows: Row[]) => number[];
   render?: (node: RollupNode, ctx: QueryContext) => ReactNode; value?: (node: RollupNode, ctx: QueryContext) => number | null; format?: Fmt; hidden?: boolean; width?: number; higherIsBetter?: boolean;
@@ -180,7 +180,7 @@ export function NestedTable(p: NestedTableProps) {
   }, [selected, flat, metricIds, p.ctx]);
   const footNode = selectedNode ?? totalNode;
 
-  const families = ['Volume', 'Utilisation', 'Revenue', 'Behaviour', 'Score'] as const;
+  const families = ['Volume', 'Utilisation', 'Revenue', 'Acquisition', 'Behaviour', 'Score'] as const;
   const available = p.availableKeys ?? Object.keys(GROUP_KEYS);
 
   return (

@@ -26,6 +26,7 @@ export function Leads({ scope }: { scope: Scope }) {
   const addTransient = useFilters((s) => s.addTransient);
   const rows = scope.tables.leads;
   const columns: ColumnDef[] = [
+    { id: 'lead_to_trial_rate', metricId: 'lead_to_trial_rate', family: 'Utilisation', heat: true }, { id: 'trial_to_won_rate', metricId: 'trial_to_won_rate', family: 'Utilisation', heat: true },
     { id: 'leads', metricId: 'leads', family: 'Volume', bar: true }, { id: 'contacted_leads', metricId: 'contacted_leads', family: 'Volume' }, { id: 'response_time_hours', metricId: 'response_time_hours', family: 'Behaviour', heat: true }, { id: 'median_response_hours', metricId: 'median_response_hours', family: 'Behaviour' }, { id: 'same_day_response', metricId: 'same_day_response', family: 'Behaviour' },
     { id: 'avg_touches', metricId: 'avg_touches', family: 'Behaviour' }, { id: 'won_leads', metricId: 'won_leads', family: 'Volume' }, { id: 'lead_conversion_rate', metricId: 'lead_conversion_rate', family: 'Utilisation', heat: true }, { id: 'lost_leads', metricId: 'lost_leads', family: 'Volume' }, { id: 'time_to_convert', metricId: 'time_to_convert', family: 'Behaviour' },
     { id: 'open_leads', metricId: 'open_leads', family: 'Volume' }, { id: 'stale_leads', metricId: 'stale_leads', family: 'Behaviour' }, { id: 'pipeline_value', metricId: 'pipeline_value', family: 'Revenue' },

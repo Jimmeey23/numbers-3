@@ -716,6 +716,13 @@ export function mapLapsedRow(r: Raw, todayTs: number): LapsedRow {
     const liability = remaining !== null && revPerSession !== null ? remaining * revPerSession
       : remaining !== null && amount !== null && sessions_limit ? remaining * (amount / sessions_limit) : null;
     const churned = !!churn || status === 'Lapsed';
+    /* Single-class products and zero-value rows are not memberships: a drop-in that "lapses" is
+       just a class that was used. The reference implementation excludes them from every lapsed
+       and churn figure, and so do we — but the rows are kept and flagged, so Data health can say
+       how many were set aside instead of the exclusion being invisible.
+       Deliberately narrow: it must not match a membership called "Single Location". */
+    const singleClass = /single[\s-]*class|single[\s-]*session|\b1[\s-]*class\b|one[\s-]*class|drop[\s-]*in|trial[\s-]*class/i.test(trim(r['Membership Name']) ?? '');
+    const qualifies = !singleClass && (amount ?? 0) > 0;
   const date = purchase?.date ?? start?.date ?? null;
   const ts = purchase?.ts ?? start?.ts ?? null;
     return {
@@ -742,7 +749,8 @@ export function mapLapsedRow(r: Raw, todayTs: number): LapsedRow {
       freeze_count: num(r['Membership Freeze Count']), days_frozen: num(r['Days Frozen']), duration_days: num(r['Membership Duration (Days)']),
       days_active: num(r['Days Active']), days_since_last_visit: dsl, avg_sessions_month: num(r['Average Sessions Per Month']),
       rev_per_session: revPerSession, attendance_rate: attendanceRate,
-      churned, active: status === 'Active' || status === 'Frozen' || status === 'New', frozen: status === 'Frozen', days_elapsed: daysElapsed,
+      churned, active: status === 'Active' || status === 'Frozen' || status === 'New', frozen: status === 'Frozen',
+      single_class: singleClass, qualifies, days_elapsed: daysElapsed,
       risk_score: risk, risk_inputs: riskInputs, liability,
     multi_location: (trim(r['Locations Attended']) ?? '').includes(','),
     renewed: status === 'Renewed',

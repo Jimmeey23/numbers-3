@@ -4,6 +4,7 @@ import { FilterStrip } from './components/shell/FilterDrawer';
 import { TooltipLayer } from './components/Tooltip/Tooltip';
 import { DrillPanel } from './components/DrillPanel/DrillPanel';
 import { isHardRefresh, useData, useScope, type Scope } from './state/data';
+import { useEscapeClosesEverything } from './state/overlays';
 import { encodeFilters, useFilters } from './state/filters';
 import { TABS, useView, type TabId } from './state/view';
 import { useDrill } from './state/drill';
@@ -132,6 +133,7 @@ export default function App() {
   /* Cached sheets are reused on every ordinary page load. Only a hard refresh goes back to the
      network on its own; everything else waits for the Reload button. */
   useEffect(() => { load(isHardRefresh()); }, [load]);
+  useEscapeClosesEverything();   // one Escape closes every open overlay, whatever has focus
   useEffect(() => { const h = () => { const hash = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; if (TABS.some((t) => t.id === hash)) useView.getState().setTab(hash); }; window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h); }, []);
   // 90ms crossfade on scope change, no layout shift
   const sig = scope ? `${scope.period.start}${scope.period.end}${JSON.stringify(scope.filters)}${scope.ctx.ratePerSession}` : '';

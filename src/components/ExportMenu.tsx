@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverlay } from '../state/overlays';
 import { FORMATS, runExport, type ExportFormat, type ExportPayload } from '../api/export';
 import { useView } from '../state/view';
 
@@ -7,6 +8,7 @@ export function ExportMenu({ payload, label = 'Export', compact = true, extra }:
   const [open, setOpen] = useState(false);
   const announce = useView((s) => s.announce);
   const ref = useRef<HTMLDivElement>(null);
+  useOverlay(open, useCallback(() => setOpen(false), []));
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };

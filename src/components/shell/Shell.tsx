@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_THRESHOLDS, TABS, useView, type TabId } from '../../state/view';
+import { useOverlay } from '../../state/overlays';
+import { Logo } from './Logo';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -33,7 +35,8 @@ export function TitleBar() {
   return (
     <header className="titlebar">
       <div className="brand">
-        <span className="brand-mark">FLOOR</span>
+        <Logo />
+        <span className="brand-mark">ATLAS</span>
         <span className="brand-rule" aria-hidden="true" />
         <span className="t-label-m muted titlebar-sub">Physique 57 India</span>
       </div>
@@ -108,7 +111,7 @@ function TabExport() {
       ...d.groups.map((g) => [ep.groupBy[0], g.label, g.rows, '', ...metricCols.map((m) => g.values[m] ?? null)].slice(0, 6 + metricCols.length)),
       ...d.insights.map((i) => ['Signal', i.title, Math.round(i.impactINR), i.severity, i.action, '']),
     ];
-    return { name: `Floor · ${ep.title}`, columns: ['Section', 'Item', 'Value', 'Formatted', 'Detail', 'Extra', ...metricCols.map((m) => m)].slice(0, 6 + metricCols.length),
+    return { name: `Atlas · ${ep.title}`, columns: ['Section', 'Item', 'Value', 'Formatted', 'Detail', 'Extra', ...metricCols.map((m) => m)].slice(0, 6 + metricCols.length),
       rows, scopeLine: scopeLine(scope), meta: { tab, generated: new Date().toISOString() } };
   };
   return <ExportMenu payload={payload} label="Export tab" />;
@@ -237,7 +240,8 @@ export function StatusBar() {
 }
 
 export function CommandPalette() {
-  const open = useView((s) => s.paletteOpen); const setOpen = useView((s) => s.setPaletteOpen); const setTab = useView((s) => s.setTab);
+  const open = useView((s) => s.paletteOpen); const setOpen = useView((s) => s.setPaletteOpen);
+  useOverlay(open, useCallback(() => setOpen(false), [setOpen])); const setTab = useView((s) => s.setTab);
   const ds = useData((s) => s.dataset); const addTransient = useFilters((s) => s.addTransient); const drill = useDrill((s) => s.open);
   const [q, setQ] = useState(''); const [i, setI] = useState(0);
   const items = useMemo(() => {
@@ -275,6 +279,7 @@ export function SettingsPanel() {
   const [ai, setAi] = useState<AIConfig>(readAIConfig);
   const [apiKey, setApiKey] = useState(readOpenAIKey);
   const [showKey, setShowKey] = useState(false); const [saved, setSaved] = useState(false); const [reportCount, setReportCount] = useState(0);
+  useOverlay(settingsOpen, useCallback(() => setSettingsOpen(false), [setSettingsOpen]));
   useEffect(() => { if (settingsOpen) listSavedReports().then((x) => setReportCount(x.length)).catch(() => setReportCount(0)); }, [settingsOpen]);
   useEffect(() => { const sync = () => { setAi(readAIConfig()); setApiKey(readOpenAIKey()); }; window.addEventListener(AI_EVENT, sync); return () => window.removeEventListener(AI_EVENT, sync); }, []);
   if (!settingsOpen) return null;

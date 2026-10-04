@@ -1,16 +1,20 @@
-/* Floor — design tokens.
+/* Atlas — design tokens.
    Two materials: Matte (dead-flat black, light comes only from data) and
    Lacquer (pure white neumorphism — surfaces are extruded from the background, never painted on it). */
 :root[data-theme="matte"] {
-  --canvas:#000000;      --surface-1:#0D0F12;  --surface-2:#14171C;
-  --surface-3:#1C2027;   --surface-inset:#08090B;
-  --hairline:#22262E;    --hairline-strong:#333944;
+  /* A near-black with a cool cast rather than #000: pure black against saturated accents reads
+     as glare, and gives surfaces nothing to be elevated against. */
+  --canvas:#07080B;      --surface-1:#0E1116;  --surface-2:#161A21;
+  --surface-3:#1F242D;   --surface-inset:#0A0C10;
+  --hairline:#232833;    --hairline-strong:#39404E;
   --overlay:rgba(0,0,0,.72);
-  --text-1:#F7F9FC;      --text-2:#AEB6C4;     --text-3:#7A8492;
+  --text-1:#F4F7FB;      --text-2:#AAB3C2;     --text-3:#78828F;
   --text-inverse:#0A0C0F;
 
-  --neon-cyan:#00E0FF;   --neon-rose:#FF3D8A;  --neon-mint:#00F5A0;
-  --neon-violet:#9B5CFF; --neon-amber:#FFA62B;
+  /* Five accents held at one perceptual lightness and a shared, moderate chroma, so no series
+     shouts over another and a five-line chart stays readable. Vivid, not neon. */
+  --neon-cyan:#4FC3F7;   --neon-rose:#F2718F;  --neon-mint:#43D9A3;
+  --neon-violet:#A78BFA; --neon-amber:#F5B74E;
 
   --hue-attendance:var(--neon-cyan);
   --hue-revenue:var(--neon-rose);
@@ -18,13 +22,13 @@
   --hue-people:var(--neon-violet);
   --hue-risk:var(--neon-amber);
 
-  --pos:#00F5A0; --neg:#FF4D6D; --warn:#FFC53D;
-  --info:#00E0FF; --null:#4A515E;
+  --pos:#43D9A3; --neg:#F2666F; --warn:#F5B74E;
+  --info:#4FC3F7; --null:#49515F;
 
   /* Ink: the readable form of each accent, for text sitting on that accent's wash.
      The raw accent is tuned for fills and strokes; several fail 4.5:1 as type. */
-  --ink-attendance:#00E0FF; --ink-revenue:#FF6AA5; --ink-growth:#00F5A0;
-  --ink-people:#BC94FF;     --ink-risk:#FFA62B;    --ink-neutral:#AEB6C4;
+  --ink-attendance:#7AD3F9; --ink-revenue:#F794AB; --ink-growth:#6FE3BA;
+  --ink-people:#C0ABFC;     --ink-risk:#F8CA7E;    --ink-neutral:#AAB3C2;
 
   --elev-1:none; --elev-2:none;
   --elev-3:0 0 0 1px var(--hairline-strong);
@@ -35,6 +39,8 @@
   --tooltip-shadow:0 0 0 1px var(--hairline-strong), 0 24px 48px -12px #000;
   --focus:var(--neon-cyan);
   --heat-text-invert:#0A0C0F;
+  --on-hue:#07080B;
+  --pop-shadow:0 24px 56px -20px rgba(0,0,0,.9), 0 0 0 1px var(--hairline-strong);
 
   /* Neumorphism: in a matte world the extrusion is a luminance edge, not a shadow. */
   --neu-raised:inset 0 1px 0 rgba(255,255,255,.055), 0 1px 0 rgba(0,0,0,.6);
@@ -49,18 +55,20 @@
 
 :root[data-theme="gloss"] {
   /* Pure white. The canvas IS white; surfaces are extruded from it with paired light and shadow. */
-  --canvas:#FFFFFF;      --surface-1:#FFFFFF;  --surface-2:#FFFFFF;
-  --surface-3:#F7F9FC;   --surface-inset:#EFF3F8;
-  --hairline:#E4E9F0;    --hairline-strong:#7C8899;   /* 3.2:1 on white — real control boundaries, not decoration */
-  --rule:#DDE3EC;                                     /* decorative separators only */
+  /* A faintly cool paper rather than pure white, so a white card has something to sit on. */
+  --canvas:#F7F9FC;      --surface-1:#FFFFFF;  --surface-2:#FBFCFE;
+  --surface-3:#F1F5FA;   --surface-inset:#ECF1F7;
+  --hairline:#E2E8F0;    --hairline-strong:#7C8899;   /* 3.2:1 on white — real control boundaries, not decoration */
+  --rule:#DCE3EC;                                     /* decorative separators only */
   --overlay:rgba(12,18,28,.38);
   /* High contrast: body text is near-black on white — 16.1:1. */
   --text-1:#0A0F1A;      --text-2:#3D4859;     --text-3:#5F6C7D;
   --text-inverse:#FFFFFF;
 
-  --crimson:#B80C33; --crimson-bright:#E0184A; --crimson-deep:#7D0722;
-  --cobalt:#1541C4;  --cobalt-bright:#2E63F0;  --navy:#082158;
-  --plum:#6B247A;    --teal:#0A6B78;           --brass:#8F5A00;
+  /* The same five hues as the dark theme, darkened to carry 4.5:1 as type on white. */
+  --crimson:#C2325C; --crimson-bright:#DE4473; --crimson-deep:#8C1D3D;
+  --cobalt:#2563C9;  --cobalt-bright:#3B7FE8;  --navy:#123A70;
+  --plum:#7449C6;    --teal:#17876B;           --brass:#A5700F;
 
   --hue-attendance:var(--cobalt);
   --hue-revenue:var(--crimson);
@@ -68,11 +76,11 @@
   --hue-people:var(--plum);
   --hue-risk:var(--brass);
 
-  --pos:#0A6B78; --neg:#B80C33; --warn:#8F5A00;
-  --info:#1541C4; --null:#9AA6B6;
+  --pos:#17876B; --neg:#C2325C; --warn:#A5700F;
+  --info:#2563C9; --null:#98A4B4;
 
-  --ink-attendance:#1541C4; --ink-revenue:#B80C33; --ink-growth:#0A6B78;
-  --ink-people:#6B247A;     --ink-risk:#8F5A00;    --ink-neutral:#445162;
+  --ink-attendance:#1E55AE; --ink-revenue:#A62A4E; --ink-growth:#13735B;
+  --ink-people:#633CAA;     --ink-risk:#8C5F0C;    --ink-neutral:#445162;
 
   --elev-1:0 1px 2px rgba(16,24,40,.05);
   --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
@@ -84,6 +92,8 @@
   --tooltip-shadow:0 18px 44px -12px rgba(12,18,28,.22), 0 0 0 1px var(--hairline);
   --focus:var(--cobalt);
   --heat-text-invert:#FFFFFF;
+  --on-hue:#FFFFFF;
+  --pop-shadow:0 24px 56px -22px rgba(16,24,40,.28), 0 0 0 1px var(--hairline);
 
   /* Neumorphism proper: one light source, top-left. Raised = light above, shadow below.
      Inset = the inverse. On pure white this reads as soft extrusion, not a floating card. */

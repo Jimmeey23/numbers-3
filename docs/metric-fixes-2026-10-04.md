@@ -216,3 +216,96 @@ Two things the measurements caught and the eye would not have:
   truncating. Verified clip-free at 1366, 1440 and 1600 across every tab.
 - A card whose label wrapped to two lines dropped its value a line below its neighbours. Two label
   lines are now always reserved, so the figures read as one row.
+
+## Not built: same-day cancellation
+
+The reference implementation reports same-day cancellations and the penalty charged on them, and
+they are worth having — a seat released a day out can be resold, a seat released an hour out
+cannot. They are **not** derivable from the sources this app reads.
+
+Neither Checkins nor Bookings carries a cancellation timestamp. The only time field on a visit is
+`lead_time_days`, which is booking → class, so a metric built on it would report "booked on the day
+and later cancelled" while being labelled "cancelled on the day". A first cut of this was written
+and then removed rather than shipped under the wrong name.
+
+It needs a `Cancelled At` column on the Bookings or Late Cancellations source. With that, both
+metrics are a few lines.
+
+---
+
+# Fourth pass — reconciliation with the reference app, and the UI round
+
+## Reconciled against `physique57-analytics-hub`
+
+The reference app has no single metric layer: the same concept is computed independently in three
+to six places, and its own two spec documents disagree with its code. It was read as evidence of
+intent, not as an authority, and adopted only where its rule is unambiguous and better.
+
+**Adopted:**
+
+- **Format bucketing.** Its `getClassFormat` is the rule asked for: `powercycle` → PowerCycle,
+  `strength lab` → Strength, **everything else → Barre**. This app matched on the word "barre" and
+  dropped everything that matched none of the three, which is why Format comparison's visit total
+  disagreed with Attendance and Bookings. The buckets are now exhaustive and the totals reconcile —
+  verified against the fixtures: 611 + 200 + 109 = 920 = the canonical visit count.
+- **Single-class and zero-value exclusion from churn.** A drop-in that "lapses" is a class that was
+  used, not a membership that was lost. Those rows are now flagged `single_class` / `qualifies` and
+  excluded from the membership and churn metrics — but kept in the dataset and disclosed, rather
+  than filtered at load as the reference does it.
+
+**Already agreed** (checked, no change needed): empty session = `checkedIn === 0`; fill rate =
+Σ checkedIn / Σ capacity; net revenue = payment − VAT; no-shows as the booked − attended − late
+residual; conversion and retention over the new-client cohort; `Converted`/`Retained` as exact
+status matches.
+
+**Deliberately not adopted:**
+
+- Its hosted-class exclusion. Four incompatible definitions, and two of them use a regex whose
+  trailing `|x` alternation drops every class name containing the letter "x" — Express, Mix, Max.
+- Its 20-seats-per-session assumption for payroll-derived fill rate. This app has real capacity.
+- Its trainer composite, which is surfaced as `revenueScore` while containing no revenue term.
+- Its churn rate, where the prior-period figure is structurally always 100%.
+
+## Metrics added
+
+`units_per_transaction`, `distinct_products`, `top_product_share` (Sales) · `early_exit` —
+churned having used under half the entitlement (Retention) · `lead_to_trial_rate`,
+`trial_to_won_rate` — separating a weak offer from a weak close (Leads) · `p_revenue_per_trainer`,
+`p_utilisation` (Payroll) · **Trainers** gains New members, Converted, Conversion value,
+Second-visit rate, Retention of new members and Median LTV, joined from the New sheet by
+first-visit trainer.
+
+## UI
+
+- **Metric cards stopped clipping.** A fixed height with `overflow:hidden` cut "51" and "332" in
+  half in the drill panel. Cards now size to their content, and the strip wraps to a second row
+  rather than crushing eight into too little width.
+- **The definition popout escapes its card.** It was laid out inside a card that clips, so it was
+  cut off and its formula was squeezed to a few characters per line. It is now a fixed-position
+  popout anchored to the card, flipped above when it would run off the bottom.
+- **Escape closes everything.** Overlays each listened for Escape themselves, so whether a press
+  reached the thing the operator meant depended on mount order and focus. They register with one
+  document-level listener now. A text field with content in it still gets Escape first, because
+  there it means "clear what I am typing".
+- **The report builder was unstyled.** It had been rewritten with a new markup vocabulary and the
+  stylesheet never followed: nineteen of its class names — `report-dialog`, `report-builder-grid`,
+  `chapter-picker`, `modal-backdrop` and the rest — matched no rule at all, so it rendered as a
+  stack of bare divs. Written, and the dead rules for the old markup removed.
+- **The drill panel had no field set for `visits`**, the grain most tabs now drill into, so its
+  "contributing rows" table rendered with no columns. It now shows seventeen item-level fields —
+  member, member id, class, format, trainer, studio, outcome, visit number, what it was paid with,
+  product, amount, booking lead time, capacity, visit type and which source carries the row — and
+  the panel is wide enough to read them.
+- **Periods.** This quarter, last quarter, this year, last year, last 6 months, last 7 and 180
+  days, grouped by unit with current-then-previous in each group. Each new preset has a calendar-
+  aware comparison window.
+- **Revenue never shows more than one decimal.** `₹15.4L`, not `₹15.39L`. The two remaining raw
+  `toLocaleString` rupee renders on Payroll now go through the formatter.
+- **Palette.** The five accents were neon on pure black. They are now held at one perceptual
+  lightness and a shared moderate chroma, so no series shouts over another, on a near-black with a
+  cool cast rather than `#000` — pure black against saturated accents reads as glare and gives
+  surfaces nothing to be elevated against. The light theme lifts off pure white for the same
+  reason. Ramps follow the tokens.
+- **Atlas.** The app is named Atlas and has a meridian-globe mark that draws itself in on mount,
+  with the same gesture the sparklines use. Title, favicon, theme-color and the agent and export
+  identifiers follow.

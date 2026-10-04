@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { DEFAULT_FILTERS, resolvePeriod, useFilters, type Filters, type Preset } from '../../state/filters';
 import { useData, useOptions } from '../../state/data';
 import { useView } from '../../state/view';
@@ -10,12 +11,19 @@ const QUICK_PRESETS: { id: Preset; label: string }[] = [
   { id: 'this_month', label: 'This month' },
   { id: 'month', label: 'Last month' },
 ];
-const PRESETS: { id: Preset; label: string }[] = [
-  { id: 'today', label: 'Today' }, { id: 'yesterday', label: 'Yesterday' },
-  ...QUICK_PRESETS,
-  { id: '30d', label: 'Last 30 days' }, { id: '90d', label: 'Last 90 days' },
-  { id: 'quarter', label: 'Quarter to date' }, { id: 'ytd', label: 'Year to date' },
-  { id: '12m', label: 'Last 12 months' }, { id: 'all', label: 'All time' }, { id: 'custom', label: 'Custom range' },
+/* Grouped the way an operator thinks about time: the day, the week, the month, the quarter,
+   the year, then rolling windows. Each group runs current-then-previous. */
+const PRESET_GROUPS: { group: string; items: { id: Preset; label: string }[] }[] = [
+  { group: 'Day', items: [{ id: 'today', label: 'Today' }, { id: 'yesterday', label: 'Yesterday' }] },
+  { group: 'Week', items: [{ id: 'this_week', label: 'This week' }, { id: 'last_week', label: 'Last week' }] },
+  { group: 'Month', items: [{ id: 'this_month', label: 'This month' }, { id: 'month', label: 'Last month' }] },
+  { group: 'Quarter', items: [{ id: 'quarter', label: 'This quarter' }, { id: 'last_quarter', label: 'Last quarter' }] },
+  { group: 'Year', items: [{ id: 'this_year', label: 'This year' }, { id: 'last_year', label: 'Last year' }] },
+  { group: 'Rolling', items: [
+    { id: '7d', label: 'Last 7 days' }, { id: '30d', label: 'Last 30 days' }, { id: '90d', label: 'Last 90 days' },
+    { id: '180d', label: 'Last 180 days' }, { id: 'last_6m', label: 'Last 6 months' }, { id: '12m', label: 'Last 12 months' },
+  ] },
+  { group: 'Everything', items: [{ id: 'all', label: 'All time' }, { id: 'custom', label: 'Custom range' }] },
 ];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -64,13 +72,11 @@ export function FilterStrip() {
   const close = () => { setDraft(null); setOpen(false); };
   const apply = () => { if (draft) set(draft); setDraft(null); setOpen(false); useView.getState().announce('Filters applied across every tab'); };
 
-  // Esc closes and discards the draft; Enter applies.
+  // Escape closes and discards the draft (through the shared overlay layer); ⌘/Ctrl+Enter applies.
+  useOverlay(open, close);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); apply(); }
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); apply(); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }); // re-bound each render so `draft` stays fresh
@@ -122,7 +128,12 @@ export function FilterStrip() {
             <div className="filter-row">
               <div className="filter-group" style={{ minWidth: 300 }}>
                 <div className="filter-group-head"><span className="t-heading-s">Period</span><span className="t-label-s faint">{draftPeriod?.label}</span></div>
-                <div className="chip-row">{PRESETS.map((p) => <button key={p.id} className="btn btn-xs" aria-pressed={f.preset === p.id} onClick={() => upd({ preset: p.id })}>{p.label}</button>)}</div>
+                <div className="preset-groups">{PRESET_GROUPS.map((g) => (
+                  <div key={g.group} className="preset-group">
+                    <span className="t-label-s faint preset-group-name">{g.group}</span>
+                    <div className="chip-row">{g.items.map((p) => <button key={p.id} className="btn btn-xs" aria-pressed={f.preset === p.id} onClick={() => upd({ preset: p.id })}>{p.label}</button>)}</div>
+                  </div>
+                ))}</div>
                 {f.preset === 'custom' && <div style={{ display: 'flex', gap: 6, marginTop: 6 }}><input type="date" className="input" value={f.start ?? ''} onChange={(e) => upd({ start: e.target.value })} aria-label="Start date" /><input type="date" className="input" value={f.end ?? ''} onChange={(e) => upd({ end: e.target.value })} aria-label="End date" /></div>}
                 {ds && <div className="t-label-s faint" style={{ marginTop: 6 }}>Data runs through {fmtDate(ds.today)}; relative periods key off that date, not the clock.</div>}
               </div>

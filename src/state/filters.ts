@@ -4,7 +4,8 @@ import type { TableName } from '../semantics/metrics';
 
 export type Preset =
   | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month'
-  | 'mtd' | '30d' | '90d' | 'month' | 'quarter' | 'ytd' | '12m' | 'all' | 'custom';
+  | 'mtd' | '7d' | '30d' | '90d' | '180d' | 'month' | 'quarter' | 'last_quarter'
+  | 'ytd' | 'this_year' | 'last_year' | 'last_6m' | '12m' | 'all' | 'custom';
 export type Compare = 'prior' | 'yoy' | 'none';
 export interface Transient { dim: string; value: string; label?: string }
 
@@ -103,12 +104,23 @@ export function resolvePeriod(f: Filters, today: string): Period {
     }
     case 'mtd':
     case 'this_month': start = today.slice(0, 8) + '01'; label = `${MON[t.getUTCMonth()]} ${t.getUTCFullYear()} to date`; break;
+    case '7d': start = addDays(today, -6); label = 'Last 7 days'; break;
     case '30d': start = addDays(today, -29); label = 'Last 30 days'; break;
+    case '180d': start = addDays(today, -179); label = 'Last 180 days'; break;
     case '90d': start = addDays(today, -89); label = 'Last 90 days'; break;
     case 'month':
     case 'last_month': { const d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 1, 1)); start = iso(d); end = iso(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 0))); label = `${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; break; }
     case 'quarter': { const q = Math.floor(t.getUTCMonth() / 3); start = iso(new Date(Date.UTC(t.getUTCFullYear(), q * 3, 1))); label = `Q${q + 1} ${t.getUTCFullYear()} to date`; break; }
-    case 'ytd': start = `${t.getUTCFullYear()}-01-01`; label = `${t.getUTCFullYear()} to date`; break;
+    case 'last_quarter': {
+      const q = Math.floor(t.getUTCMonth() / 3) - 1;
+      const y = q < 0 ? t.getUTCFullYear() - 1 : t.getUTCFullYear(); const qq = (q + 4) % 4;
+      start = iso(new Date(Date.UTC(y, qq * 3, 1))); end = iso(new Date(Date.UTC(y, qq * 3 + 3, 0)));
+      label = `Q${qq + 1} ${y}`; break;
+    }
+    case 'last_6m': { const d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 6, 1)); start = iso(d); end = iso(new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 0))); label = 'Last 6 complete months'; break; }
+    case 'ytd':
+    case 'this_year': start = `${t.getUTCFullYear()}-01-01`; label = `${t.getUTCFullYear()} to date`; break;
+    case 'last_year': start = `${t.getUTCFullYear() - 1}-01-01`; end = `${t.getUTCFullYear() - 1}-12-31`; label = `${t.getUTCFullYear() - 1}`; break;
     case '12m': start = addDays(iso(new Date(Date.UTC(t.getUTCFullYear() - 1, t.getUTCMonth(), t.getUTCDate()))), 1); label = 'Last 12 months'; break;
     case 'all': start = '2020-01-01'; label = 'All time'; break;
     case 'custom': start = f.start ?? addDays(today, -89); end = f.end ?? today; label = lbl(start, end); break;
@@ -137,10 +149,18 @@ export function resolvePeriod(f: Filters, today: string): Period {
   } else if (f.preset === 'mtd' || f.preset === 'this_month') {
     prevStart = shiftMonths(sd, 1); prevEnd = shiftMonths(ed, 1);
     prevLabel = `${MON[new Date(prevStart + 'T00:00:00Z').getUTCMonth()]} 1–${new Date(prevEnd + 'T00:00:00Z').getUTCDate()}`;
+  } else if (f.preset === 'last_quarter') {
+    prevStart = shiftMonths(sd, 3); prevEnd = iso(new Date(Date.UTC(new Date(prevStart + 'T00:00:00Z').getUTCFullYear(), new Date(prevStart + 'T00:00:00Z').getUTCMonth() + 3, 0)));
+    prevLabel = `the quarter before that`;
+  } else if (f.preset === 'last_year') {
+    prevStart = `${+start.slice(0, 4) - 1}-01-01`; prevEnd = `${+start.slice(0, 4) - 1}-12-31`; prevLabel = `${+start.slice(0, 4) - 1}`;
+  } else if (f.preset === 'last_6m') {
+    prevStart = shiftMonths(sd, 6); prevEnd = iso(new Date(Date.UTC(new Date(prevStart + 'T00:00:00Z').getUTCFullYear(), new Date(prevStart + 'T00:00:00Z').getUTCMonth() + 6, 0)));
+    prevLabel = 'the six months before that';
   } else if (f.preset === 'quarter') {
     prevStart = shiftMonths(sd, 3); prevEnd = shiftMonths(ed, 3);
     prevLabel = `same days of Q${Math.floor(new Date(prevStart + 'T00:00:00Z').getUTCMonth() / 3) + 1}`;
-  } else if (f.preset === 'ytd') {
+  } else if (f.preset === 'ytd' || f.preset === 'this_year') {
     prevStart = shiftYears(sd, 1); prevEnd = shiftYears(ed, 1);
     prevLabel = `${prevStart.slice(0, 4)} to the same date`;
   } else if (f.preset === '12m') {

@@ -198,6 +198,8 @@ export interface LapsedRow extends Dims {
   churned: boolean;
   active: boolean;
   frozen: boolean;
+  single_class: boolean;      // a drop-in or single-class product, not a membership
+  qualifies: boolean;         // counts towards membership and churn figures
   days_elapsed: number | null;
   risk_score: number | null;
   risk_inputs: number;        // 0–4: how many of the risk model's inputs were observed

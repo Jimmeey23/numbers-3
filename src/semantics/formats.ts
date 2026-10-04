@@ -1,6 +1,6 @@
 /* Indian number formatting. Currency is INR throughout. */
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
-const inr2 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const inr1 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
 const dec1 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
 const dec2 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 });
 
@@ -12,11 +12,14 @@ export const isNil = (v: unknown): v is null | undefined => v === null || v === 
 export function fmtCurrency(v: number | null | undefined, compact = true): string {
   if (isNil(v)) return DASH;
   const a = Math.abs(v); const sign = v < 0 ? '−' : '';
-  if (compact && a >= 1e7) return `${sign}₹${dec2.format(a / 1e7)}Cr`;
-  if (compact && a >= 1e5) return `${sign}₹${dec2.format(a / 1e5)}L`;
+  /* One decimal at most. ₹15.4L is a figure an operator reads at a glance; ₹15.39L invites a
+     precision the underlying number does not have, and two decimals on a crore is noise. */
+  if (compact && a >= 1e7) return `${sign}₹${dec1.format(a / 1e7)}Cr`;
+  if (compact && a >= 1e5) return `${sign}₹${dec1.format(a / 1e5)}L`;
   return `${sign}₹${inr.format(Math.round(a))}`;
 }
-export const fmtCurrencyFull = (v: number | null | undefined) => (isNil(v) ? DASH : `${v < 0 ? '−' : ''}₹${inr2.format(Math.abs(v))}`);
+/** Unabbreviated rupees, still never more than one decimal place. */
+export const fmtCurrencyFull = (v: number | null | undefined) => (isNil(v) ? DASH : `${v < 0 ? '−' : ''}₹${inr1.format(Math.abs(v))}`);
 export const fmtPercent = (v: number | null | undefined, dp = 1) => (isNil(v) ? DASH : `${(v * 100).toFixed(dp)}%`);
 export const fmtInt = (v: number | null | undefined) => (isNil(v) ? DASH : inr.format(Math.round(v)));
 export const fmtDecimal = (v: number | null | undefined, dp = 1) => (isNil(v) ? DASH : (dp === 1 ? dec1 : dec2).format(v));

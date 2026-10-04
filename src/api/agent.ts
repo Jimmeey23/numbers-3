@@ -208,7 +208,7 @@ export function buildAgentApi(scope: Scope, thresholds: Thresholds, setFilters: 
   return {
     version: '2.0',
     describe: () => ({
-      name: 'Floor agent API', version: '2.0',
+      name: 'Atlas agent API', version: '2.0',
       note: 'Every response includes the scope it was computed under. Never quote a figure without it.',
       methods: {
         'describe()': 'This catalogue.',

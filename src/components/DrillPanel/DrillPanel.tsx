@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { useDrill } from '../../state/drill';
 import { useScope } from '../../state/data';
 import { metric } from '../../semantics/metrics';
@@ -12,7 +13,19 @@ import { useView } from '../../state/view';
 import { runRules } from '../../insights/engine';
 import { InsightCard } from '../InsightCard/InsightCard';
 
-const ROW_FIELDS: Record<string, { k: string; label: string; fmt?: 'currency' | 'percent' | 'date' }[]> = {
+/** `get` is for columns the row does not store directly — an outcome is derived from four flags. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Field = { k: string; label: string; fmt?: 'currency' | 'percent' | 'date'; get?: (r: any) => unknown };
+const ROW_FIELDS: Record<string, Field[]> = {
+  /* The canonical visit grain is what most tabs drill into now. Without an entry here the panel
+     rendered a table with no columns — the detail the drill-down exists to show. */
+  visits: [{ k: 'date', label: 'Date', fmt: 'date' }, { k: 'time', label: 'Time' }, { k: 'member_name', label: 'Member' }, { k: 'member_id', label: 'Member ID' },
+    { k: 'class_name', label: 'Class' }, { k: 'format', label: 'Format' }, { k: 'trainer', label: 'Trainer' }, { k: 'location_short', label: 'Studio' },
+    { k: 'outcome', label: 'Outcome', get: (r) => (r.cancelled ? 'Cancelled ahead' : r.late_cancelled ? 'Late cancelled' : r.attended ? 'Attended' : r.no_show ? 'No-show' : 'Other') },
+    { k: 'class_no', label: 'Visit #' }, { k: 'membership_type', label: 'Paid with' }, { k: 'product', label: 'Product' },
+    { k: 'paid', label: 'Paid', fmt: 'currency' }, { k: 'lead_time_days', label: 'Booked ahead' }, { k: 'capacity', label: 'Cap' },
+    { k: 'is_new_label', label: 'Visit type' },
+    { k: 'source_coverage', label: 'Source', get: (r) => (r.in_checkins && r.in_bookings ? 'Both sheets' : r.in_checkins ? 'Checkins only' : 'Bookings only') }],
   sessions: [{ k: 'date', label: 'Date', fmt: 'date' }, { k: 'time', label: 'Time' }, { k: 'trainer', label: 'Trainer' }, { k: 'class_name', label: 'Class' }, { k: 'capacity', label: 'Cap' }, { k: 'checked_in', label: 'In' }, { k: 'booked', label: 'Booked' }, { k: 'revenue', label: 'Revenue', fmt: 'currency' }],
   checkins: [{ k: 'date', label: 'Date', fmt: 'date' }, { k: 'time', label: 'Time' }, { k: 'name', label: 'Member' }, { k: 'trainer', label: 'Trainer' }, { k: 'class_name', label: 'Class' }, { k: 'checked_in', label: 'In' }, { k: 'paid', label: 'Paid', fmt: 'currency' }],
   sales: [{ k: 'date', label: 'Date', fmt: 'date' }, { k: 'customer', label: 'Customer' }, { k: 'product', label: 'Product' }, { k: 'category', label: 'Category' }, { k: 'sold_by', label: 'Sold by' }, { k: 'value', label: 'Value', fmt: 'currency' }, { k: 'discount', label: 'Discount', fmt: 'currency' }],
@@ -30,12 +43,11 @@ export function DrillPanel() {
   const theme = useView((s) => s.theme);
   const [rowsShown, setRowsShown] = useState(60);
   useEffect(() => { setRowsShown(60); }, [t]);
+  useOverlay(!!t, close);
   useEffect(() => {
     if (!t) return;
     const el = t.sourceEl; el?.classList.add('selected'); const id = window.setTimeout(() => el?.classList.remove('selected'), 2000);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('keydown', onKey); window.clearTimeout(id); el?.classList.remove('selected'); };
+    return () => { window.clearTimeout(id); el?.classList.remove('selected'); };
   }, [t, close]);
 
   const ctx = scope?.ctx;
@@ -80,7 +92,7 @@ export function DrillPanel() {
   return (
     <>
       <div onClick={close} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 60, opacity: 0.5 }} aria-hidden="true" />
-      <aside className="slide-in" data-domain={t.domain} role="dialog" aria-label={`Details for ${t.title}`} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 640, maxWidth: '100vw', background: 'var(--surface-1)', borderLeft: '1px solid var(--hairline-strong)', zIndex: 61, overflow: 'auto', boxShadow: 'var(--elev-4)' }}>
+      <aside className="slide-in" data-domain={t.domain} role="dialog" aria-label={`Details for ${t.title}`} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(960px, 92vw)', maxWidth: '100vw', background: 'var(--surface-1)', borderLeft: '1px solid var(--hairline-strong)', zIndex: 61, overflow: 'auto', boxShadow: 'var(--elev-4)' }}>
         <div className="barre barre-glow" style={{ position: 'sticky', top: 0, zIndex: 2 }} />
         <div style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -91,8 +103,8 @@ export function DrillPanel() {
             <button className="btn btn-xs" onClick={close}>Close <span className="kbd">Esc</span></button>
           </div>
           <h2 className="t-display-s" style={{ margin: '0 0 14px' }}>{t.title} <span className="t-label-m muted">{t.rows.length.toLocaleString('en-IN')} rows</span></h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            {kpis && t.metricIds.slice(0, 4).map((id, i) => <MetricCard key={id} metricId={id} value={kpis[id].value} n={kpis[id].n} variant="inline" index={i} rank={ranks?.[id]} />)}
+          <div className="kpi-strip" style={{ ['--kpi-cols' as string]: Math.min(4, t.metricIds.length) }}>
+            {kpis && t.metricIds.slice(0, 8).map((id, i) => <MetricCard key={id} metricId={id} value={kpis[id].value} n={kpis[id].n} coverage={kpis[id].coverage} contributing={kpis[id].contributing} suspect={kpis[id].suspect} variant="inline" index={i} rank={ranks?.[id]} />)}
           </div>
           {trend && (
             <div style={{ marginTop: 18 }}>
@@ -116,9 +128,9 @@ export function DrillPanel() {
           {insights.length > 0 && <div style={{ marginTop: 18, display: 'grid', gap: 8 }}><div className="t-heading-m">Insights for this entity</div>{insights.map((i) => <InsightCard key={i.key} insight={i} compact />)}</div>}
           <div style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}><div className="t-heading-m">Contributing rows</div><div style={{ flex: 1 }} />{sheet && <a className="btn btn-xs" href={sheetUiUrl(sheet.spreadsheetId)} target="_blank" rel="noreferrer">Open source sheet</a>}</div>
-            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid var(--hairline)' }}>
+            <div className="table-scroll" style={{ maxHeight: 420 }}>
               <table className="tbl"><thead><tr>{fields.map((f) => <th key={f.k} className="t-heading-s">{f.label}</th>)}</tr></thead>
-                <tbody>{t.rows.slice(0, rowsShown).map((r, i) => <tr key={i}>{fields.map((f) => <td key={f.k} className={f.fmt === 'currency' || typeof r[f.k] === 'number' ? 't-num' : 't-body-s'}>{f.fmt === 'currency' ? formatValue('currency', r[f.k], { full: true }) : f.fmt === 'date' ? fmtDate(r[f.k]) : typeof r[f.k] === 'boolean' ? (r[f.k] ? 'Yes' : 'No') : r[f.k] ?? '—'}</td>)}</tr>)}</tbody></table>
+                <tbody>{t.rows.slice(0, rowsShown).map((r, i) => <tr key={i}>{fields.map((f) => { const v = f.get ? f.get(r) : r[f.k]; return <td key={f.k} className={f.fmt === 'currency' || typeof v === 'number' ? 't-num' : 't-body-s'}>{f.fmt === 'currency' ? formatValue('currency', v as number, { full: true }) : f.fmt === 'date' ? fmtDate(v as string) : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : typeof v === 'number' ? formatValue('decimal', v) : (v as string) ?? '—'}</td>; })}</tr>)}</tbody></table>
             </div>
             {t.rows.length > rowsShown && <button className="btn btn-xs" style={{ marginTop: 6 }} onClick={() => setRowsShown((n) => n + 200)}>Show more ({t.rows.length - rowsShown} remaining)</button>}
           </div>

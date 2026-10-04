@@ -35,6 +35,7 @@ export function Sales({ scope }: { scope: Scope }) {
     { id: 'aov', metricId: 'aov', family: 'Revenue', heat: true }, { id: 'avg_unit_price', metricId: 'avg_unit_price', family: 'Revenue', hidden: true },
     { id: 'discount_value', metricId: 'discount_value', family: 'Revenue' }, { id: 'discount_rate', metricId: 'discount_rate', family: 'Revenue', heat: true }, { id: 'discounted_share', metricId: 'discounted_share', family: 'Behaviour' },
     { id: 'share', label: '% of total', family: 'Revenue', value: (n) => (totalGross ? (n.values.category_revenue?.value ?? 0) / totalGross : null), format: 'percent' },
+    { id: 'units_per_transaction', metricId: 'units_per_transaction', family: 'Behaviour' }, { id: 'distinct_products', metricId: 'distinct_products', family: 'Volume' }, { id: 'top_product_share', metricId: 'top_product_share', family: 'Behaviour', hidden: true },
     { id: 'unique_buyers', metricId: 'unique_buyers', family: 'Volume' }, { id: 'arpu', metricId: 'arpu', family: 'Revenue' }, { id: 'repeat_buyer_rate', metricId: 'repeat_buyer_rate', family: 'Behaviour', heat: true }, { id: 'voided_rate', metricId: 'voided_rate', family: 'Behaviour' },
     { id: 'membership_rev_share', metricId: 'membership_rev_share', family: 'Revenue', hidden: true },
     { id: 'spark', label: '13 months', family: 'Behaviour', spark: (rs) => (rs[0] ? productSeries.get(rs[0].product ?? '(none)') ?? [] : []) },

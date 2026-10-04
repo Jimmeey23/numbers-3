@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { coverageNote, metric } from '../../semantics/metrics';
 import { fmtDelta, fmtN, formatValue, isNil } from '../../semantics/formats';
 import { useCountUp, usePathDraw } from '../hooks';
@@ -61,11 +62,38 @@ export function MetricCard(p: MetricCardProps) {
      sized to stay legible at that width rather than to fill a half-empty strip. */
   const valueClass = variant === 'hero' ? 't-display-m' : variant === 'inline' ? 't-display-s' : 't-display-s';
   const color = `var(--hue-${def.domain})`;
+  /* The popout is anchored in viewport space, so it must be measured after it mounts and nudged
+     back inside the window rather than being allowed to hang off the edge. */
+  const cardRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pop, setPop] = useState({ top: -9999, left: -9999 });
+  const closeInfo = useCallback(() => setInfo(false), []);
+  useOverlay(info, closeInfo);
+  useLayoutEffect(() => {
+    if (!info || !cardRef.current) return;
+    const place = () => {
+      const card = cardRef.current?.getBoundingClientRect();
+      const box = popRef.current?.getBoundingClientRect();
+      if (!card) return;
+      const w = box?.width ?? 320; const h = box?.height ?? 180; const M = 8;
+      const below = card.bottom + 6;
+      setPop({
+        top: Math.max(M, below + h > window.innerHeight - M ? card.top - h - 6 : below),
+        left: Math.min(Math.max(M, card.left), window.innerWidth - w - M),
+      });
+    };
+    place();
+    const onAway = (e: MouseEvent) => { if (!popRef.current?.contains(e.target as Node)) setInfo(false); };
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    document.addEventListener('mousedown', onAway);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); document.removeEventListener('mousedown', onAway); };
+  }, [info]);
   const display = formatValue(def.format, v);
   const barreColor = p.alert ? 'var(--warn)' : color;
   return (
     <div data-domain={def.domain} className={`surface chrome kpi-card kpi-card--${variant} ${p.onClick ? 'is-clickable' : ''} ${p.alert ? 'is-alert' : ''} ${p.active ? 'barre-glow' : ''}`}
-      role={p.onClick ? 'button' : undefined} tabIndex={p.onClick ? 0 : undefined}
+      ref={cardRef} role={p.onClick ? 'button' : undefined} tabIndex={p.onClick ? 0 : undefined}
       onClick={p.onClick} onKeyDown={(e) => { if (p.onClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); p.onClick(); } }}>
       <div className="kpi-card-head">
         <span className="kpi-card-label" title={p.labelOverride ?? def.label}>{p.labelOverride ?? def.label}{(p.suspect || partial) && <span className="warn-mark" title={p.suspect ?? coverageNote(def, { value: null, n: p.n ?? 0, contributing: p.contributing ?? 0, coverage: p.coverage ?? null, suspect: null }) ?? ''}>⚠</span>}</span>
@@ -103,12 +131,18 @@ export function MetricCard(p: MetricCardProps) {
         </div>
       )}
       {info && (
-        <div className="surface chrome t-body-s" style={{ position: 'absolute', top: 36, left: 8, right: 8, zIndex: 20, padding: 12 }} onClick={(e) => e.stopPropagation()}>
+        /* Fixed, not absolute: the definition used to be laid out inside the card, where the
+           card's own clipping cut it off and its width squeezed the formula to a few characters
+           per line. It is now a popout positioned against the card in viewport space. */
+        <div ref={popRef} className="surface chrome kpi-popout t-body-s" role="dialog" aria-label={`${def.label} definition`}
+          style={{ top: pop.top, left: pop.left }} onClick={(e) => e.stopPropagation()}>
           <div className="t-heading-s">{def.label}</div>
           <div className="muted" style={{ marginTop: 4 }}>{def.description}</div>
-          <div className="t-label-s" style={{ marginTop: 6, fontFamily: 'var(--font-display)' }}>{def.formula}</div>
-          <div className="t-label-s faint" style={{ marginTop: 4 }}>{def.sources.join(' · ')}</div>
-          <div className="t-label-s faint" style={{ marginTop: 4 }}>Aggregation: {def.aggregation}{def.aggregation === 'weighted' ? ' (never an average of rates)' : ''}</div>
+          <div className="kpi-popout-formula">{def.formula}</div>
+          <div className="t-label-s faint" style={{ marginTop: 6 }}>Sources: {def.sources.join(' · ')}</div>
+          <div className="t-label-s faint" style={{ marginTop: 3 }}>Aggregation: {def.aggregation}{def.aggregation === 'weighted' ? ' — recomputed from its numerator and denominator, never an average of rates' : ''}</div>
+          {partial && <div className="t-label-s warn" style={{ marginTop: 6 }}>⚠ {coverageText}</div>}
+          {p.suspect && <div className="t-label-s warn" style={{ marginTop: 4 }}>⚠ {p.suspect}</div>}
         </div>
       )}
     </div>
