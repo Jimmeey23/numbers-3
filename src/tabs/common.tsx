@@ -11,7 +11,8 @@ import { fmtMonthShort, fmtTime12 } from '../semantics/formats';
 import { EmptyState } from '../components/Register';
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-export const useMonths = (scope: Scope, n = 12) => useMemo(() => lastNMonths(scope.today.slice(0, 7), n), [scope.today, n]);
+/** Include the current data month plus the same calendar month one year earlier. */
+export const useMonths = (scope: Scope, n = 13) => useMemo(() => lastNMonths(scope.today.slice(0, 7), n), [scope.today, n]);
 export const filtersLabel = (scope: Scope) => { const f = scope.filters; return [scope.period.label, f.locations.length ? f.locations.join('/') : 'all locations', f.trainers.length ? `${f.trainers.length} trainers` : 'all trainers', ...f.transient.map((t) => `${t.dim}=${t.value}`)].join(' · '); };
 
 export function useKpis(scope: Scope, table: TableName, ids: string[], override?: { cur: Row[]; prev?: Row[]; all?: Row[] }) {
@@ -76,7 +77,7 @@ export function DayTimeHeatmap({ rows, metricId, scope, minN = 3, kind }: { rows
 }
 
 /** Cohort triangle: cohort month × months since, value = share of cohort still meeting `alive` at that offset. */
-export function CohortTriangle({ rows, cohortOf, alive, scope, months = 12, valueLabel = 'retained' }: { rows: Row[]; cohortOf: (r: Row) => string | null; alive: (r: Row, offset: number) => boolean; scope: Scope; months?: number; valueLabel?: string }) {
+export function CohortTriangle({ rows, cohortOf, alive, scope, months = 13, valueLabel = 'retained' }: { rows: Row[]; cohortOf: (r: Row) => string | null; alive: (r: Row, offset: number) => boolean; scope: Scope; months?: number; valueLabel?: string }) {
   const ms = useMonths(scope, months);
   const cells = useMemo(() => {
     const out: HeatCell[] = [];

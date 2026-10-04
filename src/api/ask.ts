@@ -6,10 +6,11 @@
  * says so and offers the nearest metrics — it never claims the data does not exist when it does.
  */
 import type { Scope } from '../state/data';
+import { resolvePeriod, type Preset } from '../state/filters';
 import type { MetricDef } from '../semantics/metrics';
-import { GROUP_KEYS, metricValues, rollupLevel, seriesBy, lastNMonths } from '../semantics/aggregations';
+import { GROUP_KEYS, metricValues, rollupLevel, seriesBy, lastNMonths, type Row } from '../semantics/aggregations';
 import { fmtDelta, fmtMonthShort, formatValue } from '../semantics/formats';
-import { findDimension, grainOf, normalise, resolveTerm, searchMetrics } from './resolve';
+import { findDimension, grainOf, normalise, resolveTerm, searchMetrics, type ResolvedTerm } from './resolve';
 import { runRules, summariseImpact } from '../insights/engine';
 import type { Thresholds, TabId } from '../state/view';
 import { ENDPOINTS } from './agent';
@@ -88,6 +89,108 @@ const provenanceOf = (def: MetricDef, coverage: number | null): AskResult['prove
   coverage: coverage !== null && coverage < 0.9 ? `measured on ${(coverage * 100).toFixed(0)}% of rows in scope` : null,
 });
 
+const MONTH_NUMBER: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+  may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9,
+  september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+};
+const MONTH_LABEL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+const shiftDay = (s: string, n: number) => { const d = new Date(`${s}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return isoDay(d); };
+
+interface QuestionSlice {
+  rows: Row[];
+  compareRows: Row[];
+  allRows: Row[];
+  periodLabel: string;
+  prevLabel: string;
+  scopeLabel: string;
+}
+
+/** Resolve a date and a named location directly from a question. This is intentionally separate
+ * from the global filter store: “How much did Kwality House do in April 2026?” should be answered
+ * as asked even while the dashboard happens to be showing September. */
+function sliceForQuestion(q: string, scope: Scope, table: MetricDef['table']): QuestionSlice {
+  const text = normalise(q);
+  let start = scope.period.start; let end = scope.period.end;
+  let periodLabel = scope.period.label; let prevLabel = scope.period.prevLabel;
+  let explicitPeriod = false; let explicitPrevStart: string | null = null; let explicitPrevEnd: string | null = null;
+
+  const relative: [RegExp, Preset][] = [
+    [/\byesterday\b/, 'yesterday'], [/\btoday\b/, 'today'], [/\blast week\b/, 'last_week'],
+    [/\bthis week\b/, 'this_week'], [/\blast month\b/, 'month'], [/\bthis month\b|\bmonth to date\b/, 'this_month'],
+    [/\blast 30 days?\b/, '30d'], [/\blast 90 days?\b/, '90d'], [/\byear to date\b|\bytd\b/, 'ytd'],
+  ];
+  const requestedRelative = relative.find(([re]) => re.test(text));
+  if (requestedRelative) {
+    const p = resolvePeriod({ ...scope.filters, preset: requestedRelative[1], start: null, end: null }, scope.today);
+    start = p.start; end = p.end; periodLabel = p.label; prevLabel = p.prevLabel; explicitPeriod = true; explicitPrevStart = p.prevStart; explicitPrevEnd = p.prevEnd;
+  }
+
+  const monthMatch = text.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(20\d{2})\b/);
+  if (monthMatch) {
+    const month = MONTH_NUMBER[monthMatch[1]]; const year = +monthMatch[2];
+    start = `${year}-${String(month).padStart(2, '0')}-01`;
+    end = isoDay(new Date(Date.UTC(year, month, 0)));
+    periodLabel = `${MONTH_LABEL[month - 1]} ${year}`;
+    const pd = new Date(Date.UTC(year, month - 2, 1));
+    prevLabel = `${MONTH_LABEL[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
+    explicitPeriod = true;
+  }
+
+  const candidates = new Set<string>();
+  for (const rows of Object.values(scope.all)) for (const r of rows) if (r.location) candidates.add(String(r.location));
+  let location: string | null = null; let score = 0;
+  for (const loc of candidates) {
+    const full = normalise(loc); const first = normalise(loc.split(',')[0]);
+    const tokens = first.split(' ').filter((x) => x.length > 2);
+    const hits = tokens.filter((x) => new RegExp(`\\b${x}\\b`).test(text)).length;
+    const next = text.includes(full) ? 1000 + full.length : text.includes(first) ? 700 + first.length : hits >= 2 ? hits * 100 + first.length : 0;
+    if (next > score) { score = next; location = loc; }
+  }
+
+  const base = scope.all[table] ?? [];
+  const entityRows = location ? base.filter((r) => r.location === location) : base;
+  const inPeriod = (r: Row, s: string, e: string) => {
+    // Membership-grain rows are interval facts. Match the same semantics as the dashboard filter.
+    if (table === 'lapsed') {
+      const began = r.start_date ?? r.purchase_date; const ended = r.end_date;
+      return !(began && began > e) && !(ended && ended < s && r.status !== 'Active');
+    }
+    return r.date === null || r.date === undefined ? !explicitPeriod : r.date >= s && r.date <= e;
+  };
+  const days = Math.max(1, Math.round((new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 864e5) + 1);
+  let prevEnd = shiftDay(start, -1); let prevStart = shiftDay(prevEnd, -(days - 1));
+  if (monthMatch) {
+    const month = MONTH_NUMBER[monthMatch[1]]; const year = +monthMatch[2];
+    prevStart = isoDay(new Date(Date.UTC(year, month - 2, 1)));
+    prevEnd = isoDay(new Date(Date.UTC(year, month - 1, 0)));
+  } else if (explicitPrevStart && explicitPrevEnd) {
+    prevStart = explicitPrevStart; prevEnd = explicitPrevEnd;
+  } else {
+    prevStart = scope.period.prevStart; prevEnd = scope.period.prevEnd;
+  }
+  const locLabel = location ? location.split(',')[0] : scope.filters.locations.length === 1 ? scope.filters.locations[0] : scope.filters.locations.length ? `${scope.filters.locations.length} locations` : 'All locations';
+  return {
+    rows: entityRows.filter((r) => inPeriod(r, start, end)),
+    compareRows: entityRows.filter((r) => inPeriod(r, prevStart, prevEnd)),
+    allRows: entityRows,
+    periodLabel, prevLabel,
+    scopeLabel: [periodLabel, locLabel, ...scope.filters.formats].join(' · '),
+  };
+}
+
+/** “How much did X do?” is normal operator shorthand for sales, even when revenue is omitted. */
+function metricFallback(q: string, resolved: ResolvedTerm): ResolvedTerm {
+  if (resolved.kind !== 'unknown') return resolved;
+  const text = normalise(q);
+  if (/\bhow\s*much\b|\bhowmuch\b|\btakings\b/.test(text) && /\b(did|do|made|make|take|took)\b/.test(text)) {
+    const revenue = resolveTerm('gross revenue');
+    return revenue.metric ? { ...revenue, confidence: 'likely', why: '“how much did … do” is read as gross revenue' } : resolved;
+  }
+  return resolved;
+}
+
 export function ask(question: string, scope: Scope, thresholds: Thresholds): AskResult {
   const q = question.trim();
   const base = { question: q, scope: scopeSentence(scope), suggestions: [] as string[], confidence: 'exact' as const };
@@ -127,8 +230,9 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
     return hasGroup ? 'table' : 'metric';
   };
 
-  // Everything else needs a metric.
-  const resolved = resolveTerm(q);
+  // Everything else needs a metric. Operator shorthand such as “how much did this studio do”
+  // deliberately resolves to gross revenue before we give up on the registry.
+  const resolved = metricFallback(q, resolveTerm(q));
   if (resolved.kind === 'unknown' || !resolved.metric) {
     const near = searchMetrics(q, 6);
     return { ...base, intent, unresolved: true, confidence: 'guess',
@@ -140,8 +244,11 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
 
   const def = resolved.metric;
   const ep = ENDPOINTS.find((e) => e.metrics.includes(def.id) || e.headline.includes(def.id));
-  const rows = scope.tables[def.table] ?? [];
-  const cmpRows = scope.compare[def.table] ?? [];
+  const questionSlice = sliceForQuestion(q, scope, def.table);
+  const rows = questionSlice.rows;
+  const cmpRows = questionSlice.compareRows;
+  // All subsequent answers and exports state the scope actually parsed from the question.
+  base.scope = questionSlice.scopeLabel;
   const cur = metricValues(rows, [def.id], scope.ctx)[def.id];
   const tab = tabFor(def);
   const conf = resolved.confidence;
@@ -151,14 +258,14 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
   if (intent === 'define') {
     return { ...base, intent, metricId: def.id, tab, confidence: conf,
       answer: `${def.label}: ${def.description}`,
-      detail: `Computed as ${def.formula}, over ${grainOf(def.table)}. ${cur.value !== null ? `Right now it is ${formatValue(def.format, cur.value)} for ${scopeSentence(scope)}.` : 'No rows in the current scope carry the inputs it needs.'}`,
+      detail: `Computed as ${def.formula}, over ${grainOf(def.table)}. ${cur.value !== null ? `Right now it is ${formatValue(def.format, cur.value)} for ${questionSlice.scopeLabel}.` : 'No rows in the requested scope carry the inputs it needs.'}`,
       provenance: provenanceOf(def, cur.coverage),
       suggestions: [`${def.label} by location`, `${def.label} by month`, ...altSuggestions] };
   }
 
   if (intent === 'trend') {
-    const months = lastNMonths(scope.today.slice(0, 7), 12);
-    const series = seriesBy(scope.all[def.table] ?? [], (r) => r.month, [def.id], scope.ctx, months);
+    const months = lastNMonths(scope.today.slice(0, 7), 13);
+    const series = seriesBy(questionSlice.allRows, (r) => r.month, [def.id], scope.ctx, months);
     const vals = series.map((s) => s.values[def.id].value);
     const first = vals.find((v) => v !== null) ?? null;
     const last = [...vals].reverse().find((v) => v !== null) ?? null;
@@ -177,7 +284,7 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
     const d = fmtDelta(def.format, cur.value, prev.value);
     const better = d.value === null ? null : (d.value >= 0) === def.higherIsBetter;
     return { ...base, intent, metricId: def.id, tab, confidence: conf,
-      answer: `${def.label} is ${formatValue(def.format, cur.value)} for ${scope.period.label}, against ${formatValue(def.format, prev.value)} in ${scope.period.prevLabel} — ${d.text}${better === null ? '' : better ? ', an improvement' : ', a deterioration'}.${hedge}`,
+      answer: `${def.label} is ${formatValue(def.format, cur.value)} for ${questionSlice.periodLabel}, against ${formatValue(def.format, prev.value)} in ${questionSlice.prevLabel} — ${d.text}${better === null ? '' : better ? ', an improvement' : ', a deterioration'}.${hedge}`,
       detail: cur.coverage !== null && cur.coverage < 0.9 ? `Measured on ${(cur.coverage * 100).toFixed(0)}% of rows in scope — the rest do not carry the inputs.` : undefined,
       provenance: provenanceOf(def, cur.coverage),
       suggestions: [`${def.label} by month`, `${def.label} by location`, ...altSuggestions] };
@@ -254,7 +361,7 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
       provenance: provenanceOf(def, cur.coverage), suggestions: ['Extend to the last 90 days', ...altSuggestions] };
   }
   return { ...base, intent: 'value', metricId: def.id, tab, confidence: conf,
-    answer: `${def.label} is ${formatValue(def.format, cur.value)} for ${scopeSentence(scope)}${d.value !== null ? `, ${d.text} against ${scope.period.prevLabel}` : ''}.${hedge}`,
+    answer: `${def.label} is ${formatValue(def.format, cur.value)} for ${questionSlice.scopeLabel}${d.value !== null ? `, ${d.text} against ${questionSlice.prevLabel}` : ''}.${hedge}`,
     detail: `${def.description}${cur.coverage !== null && cur.coverage < 0.9 ? ` Measured on ${(cur.coverage * 100).toFixed(0)}% of rows in scope.` : ''}${cur.n < def.minSample ? ` Only ${cur.n} rows — below the ${def.minSample}-row minimum, so treat it as indicative.` : ''}`,
     provenance: provenanceOf(def, cur.coverage),
     suggestions: [`${def.label} by location`, `${def.label} by month`, `What is ${def.label}`, ...altSuggestions].slice(0, 4) };

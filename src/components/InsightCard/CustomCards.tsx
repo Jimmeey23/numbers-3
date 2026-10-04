@@ -52,7 +52,7 @@ export function CustomCardView({ card }: { card: AgentCard }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span className="t-label-s pill" style={{ background: s.wash, color: s.color, padding: '1px 8px' }}>{s.label}</span>
         <span className="t-label-s pill" style={{ border: '1px solid var(--hairline-strong)', padding: '1px 8px', color: 'var(--text-3)' }}>
-          {card.source === 'agent' ? 'From an agent' : 'Yours'}
+          {card.source.startsWith('openai:') ? 'OpenAI · saved' : card.source === 'agent' ? 'From an agent' : 'Yours'}
         </span>
         {card.impactINR ? <span className="t-label-s muted tabular">{fmtCurrency(card.impactINR)}</span> : null}
         <div style={{ flex: 1 }} />

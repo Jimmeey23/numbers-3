@@ -572,7 +572,11 @@ export function mapSaleRow(r: Raw): SaleRow {
     membership_type: membershipTypeOf(r['Cleaned Product']),
     is_new: null,
     is_import: false, member_id: trim(r['Member ID']), customer: personName(r['Customer Name']), email: trim(r['Customer Email']),
-      sale_item_id: trim(r['Sale Item ID']), value: money(r['Payment Value']), vat: money(r['Payment VAT']),
+      sale_item_id: trim(r['Sale Item ID']), value: money(r['Payment Value']),
+      category_value: null,
+      list_value: (() => { const unit = money(r['Sale Item Unit Price Including VAT']); return unit === null ? null : unit * (num(r['Sale Item Quantity']) ?? 1); })(),
+      item_discount: money(r['Sale Item Unit Discount Value']), sale_discount: money(r['Discount Value In Currency']) ?? money(r['Sale Total Discount Value']),
+      vat: money(r['Payment VAT']),
       status: catv(r['Payment Status']), method: catv(r['Payment Method']), sold_by: personName(r['Sold By']),
       product: catv(r['Cleaned Product']), category: catv(r['Cleaned Category']), purchase_type: catv(r['Purchase Type']),
       net: (() => {
@@ -584,7 +588,8 @@ export function mapSaleRow(r: Raw): SaleRow {
       const unit = money(r['Sale Item Unit Price Excluding VAT']); const qty = num(r['Sale Item Quantity']);
       return unit !== null ? unit * (qty ?? 1) : money(r['Price Excluding VAT In Currency']);
     })(),
-    net_reported: money(r['Price Excluding VAT In Currency']), discount: money(r['Discount Value In Currency']) ?? money(r['Sale Item Unit Discount Value']),
+    net_reported: money(r['Price Excluding VAT In Currency']),
+      discount: (() => { const item = money(r['Sale Item Unit Discount Value']); return item === null ? null : Math.abs(item) * (num(r['Sale Item Quantity']) ?? 1); })(),
       discount_code: catv(r['Discount Code']), sale_id: trim(r['Sale ID']), qty: num(r['Sale Item Quantity']),
       unit_price: money(r['Sale Item Unit Price Including VAT']), voided: bool(r['Sec. Is Voided']),
       mem_id: trim(r['Sec. Membership ID']), mem_start: memStart?.date ?? null, mem_end: memEnd?.date ?? null,
@@ -594,7 +599,28 @@ export function mapSaleRow(r: Raw): SaleRow {
       rev_per_credit: money(r['Sec. Membership Revenue Per Event Credit Incl VAT']), hour,
       };
 }
-export const mapSales = (raw: Raw[]): SaleRow[] => raw.map((r) => mapSaleRow(r));
+export const reconcileSales = (rows: SaleRow[]): SaleRow[] => {
+  const sales = new Map<string, SaleRow[]>();
+  for (const r of rows) { const key = r.sale_id ?? r.sale_item_id ?? `row:${sales.size}`; const group = sales.get(key); if (group) group.push(r); else sales.set(key, [r]); }
+  for (const group of sales.values()) {
+    /* The export repeats sale-level payment and sale-level discount on each line. Item discount,
+       when present, is genuinely unit-level. Allocate repeated totals once, in proportion to the
+       line's post-discount list value, so category shares reconcile to the sale payment. */
+    const listTotal = group.reduce((a, r) => a + Math.max(0, r.list_value ?? 0), 0);
+    const hasItemDiscount = group.some((r) => r.item_discount !== null);
+    if (!hasItemDiscount) {
+      const saleDiscount = Math.max(0, ...group.map((r) => Math.abs(r.sale_discount ?? 0)));
+      for (const r of group) r.discount = saleDiscount ? saleDiscount * (listTotal ? (r.list_value ?? 0) / listTotal : 1 / group.length) : 0;
+    }
+    const paymentValues = group.map((r) => r.value).filter((v): v is number => v !== null);
+    const payment = paymentValues.length ? Math.max(0, ...paymentValues) : null;
+    const weights = group.map((r) => Math.max(0, (r.list_value ?? r.value ?? 0) - (r.discount ?? 0)));
+    const weightTotal = weights.reduce((a, b) => a + b, 0);
+    group.forEach((r, i) => { r.category_value = r.voided ? null : payment === null ? null : payment * (weightTotal ? weights[i] / weightTotal : 1 / group.length); });
+  }
+  return rows;
+};
+export const mapSales = (raw: Raw[]): SaleRow[] => reconcileSales(raw.map((r) => mapSaleRow(r)));
 
 
 /* ---------- New ---------- */

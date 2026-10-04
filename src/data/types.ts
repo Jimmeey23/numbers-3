@@ -78,7 +78,15 @@ export interface SaleRow extends Dims {
   customer: string | null;
   email: string | null;
   sale_item_id: string | null;
+  /** Sale-level payment value as supplied. It can repeat on multiple line items. */
   value: number | null;
+  /** Payment allocated to this line from list-value weights; safe for category/product shares. */
+  category_value: number | null;
+  /** Line list value before discount. */
+  list_value: number | null;
+  /** Raw unit-level and sale-level discounts retained for reconciliation. */
+  item_discount: number | null;
+  sale_discount: number | null;
   vat: number | null;
   status: string | null;
   method: string | null;

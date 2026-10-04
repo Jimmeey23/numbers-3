@@ -1,13 +1,14 @@
 # Floor — Physique 57 India performance
 
-A twelve-tab analytics environment for a boutique fitness operator: Overview, Classes, Slots, Trainers, Sales, Acquisition, Retention, Bookings, Leads, Attendance, Payroll and Data health, in two themes (Matte black with neon accents, Gloss white lacquer with crimson/cobalt).
+A fourteen-tab analytics environment for a boutique fitness operator: Overview, Sales, Leads, Acquisition, Retention, Classes, Slots, Bookings, Attendance, Trainers, Payroll, Late cancellations, Format comparison and Data health, in two themes (Matte black with neon accents, Gloss white lacquer with crimson/cobalt).
 
 ## Run
 
 ```
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # dist/index.html — a single self-contained file
+npm run dev        # http://localhost:5173 — app + same-origin /api/v1
+npm run build      # dist/index.html — a single self-contained client file
+npm run serve      # build, then serve the app + production HTTP API on :4173
 ```
 
 Data is read live from Google Sheets in the browser; nothing is bundled.
@@ -83,22 +84,26 @@ The thread persists across reloads, ↑/↓ recalls earlier questions, any answe
 a signal card, and the whole conversation exports. The same resolver is on the agent API as
 `floor.ask('draw premium')`, so an external agent gets identical answers.
 
-## The monthly report
+## Custom decision reports
 
-Press **R** or the **Report** button. Floor emits a single self-contained HTML file structured the way
-the Studio Pulse monthly-report template structures one: seven numbered chapters running
-**money → demand → funnel → retention → outlook → actions**, then a month-on-month appendix.
+Press **R** or the **Report** button. Choose any relative or custom date range, one or more locations,
+and class formats without changing the dashboard. Floor then emits a self-contained HTML or JSON report
+with eleven decision chapters plus a month-on-month appendix.
 
 | # | Chapter | What it carries |
 |---|---|---|
 | 01 | Executive summary | Six headline figures, the period narrative, location breakdown |
 | 02 | Revenue and sales performance | Gross, net, AOV, discounting; by category, product and salesperson |
-| 03 | New client conversion funnel | Leads → trial → first visit → return → purchase → membership → 90-day survival |
-| 04 | Sessions and class performance | What ran, how full, what it earned; by format, daypart, slot and trainer |
-| 05 | Lapsed memberships deep dive | Churn, renewal, risk bands, expiry pipeline |
-| 06 | Strategic recommendations | Every fired rule as an action with priority, impact, timeline and owner |
-| 07 | Predictions and forward view | Run-rate projection plus the money already committed |
-| 08 | Month-on-month appendix | Each chapter registers its twelve-month grid; the appendix prints them together |
+| 03 | Location and product portfolio | Sales, attendance economics, product and acquisition quality by site |
+| 04 | New client conversion funnel | Leads → trial → first visit → return → purchase → membership → 90-day survival |
+| 05 | Sessions and class performance | What ran, how full it was and what it earned by format, slot and trainer |
+| 06 | Member engagement and attendance | Audience breadth, repeat frequency, power users and new-client mix |
+| 07 | Lapsed memberships deep dive | Churn, renewal, risk bands and expiry pipeline |
+| 08 | People and unit economics | Payroll, trainer contribution, empty cost and acquisition value |
+| 09 | Strategic recommendations | Fired rules as actions with priority, impact, timeline and owner |
+| 10 | Predictions and forward view | Run-rate sensitivity range plus money already committed |
+| 11 | Data confidence and methodology | Grain, coverage, formulas, sources, caveats and null policy |
+| 12 | Month-on-month appendix | Each eligible chapter's thirteen-month grid, through the same month of the prior year |
 
 Structural choices taken straight from the template:
 
@@ -110,12 +115,19 @@ Structural choices taken straight from the template:
 - **Self-contained output.** CSS and the scroll-chrome script are inlined and there is no chart library —
   charts are inline SVG. The file opens from disk with nothing behind it and prints to A4.
 
-**Where the template calls an LLM, this does not.** Narratives are composed from the metric registry and
-the insight engine, so the figure in a sentence and the figure in the table beside it come from the same
-computation and cannot drift. Actions are the fired insight rules, carrying their own rupee impact,
-sample size and basis; owner and timeline are mapped from the rule's tab and severity.
+**Grounded AI, not free-written copy.** Every chapter regenerates a deterministic decision brief from live KPI deltas,
+trend shape, coverage, sample size and the insight-rule engine. Each finding prints its evidence, confidence,
+recommended next step and calculation method. The figure in a sentence and the figure in the adjacent table
+come from the same registry computation, so the narrative cannot drift or hallucinate a number.
 
-Agents can generate the same artefact: `floor.report('html')` or `floor.report('json')`.
+For a second analytical layer, open **Settings → AI intelligence**, enter your own OpenAI API key and choose
+a model. **Generate smarter report with AI** sends a compact version of the scoped report evidence, adds a
+cross-functional executive interpretation and saves the finished copy in IndexedDB. The report fingerprint
+includes its data, scope and model: requesting the exact report again reuses the saved copy and does not call
+OpenAI a second time. API keys remain session-only unless **Remember API key** is explicitly enabled. The
+Signals rail uses the same saved-by-fingerprint behavior through **Generate with AI**.
+
+Agents can generate the deterministic artefact: `floor.report('html')` or `floor.report('json')`.
 
 ## Building widgets
 
@@ -152,15 +164,36 @@ floor.addWidget({ tab: 'classes', kind: 'column', metrics: ['v_fill_rate'],
 floor.listWidgets() · floor.updateWidget(id, patch) · floor.removeWidget(id) · floor.widgetKinds()
 ```
 
-## Agent API
+## Agent and streaming APIs
 
-Every tab is addressable from the browser console or an automation. The surface is published on
+### HTTP API
+
+`/api/v1` is a discovery document. Every normalized source has paginated JSON and streaming NDJSON/SSE
+endpoints; the consolidated stream lets an agent consume multiple grains in one connection. A stream starts
+with a schema event (field roles, grain, null policy, sampled coverage and semantic-layer link), then record
+events with provenance, then a completion cursor. Names, emails and phones are removed and identifiers are
+pseudonymised by default.
+
+```text
+GET /api/v1/sources/sales?start=2026-04-01&end=2026-04-30
+GET /api/v1/sources/visits/stream?location=Kenkere%20House
+GET /api/v1/consolidated/stream?sources=sales,visits,memberships
+GET /api/v1/semantic-layer?table=sales
+GET /api/v1/ask?q=how%20much%20did%20Kwality%20House%20do%20in%20April%202026
+GET /api/v1/report?format=json&preset=last_week&location=Kenkere%20House
+```
+
+Run these same-origin endpoints with `npm run dev`, `npm run preview`, or `npm run serve`.
+
+### In-page API
+
+Every tab is also addressable from the browser console or an automation. The surface is published on
 `window.floor` and rebuilt on every filter change, so it always reflects what is on screen. Every
 response carries the scope it was computed under — an agent cannot quote a number without knowing
 the period and filters behind it.
 
 ```js
-await floor.describe()                       // catalogue: 12 endpoints, 9 methods
+await floor.describe()                       // catalogue: 14 endpoints, 9 methods
 await floor.get('retention')                 // KPIs, grouped breakdown, groupings, metrics, signals
 await floor.get('classes', { groupBy: 'daypart', limit: 10 })
 await floor.query({ tab: 'bookings',

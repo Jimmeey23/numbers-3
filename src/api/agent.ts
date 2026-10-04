@@ -81,6 +81,14 @@ export const ENDPOINTS: TabEndpoint[] = [
     headline: ['p_sessions', 'p_customers', 'p_revenue', 'p_cost', 'p_margin', 'payroll_pct_of_revenue'],
     groupBy: ['location', 'trainer', 'month'],
     metrics: ['p_sessions', 'p_empty', 'p_empty_rate', 'p_customers', 'p_avg_per_session', 'p_revenue', 'p_rev_per_session', 'p_rev_per_customer', 'p_cost', 'p_contribution', 'p_margin', 'payroll_pct_of_revenue', 'p_converted', 'p_conversion_rate', 'p_retained', 'p_retention_rate'] },
+  { tab: 'late-cancellations', title: 'Late cancellations', table: 'visits', description: 'Penalty-window cancellations: trend, concentration and affected demand.',
+    headline: ['v_late_cancels', 'v_late_cancel_rate', 'v_booked', 'v_show_up_rate', 'v_no_show_rate'],
+    groupBy: ['location', 'class_name', 'timeslot', 'trainer', 'member', 'format', 'month'],
+    metrics: ['v_late_cancels', 'v_late_cancel_rate', 'v_booked', 'visits', 'v_show_up_rate', 'v_no_show_rate', 'v_fill_rate', 'v_revenue'] },
+  { tab: 'format-comparison', title: 'Format comparison', table: 'visits', description: 'Like-for-like comparison of Barre, PowerCycle and Strength Lab demand and economics.',
+    headline: ['visits', 'v_fill_rate', 'v_show_up_rate', 'v_unique_members', 'v_revenue', 'v_rev_per_visit'],
+    groupBy: ['format', 'location', 'class_name', 'trainer', 'timeslot', 'month'],
+    metrics: ['visits', 'v_booked', 'v_fill_rate', 'v_show_up_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_unique_members', 'v_repeat_rate', 'v_revenue', 'v_rev_per_visit'] },
   { tab: 'health', title: 'Data health', table: 'visits', description: 'Source status, reconciliation, referential integrity and known defects.',
     headline: ['v_source_agreement'], groupBy: ['location', 'month'], metrics: ['v_source_agreement', 'visits', 'v_booked'] },
 ];
@@ -137,7 +145,7 @@ export interface AgentApi {
   removeWidget: (id: string) => void;
   listWidgets: () => WidgetSpec[];
   widgetKinds: () => typeof WIDGET_KINDS;
-  /** The monthly report: seven chapters plus a month-on-month appendix. */
+  /** Custom-scope decision report: eleven chapters plus a month-on-month appendix. */
   report: (format?: 'html' | 'json') => string;
 }
 
@@ -219,7 +227,7 @@ export function buildAgentApi(scope: Scope, thresholds: Thresholds, setFilters: 
         'removeWidget(id)': 'Delete one.',
         'listWidgets()': 'Everything currently pinned.',
         'widgetKinds()': 'The widget types available and whether each needs a grouping.',
-        'report("html"|"json")': 'The monthly report for the current scope: seven chapters — executive summary, revenue, funnel, sessions, retention, actions, outlook — plus a month-on-month appendix. HTML is self-contained.',
+        'report("html"|"json")': 'Decision report for the current scope: eleven chapters with grounded AI insights, evidence and methods, plus a month-on-month appendix. HTML is self-contained.',
       },
       widgetRecipe: {
         note: 'metrics must share one grain; groupBy must be a key the grain carries. Call metrics() and describe() for the vocabulary.',

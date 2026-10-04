@@ -9,7 +9,7 @@
  * downloaded file opens from disk with nothing behind it. The only external reference is the
  * Google Fonts link, which degrades to system fonts offline.
  */
-import { CHAPTERS, type ReportBullet, type ReportChapter, type ReportKpi, type ReportModel, type ReportTable } from './model';
+import type { ReportBullet, ReportChapter, ReportInsight, ReportKpi, ReportModel, ReportTable } from './model';
 
 const esc = (v: unknown): string =>
   v === null || v === undefined ? '' : String(v)
@@ -105,10 +105,32 @@ main{max-width:1180px;margin:0 auto;padding:0 28px 60px}
 .bullet-meaning{font-size:13.5px;color:var(--ink-2)}
 .bullet-evidence{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
 
+/* grounded AI decision brief */
+.ai-brief{margin:0 0 24px;border:1px solid #C8D6FA;border-radius:14px;overflow:hidden;background:linear-gradient(145deg,#F8FAFF,#EEF3FF)}
+.ai-brief-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #D8E1F7}
+.ai-star{display:inline-grid;place-items:center;width:23px;height:23px;border-radius:7px;background:var(--accent);color:#fff;font-size:12px}
+.ai-brief-head strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.ai-brief-head span:last-child{margin-left:auto;font-size:11px;color:var(--ink-3)}
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.ai-insight{padding:16px;border-right:1px solid #D8E1F7;border-bottom:1px solid #D8E1F7}
+.ai-insight:last-child{border-right:0}
+.ai-insight-top{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.ai-tone{width:7px;height:7px;border-radius:999px;background:var(--accent)}
+.ai-tone.risk{background:var(--neg)} .ai-tone.opportunity{background:var(--pos)} .ai-tone.context{background:var(--warn)}
+.ai-confidence{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.ai-insight h4{font-size:14px;margin-bottom:5px}.ai-insight p{font-size:12.5px;line-height:1.55;color:var(--ink-2);margin:0 0 8px}
+.ai-action{font-size:12px;color:var(--ink);padding-top:8px;border-top:1px solid #D8E1F7}.ai-action b{color:var(--accent)}
+.ai-evidence{font:10.5px/1.55 var(--mono);color:var(--ink-3);margin-top:8px}
+.ai-method{margin:0 14px 13px;border:0;border-top:1px solid #D8E1F7;padding-top:8px;font-size:11px;color:var(--ink-3)}
+.ai-method summary{cursor:pointer;font-weight:600}.ai-method p{margin:6px 0 0}
+
 /* tables */
 .table-block{margin-bottom:24px}
 .table-title{font-size:14px;font-weight:600;margin-bottom:3px}
 .table-note{font-size:12px;color:var(--ink-3);margin-bottom:9px;max-width:76ch}
+.table-explain{margin:8px 0;border:1px solid var(--rule);border-radius:9px;background:var(--paper-2);font-size:11.5px;color:var(--ink-2)}
+.table-explain summary{cursor:pointer;padding:7px 10px;font-weight:650;color:var(--ink-2)}
+.table-explain div{padding:0 10px 9px;display:grid;gap:4px}.table-explain b{color:var(--ink);font-size:10px;letter-spacing:.05em;text-transform:uppercase}
 .scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap}
@@ -250,9 +272,18 @@ function tableBlock(t: ReportTable): string {
     }
     return `<td class="${cls}">${esc(cell)}</td>`;
   }).join('')}</tr>`).join('');
+  const hasRate = t.columns.some((c) => /rate|fill|share|margin|conversion|retention|utilisation|%/i.test(c));
+  const hasCurrency = t.columns.some((c) => /revenue|value|cost|paid|sales|aov|liability|impact|ltv/i.test(c));
+  const method = [
+    `${t.rows.length.toLocaleString('en-IN')} rows are displayed across ${t.columns.length} columns. Rows reflect the report period and its selected locations and dimensions.`,
+    hasRate ? 'Rates are recomputed from source numerators and denominators at this grouping level; percentages are never averaged.' : '',
+    hasCurrency ? 'Currency is INR and totals sum contributing source values after registry exclusions.' : '',
+    'A dash means not measurable for this scope, not zero. “Rows” is the available sample behind the group.',
+  ].filter(Boolean).join(' ');
   return `<div class="table-block">
     <div class="table-title">${esc(t.title)}</div>
     ${t.note ? `<div class="table-note">${esc(t.note)}</div>` : ''}
+    <details class="table-explain"><summary>What this table shows and how it is calculated</summary><div><span>${esc(method)}</span>${t.note ? `<span><b>Specific caveat</b> ${esc(t.note)}</span>` : ''}</div></details>
     <div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
   </div>`;
 }
@@ -266,6 +297,35 @@ const bulletList = (bullets: ReportBullet[], heading: string): string => (!bulle
       ${b.evidence ? `<div class="bullet-evidence">${esc(b.evidence)}</div>` : ''}
     </div></li>`).join('')}</ul>
   </div>`);
+
+const insightBrief = (insights: ReportInsight[]): string => (!insights.length ? '' : `
+  <section class="ai-brief" aria-label="AI-generated decision brief">
+    <div class="ai-brief-head"><span class="ai-star">✦</span><strong>AI decision brief</strong><span>Grounded in this report's metrics</span></div>
+    <div class="ai-grid">${insights.map((i) => `<article class="ai-insight">
+      <div class="ai-insight-top"><span class="ai-tone ${i.tone}"></span><span class="ai-confidence">${esc(i.confidence)} confidence</span></div>
+      <h4>${esc(i.headline)}</h4><p>${esc(i.finding)}</p>
+      <div class="ai-action"><b>Recommended next step</b> ${esc(i.action)}</div>
+      <div class="ai-evidence">${esc(i.evidence)}</div>
+      <details class="ai-method"><summary>Why this insight fired</summary><p>${esc(i.method)}</p></details>
+    </article>`).join('')}</div>
+  </section>`);
+
+function aiIntelligence(m: ReportModel): string {
+  if (!m.ai) return '';
+  return `<section class="chapter" id="ai-intelligence">
+    <div class="chapter-head"><div class="chapter-no">AI</div><h2>AI intelligence layer</h2>
+      <p class="standfirst">A saved OpenAI interpretation of this exact report scope. Source figures remain in the deterministic chapters below.</p></div>
+    <div class="narrative"><p>${esc(m.ai.executiveSummary)}</p></div>
+    <section class="ai-brief"><div class="ai-brief-head"><span class="ai-star">✦</span><strong>Cross-functional findings</strong><span>${esc(m.ai.model)} · generated ${esc(new Date(m.ai.generatedAt).toLocaleString('en-IN'))}</span></div>
+      <div class="ai-grid">${m.ai.crossFunctionalInsights.map((i) => `<article class="ai-insight"><div class="ai-insight-top"><span class="ai-tone info"></span><span class="ai-confidence">${esc(i.confidence)} confidence</span></div>
+        <h4>${esc(i.headline)}</h4><p>${esc(i.finding)}</p><div class="ai-action"><b>Recommended next step</b> ${esc(i.recommendation)}</div><div class="ai-evidence">${esc(i.evidence)}</div></article>`).join('')}</div>
+    </section>
+    ${m.ai.chapterBriefs.map((b) => `<div class="block"><div class="block-heading">${esc(b.chapterId)} brief</div><p>${esc(b.summary)}</p>
+      <ul class="bullets">${b.implications.map((x) => `<li class="bullet"><span class="bullet-dot"></span><div>${esc(x)}</div></li>`).join('')}</ul>
+      ${b.actions.length ? `<div class="ai-action"><b>Actions</b> ${esc(b.actions.join(' · '))}</div>` : ''}</div>`).join('')}
+    ${m.ai.assumptions.length ? `<details class="table-explain"><summary>AI assumptions and cautions</summary><div>${m.ai.assumptions.map((x) => `<span>${esc(x)}</span>`).join('')}</div></details>` : ''}
+  </section>`;
+}
 
 function chapterHtml(c: ReportChapter, actions: ReportModel['actions']): string {
   const chart = c.chart
@@ -292,6 +352,7 @@ function chapterHtml(c: ReportChapter, actions: ReportModel['actions']): string 
     </div>
     ${c.kpis.length ? `<div class="kpis">${c.kpis.map(kpiCard).join('')}</div>` : ''}
     ${c.narrative.length ? `<div class="narrative">${c.narrative.map((p) => `<p>${esc(p)}</p>`).join('')}</div>` : ''}
+    ${insightBrief(c.insights)}
     ${chart}
     ${bulletList(c.bullets, c.id === 'recommendations' ? 'What the rules found' : 'What these numbers tell us')}
     ${actionCards}
@@ -302,10 +363,10 @@ function chapterHtml(c: ReportChapter, actions: ReportModel['actions']): string 
 /* ── The document ── */
 
 export function renderReport(m: ReportModel): string {
-  const nav = CHAPTERS.map((c) => `<a href="#${c.id}">${esc(c.nav)}</a>`).join('');
-  const contents = CHAPTERS.map((c) =>
+  const nav = m.chapters.map((c) => `<a href="#${c.id}">${esc(c.nav)}</a>`).join('');
+  const contents = m.chapters.map((c) =>
     `<li><a href="#${c.id}"><span class="no">${esc(c.no)}</span><span>${esc(c.title)}</span></a></li>`).join('')
-    + `<li><a href="#appendix"><span class="no">08</span><span>Month-on-month appendix</span></a></li>`;
+    + (m.appendix.length ? `<li><a href="#appendix"><span class="no">12</span><span>Month-on-month appendix</span></a></li>` : '');
 
   return `<!DOCTYPE html>
 <html lang="en"><head>
@@ -328,11 +389,11 @@ export function renderReport(m: ReportModel): string {
 </div>
 
 <header class="hero">
-  <div class="hero-eyebrow">Monthly performance report</div>
+  <div class="hero-eyebrow">Custom performance report</div>
   <h1>${esc(m.meta.studio)}<br/>${esc(m.meta.periodLabel)}</h1>
-  <p class="hero-sub">Seven chapters running money, demand, funnel and retention through to an outlook and the
-  actions that follow from them. Every figure is computed from the source sheets at the moment this report was
-  generated, and each chapter contributes its history to the appendix.</p>
+  <p class="hero-sub">Eleven decision chapters move from money and location mix through funnel, demand,
+  engagement, retention and people economics to actions, outlook and data confidence. Every AI insight is
+  regenerated from the scoped metrics and carries its evidence and method; it never invents a figure.</p>
   <dl class="hero-meta">
     <div><dt>Period</dt><dd>${esc(m.meta.periodLabel)}</dd></div>
     <div><dt>Compared with</dt><dd>${esc(m.meta.comparedWith)}</dd></div>
@@ -347,16 +408,17 @@ export function renderReport(m: ReportModel): string {
 </div></div>
 
 <main>
+  ${aiIntelligence(m)}
   ${m.chapters.map((c) => chapterHtml(c, m.actions)).join('')}
-  <section class="chapter appendix" id="appendix">
+  ${m.appendix.length ? `<section class="chapter appendix" id="appendix">
     <div class="chapter-head">
-      <div class="chapter-no">08</div>
+      <div class="chapter-no">12</div>
       <h2>Month-on-month appendix</h2>
-      <p class="standfirst">Each chapter registers its history grid here, so twelve months of every headline
+      <p class="standfirst">Each chapter registers its history grid here, so thirteen months of every headline
       figure sit in one place rather than scattered through the report.</p>
     </div>
     ${m.appendix.map(tableBlock).join('')}
-  </section>
+  </section>` : ''}
 </main>
 
 <footer>

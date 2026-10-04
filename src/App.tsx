@@ -12,6 +12,7 @@ import { buildAgentApi } from './api/agent';
 import { AskDock, AskPanel } from './components/Ask/AskPanel';
 import { ReportDialog } from './components/Report/ReportDialog';
 import { ask as askQuestion } from './api/ask';
+import { TableSummaryEnhancer } from './components/TableSummaryEnhancer';
 
 const LAZY: Record<TabId, () => Promise<{ default: ComponentType<{ scope: Scope }> }>> = {
   overview: () => import('./tabs/Overview').then((m) => ({ default: m.Overview })),
@@ -25,6 +26,8 @@ const LAZY: Record<TabId, () => Promise<{ default: ComponentType<{ scope: Scope 
   leads: () => import('./tabs/Leads').then((m) => ({ default: m.Leads })),
   attendance: () => import('./tabs/Attendance').then((m) => ({ default: m.Attendance })),
   payroll: () => import('./tabs/Payroll').then((m) => ({ default: m.Payroll })),
+  'late-cancellations': () => import('./tabs/LateCancellations').then((m) => ({ default: m.LateCancellations })),
+  'format-comparison': () => import('./tabs/FormatComparison').then((m) => ({ default: m.FormatComparison })),
   health: () => import('./tabs/DataHealth').then((m) => ({ default: m.DataHealth })),
 };
 const COMPONENTS = Object.fromEntries(Object.entries(LAZY).map(([k, l]) => [k, lazy(l)])) as Record<TabId, React.LazyExoticComponent<ComponentType<{ scope: Scope }>>>;
@@ -155,6 +158,7 @@ export default function App() {
       </div>
       <StatusBar />
       <TooltipLayer />
+      <TableSummaryEnhancer />
       <DrillPanel />
       <AskDock />
       <AskPanel />

@@ -19,7 +19,7 @@ export function CustomWidget({ spec, scope, onEdit }: { spec: WidgetSpec; scope:
   const table = def.table;
   const rows = scope.tables[table] ?? [];
   const cmpRows = scope.compare[table] ?? [];
-  const months = useMemo(() => lastNMonths(scope.today.slice(0, 7), 12), [scope.today]);
+  const months = useMemo(() => lastNMonths(scope.today.slice(0, 7), 13), [scope.today]);
 
   const nodes = useMemo(() => {
     if (!spec.groupBy || !GROUP_KEYS[spec.groupBy]) return [];

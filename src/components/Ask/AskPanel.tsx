@@ -74,7 +74,19 @@ export function AskPanel() {
     const q = text.trim();
     if (!q || !scope) return;
     const now = Date.now();
-    const result = ask(q, scope, thresholds);
+    let result: AskResult;
+    try {
+      result = ask(q, scope, thresholds);
+    } catch (error) {
+      // A malformed or sparsely populated source must not make the assistant appear to ignore the
+      // user. Keep the turn, explain the failure, and offer useful recovery paths.
+      result = {
+        question: q, intent: 'help', unresolved: true, confidence: 'guess',
+        answer: 'I could not finish that calculation, but your question was received.',
+        detail: `The analytical engine returned: ${(error as Error).message}. Try naming the metric, period and location explicitly, or open Data health to check the source.`,
+        scope: scope.period.label, suggestions: ['Revenue by location', 'Visits this month', 'What can you answer?'],
+      };
+    }
     setTurns((t) => [...t,
       { id: `u${now}`, role: 'you', text: q, at: now },
       { id: `f${now}`, role: 'floor', text: result.answer, at: now + 1, result }]);
