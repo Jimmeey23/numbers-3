@@ -790,120 +790,152 @@ select.input { padding-right: 26px; cursor: pointer; }
    column is capped and centred rather than stretched. */
 @media (min-width: 2000px) {
   .canvas > * { max-width: 1860px; margin-inline: auto; }
-  .page-head { max-width: calc(1860px + var(--gutter) * 2); }
 }
 .canvas > *, .register-body > * { min-width: 0; }
 .canvas .table-scroll, .canvas table.tbl { width: 100%; }
 
-/* ── Page head — the top of the tab unit ──────────────────────────────────
-   The head runs the full width of the work area (it pulls out through the canvas
-   gutter and pads itself back in), so the band is the tab's own masthead rather
-   than a card floating above the content. Its tint dissolves downward into the
-   page, and the rule under the facts is where the band hands over to the first
-   section. Every tab shares this frame; only the hue, the pattern and the motif
-   differ. */
+/* ── Page head — the tab's masthead card ──────────────────────────────────
+   One card, fourteen places. It is the width of the work column, so its edges
+   line up with every section beneath it, and it is built from the same material
+   as the rest of the app — surface, hairline, accent — rather than being a
+   poster dropped on top. What changes from tab to tab is the hue, the pattern
+   and the motif; the frame, the rhythm and the type never move, so you always
+   know where the name, the standfirst, the scope and the controls will be. */
 .page-head {
   position: relative;
   isolation: isolate;
-  margin: 0 calc(var(--gutter) * -1) var(--sp-6);
-  padding: clamp(22px, 2.1vw, 34px) var(--gutter) 0;
-  border-bottom: 1px solid var(--hairline);
   overflow: hidden;
-}
-.page-head::before {
-  content: "";
-  position: absolute; inset: 0;
-  z-index: -2;
+  margin: var(--sp-5) 0 var(--sp-7);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-xl);
   background:
-    linear-gradient(180deg, var(--hue-veil) 0%, color-mix(in oklab, var(--hue-veil) 35%, transparent) 46%, transparent 100%),
-    linear-gradient(180deg, color-mix(in oklab, var(--surface-1) 55%, transparent), transparent 85%);
+    linear-gradient(142deg, color-mix(in oklab, var(--hue) 9%, transparent) 0%, transparent 46%),
+    linear-gradient(180deg, var(--surface-1), color-mix(in oklab, var(--surface-1) 72%, transparent));
+  box-shadow: var(--relief-up);
+  animation: heroIn var(--m-emphasis) var(--ease-soft) both;
 }
-/* The accent reads along the top edge of the band, where the tab begins. */
+@keyframes heroIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* The accent runs the top edge and fades out, so the card is clearly this tab's. */
 .page-head::after {
   content: "";
-  position: absolute; left: 0; right: 0; top: 0; height: 2px;
-  background: linear-gradient(90deg, var(--hue), color-mix(in srgb, var(--hue) 22%, transparent) 42%, transparent 78%);
-  opacity: .9;
+  position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 2;
+  background: linear-gradient(90deg, var(--hue), color-mix(in srgb, var(--hue) 20%, transparent) 46%, transparent 82%);
+}
+/* Two very slow colour clouds behind everything: the card breathes instead of sitting still. */
+.page-head-aurora {
+  position: absolute; inset: -40% -10%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(34% 56% at 22% 30%, color-mix(in srgb, var(--hue) 22%, transparent), transparent 70%),
+    radial-gradient(30% 50% at 82% 70%, color-mix(in srgb, var(--hue-next, var(--hue)) 16%, transparent), transparent 72%);
+  opacity: .55;
+  animation: heroAura 26s var(--ease-soft) infinite alternate;
+}
+@keyframes heroAura {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.1); }
 }
 .page-head-pattern {
   position: absolute; inset: 0;
-  z-index: -1;
-  opacity: .5;
-  mask-image: linear-gradient(190deg, #000, transparent 78%);
+  z-index: 0;
+  opacity: .42;
+  mask-image: linear-gradient(200deg, #000, transparent 72%);
   pointer-events: none;
 }
-.page-head-art {
-  position: absolute;
-  right: max(var(--gutter), 2vw); top: 50%;
-  translate: 0 -54%;
-  z-index: -1;
-  pointer-events: none;
+
+.page-head-top {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: clamp(18px, 2.4vw, 40px);
+  padding: clamp(22px, 2.2vw, 34px) clamp(20px, 2.1vw, 34px) clamp(18px, 1.8vw, 26px);
 }
-.page-head-row { display: flex; align-items: flex-start; gap: 22px; }
 .page-head-main { min-width: 0; flex: 1; }
 
 .page-eyebrow {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 23px; padding: 0 11px 0 9px;
+  border-radius: var(--r-full);
+  background: var(--hue-wash);
+  box-shadow: inset 0 0 0 1px var(--hue-edge-soft);
   font-family: var(--font-display);
-  font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
   color: var(--hue-ink);
 }
-.page-eyebrow-rule { width: 20px; height: 2px; border-radius: 999px; background: var(--hue); }
+.page-eyebrow-rule { width: 6px; height: 6px; border-radius: 999px; background: var(--hue); animation: hgPulse 3.4s var(--ease-soft) infinite; }
 .page-eyebrow-key {
-  font-size: 9.5px; font-weight: 650; letter-spacing: .1em;
+  font-size: 9px; font-weight: 650; letter-spacing: .1em;
   color: var(--text-3);
-  padding-left: 10px;
-  border-left: 1px solid var(--hairline-strong);
+  padding-left: 9px;
+  border-left: 1px solid var(--hue-edge-soft);
 }
 .page-title {
-  margin: 11px 0 0;
+  margin: 13px 0 0;
   font-family: var(--font-display);
-  font-size: clamp(27px, 2.7vw, 40px);
-  line-height: 1.05;
+  font-size: clamp(28px, 2.8vw, 44px);
+  line-height: 1.03;
   font-weight: 700;
-  font-variation-settings: "wdth" 96;
-  letter-spacing: -.032em;
+  font-variation-settings: "wdth" 94;
+  letter-spacing: -.034em;
   color: var(--text-1);
 }
-.page-sub { margin-top: 8px; max-width: 64ch; color: var(--text-2); font-size: 13.5px; line-height: 21px; }
-
-/* Tab-scoped controls: what you change while reading this tab, next to its name. The global
-   bar above keeps the things that are true everywhere. */
-.page-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding-top: 4px; }
-.page-head-actions .btn { height: 29px; }
-.page-action-dot { width: 5px; height: 5px; border-radius: 999px; background: var(--hue); }
-.page-action-count {
-  min-width: 16px; height: 16px; padding: 0 4px;
-  display: inline-grid; place-items: center;
-  border-radius: 999px;
-  background: var(--hue); color: var(--on-hue);
-  font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+.page-sub {
+  margin-top: 10px; max-width: 62ch;
+  color: var(--text-2);
+  font-size: 13.5px; line-height: 21.5px;
 }
 
-/* The qualifiers read as a caption under the title, divided by hairlines — no boxes. */
-.page-facts {
-  display: flex; flex-wrap: wrap;
-  gap: 0 26px;
-  margin: 18px 0 0;
-  padding: 12px 0 13px;
+/* The plate holds the motif as a framed illustration rather than a loose watermark. */
+.hero-plate {
+  display: none;
+  flex-shrink: 0;
+  width: clamp(230px, 22vw, 330px);
+  aspect-ratio: 2 / 1;
+  border-radius: var(--r-l);
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--hue) 13%, transparent), transparent 62%),
+    color-mix(in oklab, var(--surface-inset) 55%, transparent);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow: hidden;
+  position: relative;
+}
+.hero-plate::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(104deg, transparent 32%, color-mix(in srgb, var(--hue) 10%, transparent) 50%, transparent 68%);
+  transform: translateX(-120%);
+  animation: heroSheen 9s var(--ease-soft) infinite;
+}
+@keyframes heroSheen { 0%, 62% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (min-width: 1080px) { .hero-plate { display: block; } }
+
+/* The strip under the card: the facts every number on the tab is subject to, and the
+   controls that change them. Recessed, so it reads as the card's footing. */
+.page-head-bar {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px 20px;
+  padding: 11px clamp(20px, 2.1vw, 34px) 12px;
   border-top: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--surface-2) 55%, transparent);
 }
-.page-fact { display: flex; align-items: baseline; gap: 8px; padding-right: 26px; position: relative; }
+.page-facts { display: flex; flex-wrap: wrap; gap: 0 24px; margin: 0; }
+.page-fact { display: flex; align-items: baseline; gap: 8px; padding-right: 24px; position: relative; }
 .page-fact + .page-fact::before {
   content: "";
-  position: absolute; left: -26px; top: 2px; bottom: 2px; width: 1px;
+  position: absolute; left: -24px; top: 1px; bottom: 1px; width: 1px;
   background: var(--hairline);
 }
 .page-fact dt {
   font-family: var(--font-display);
-  font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
   color: var(--text-3);
 }
 .page-fact dd {
   margin: 0;
-  font-size: 12.5px; font-weight: 600;
+  font-size: 12.5px; font-weight: 640;
   color: var(--text-1);
-  max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .page-fact-edit {
   font: inherit; color: var(--hue-ink);
@@ -913,58 +945,67 @@ select.input { padding-right: 26px; cursor: pointer; }
 }
 .page-fact-edit:hover { border-bottom-color: var(--hue); border-bottom-style: solid; }
 
+/* Tab-scoped controls: what you change while reading this tab, on the tab. */
+.page-head-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.page-head-actions .btn { height: 28px; }
+.page-action-dot { width: 5px; height: 5px; border-radius: 999px; background: var(--hue); }
+.page-action-count {
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: inline-grid; place-items: center;
+  border-radius: 999px;
+  background: var(--hue); color: var(--on-hue);
+  font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
 /* ── One frame, fourteen places ───────────────────────────────────────────
-   Each tab gets its own pattern so the masthead is recognisable at a glance
-   before the title is read. The geometry is drawn from what the tab measures:
-   ledger rules for money, a timetable for the schedule, contours for people. */
+   The pattern behind each masthead is drawn from what the tab measures: ledger
+   rules for money, a timetable for the schedule, contours for people. */
 .page-head-pattern { background-repeat: repeat; }
 .page-head[data-tab="overview"] .page-head-pattern {
   background-image:
     linear-gradient(var(--hue-edge-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--hue-edge-soft) 1px, transparent 1px);
-  background-size: 46px 46px, 46px 46px;
+  background-size: 44px 44px, 44px 44px;
 }
 .page-head[data-tab="sales"] .page-head-pattern,
 .page-head[data-tab="payroll"] .page-head-pattern {
-  background-image: repeating-linear-gradient(180deg, var(--hue-edge-soft) 0 1px, transparent 1px 15px);
+  background-image: repeating-linear-gradient(180deg, var(--hue-edge-soft) 0 1px, transparent 1px 14px);
 }
 .page-head[data-tab="leads"] .page-head-pattern,
 .page-head[data-tab="acquisition"] .page-head-pattern {
-  background-image: repeating-linear-gradient(118deg, var(--hue-edge-soft) 0 1px, transparent 1px 13px);
+  background-image: repeating-linear-gradient(118deg, var(--hue-edge-soft) 0 1px, transparent 1px 12px);
 }
 .page-head[data-tab="retention"] .page-head-pattern,
 .page-head[data-tab="late-cancellations"] .page-head-pattern {
-  background-image: repeating-radial-gradient(circle at 88% 120%, var(--hue-edge-soft) 0 1px, transparent 1px 22px);
+  background-image: repeating-radial-gradient(circle at 86% 118%, var(--hue-edge-soft) 0 1px, transparent 1px 20px);
 }
 .page-head[data-tab="classes"] .page-head-pattern,
 .page-head[data-tab="format-comparison"] .page-head-pattern {
-  background-image: repeating-linear-gradient(90deg, var(--hue-edge-soft) 0 2px, transparent 2px 24px);
+  background-image: repeating-linear-gradient(90deg, var(--hue-edge-soft) 0 2px, transparent 2px 22px);
 }
 .page-head[data-tab="slots"] .page-head-pattern,
 .page-head[data-tab="bookings"] .page-head-pattern {
   background-image:
     linear-gradient(var(--hue-edge-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--hue-edge-soft) 1px, transparent 1px);
-  background-size: 34px 22px, 34px 22px;
+  background-size: 32px 21px, 32px 21px;
 }
 .page-head[data-tab="trainers"] .page-head-pattern,
 .page-head[data-tab="attendance"] .page-head-pattern {
-  background-image: radial-gradient(circle, var(--hue-edge) 1.2px, transparent 1.2px);
-  background-size: 20px 20px;
+  background-image: radial-gradient(circle, var(--hue-edge) 1.1px, transparent 1.1px);
+  background-size: 19px 19px;
 }
 .page-head[data-tab="health"] .page-head-pattern {
-  background-image: repeating-linear-gradient(45deg, var(--hue-edge-soft) 0 1px, transparent 1px 9px);
+  background-image: repeating-linear-gradient(45deg, var(--hue-edge-soft) 0 1px, transparent 1px 8px);
 }
 
-@media (max-width: 1100px) {
-  .page-head-actions { justify-content: flex-start; }
-  .page-head-row { flex-direction: column; gap: 14px; }
-}
 @media (max-width: 900px) {
-  .page-head { padding-top: 20px; }
-  .page-facts { gap: 10px 18px; }
-  .page-fact { padding-right: 18px; }
+  .page-head-top { padding: 20px 18px 16px; }
+  .page-head-bar { padding: 10px 18px 11px; }
+  .page-facts { gap: 8px 16px; }
+  .page-fact { padding-right: 16px; }
   .page-fact + .page-fact::before { display: none; }
+  .page-head-actions { margin-left: 0; }
 }
 
 /* ═══ 6 · SECTION REGISTERS ════════════════════════════════════════════════ */
@@ -1053,30 +1094,123 @@ select.input { padding-right: 26px; cursor: pointer; }
 .empty-state-body { margin-top: 7px; max-width: 580px; margin-inline: auto; }
 .empty-state-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 
-/* Hero motif in the section head — decorative line art, never data. */
+/* ── Hero motifs ──────────────────────────────────────────────────────────
+   Decorative line art, never data. One vocabulary — guides, bars, drawn lines,
+   tiles, rings, travelling points — animated on long loops so the masthead has
+   life without asking for attention. Every animation here is switched off by the
+   global prefers-reduced-motion rule. */
 .hero-graphic {
-  display: none;
-  flex-shrink: 0;
-  width: clamp(240px, 24vw, 340px);
-  opacity: .3;
+  position: absolute; inset: 0;
+  display: block;
   pointer-events: none;
-  mask-image: linear-gradient(105deg, transparent, #000 58%);
 }
-.hero-graphic svg { width: 100%; height: auto; display: block; }
-@media (min-width: 1180px) { .page-head .hero-graphic { display: block; } }
-.hero-graphic svg { width: 100%; height: 100%; overflow: visible; }
-.hg-guide { stroke: var(--hairline-strong); stroke-width: 1; fill: none; }
-.hg-line { stroke: var(--hue); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.hg-bar { fill: var(--hue); opacity: .55; animation: hgGrow var(--m-emphasis) var(--ease-data) both; transform-origin: bottom; }
-@keyframes hgGrow { from { transform: scaleY(.1); opacity: 0; } to { transform: none; opacity: .55; } }
-.hg-tile { fill: color-mix(in srgb, var(--hue) 16%, transparent); stroke: var(--hue-edge-soft); }
-.hg-tile.hg-strong { fill: color-mix(in srgb, var(--hue) 42%, transparent); }
-.hg-fill { fill: color-mix(in srgb, var(--hue) 22%, transparent); }
+.hero-graphic svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.hg-art { color: var(--hue); }
+
+.hg-guide { stroke: var(--hairline-strong); stroke-width: 1; fill: none; opacity: .75; }
+.hg-guides { animation: hgFade 700ms var(--ease-out) both; }
+
+.hg-line {
+  stroke: var(--hue); stroke-width: 2.2; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.hg-line.hg-dashed { stroke-dasharray: .012 .016; opacity: .62; stroke-width: 1.6; animation: hgCrawl 9s linear infinite; }
+.hg-line.hg-warn { stroke: var(--warn); }
+.hg-draw {
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: hgDraw 1.5s var(--ease-data) both;
+  animation-delay: calc(var(--i, 0) * 110ms);
+}
+@keyframes hgDraw { to { stroke-dashoffset: 0; } }
+@keyframes hgCrawl { to { stroke-dashoffset: -2; } }
+@keyframes hgFade { from { opacity: 0; } }
+
+.hg-area { animation: hgFade 900ms var(--ease-out) 300ms both; }
+
+.hg-bar {
+  fill: var(--hue); opacity: .42;
+  transform-origin: bottom;
+  animation: hgGrow 720ms var(--ease-data) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.hg-bar.hg-strong { opacity: .82; }
+@keyframes hgGrow { from { transform: scaleY(.05); opacity: 0; } }
+
+.hg-tile {
+  fill: color-mix(in srgb, var(--hue) 13%, transparent);
+  stroke: var(--hue-edge-soft);
+  animation: hgTile 760ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.hg-tile.hg-strong {
+  fill: color-mix(in srgb, var(--hue) 40%, transparent);
+  animation: hgTile 760ms var(--ease-out) both, hgBreathe 5.5s var(--ease-soft) infinite;
+  animation-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 180ms);
+}
+@keyframes hgTile { from { opacity: 0; transform: translateY(5px); } }
+@keyframes hgBreathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+.hg-fill {
+  fill: color-mix(in srgb, var(--hue) 20%, transparent);
+  animation: hgTile 800ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+.hg-fill-c { fill: color-mix(in srgb, var(--hue) 28%, transparent); }
 .hg-ring { stroke: var(--hue-edge); stroke-width: 2; fill: none; }
-.hg-spin { animation: hgSpin 14s linear infinite; transform-origin: center; }
+.hg-halo-ring { animation: hgBreathe 5s var(--ease-soft) infinite; }
+.hg-orbit { animation: hgSpin 22s linear infinite; transform-origin: center; }
+.hg-orbit-slow { animation-duration: 34s; animation-direction: reverse; }
 @keyframes hgSpin { to { transform: rotate(360deg); } }
-.hg-point { fill: var(--hue); animation: hgPulse 2.6s var(--ease-soft) infinite; }
-@keyframes hgPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.hg-point {
+  fill: var(--hue);
+  animation: hgPop 500ms var(--ease-spring) both, hgPulse 3.2s var(--ease-soft) infinite;
+  animation-delay: calc(var(--i, 0) * 110ms), calc(var(--i, 0) * 260ms);
+}
+@keyframes hgPop { from { opacity: 0; transform: scale(.2); } }
+@keyframes hgPulse { 0%, 100% { opacity: 1; } 50% { opacity: .42; } }
+.hg-halo {
+  fill: color-mix(in srgb, var(--hue) 22%, transparent);
+  animation: hgHalo 3.2s var(--ease-soft) infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes hgHalo { 0%, 100% { transform: scale(.72); opacity: .7; } 50% { transform: scale(1); opacity: .18; } }
+.hg-spark { fill: var(--hue); opacity: .5; animation: hgPulse 4s var(--ease-soft) infinite; animation-delay: calc(var(--i, 0) * 320ms); }
+.hg-coin {
+  fill: color-mix(in srgb, var(--hue) 30%, transparent);
+  stroke: var(--hue-edge); stroke-width: 1;
+  animation: hgCoin 4.5s var(--ease-soft) infinite;
+  animation-delay: calc(var(--i, 0) * 420ms);
+}
+@keyframes hgCoin { 0%, 100% { transform: translateY(0); opacity: .9; } 50% { transform: translateY(-4px); opacity: .6; } }
+
+/* A point travelling the line: the only element that moves across the frame. */
+.hg-trace {
+  fill: var(--hue);
+  offset-rotate: 0deg;
+  animation: hgTrace 7s var(--ease-soft) infinite;
+}
+@keyframes hgTrace {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+/* A reading head passing over the frame. */
+.hg-scan {
+  fill: color-mix(in srgb, var(--hue) 24%, transparent);
+  animation: hgScan 7.5s var(--ease-soft) infinite;
+}
+@keyframes hgScan {
+  0% { transform: translateX(0); opacity: 0; }
+  10% { opacity: .9; }
+  90% { opacity: .9; }
+  100% { transform: translateX(242px); opacity: 0; }
+}
+.hg-bob { animation: hgBob 6s var(--ease-soft) infinite; animation-delay: calc(var(--i, 0) * 420ms); }
+@keyframes hgBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.hg-flag { animation: hgBreathe 3.4s var(--ease-soft) infinite; fill: color-mix(in srgb, var(--warn) 26%, transparent); }
 
 /* ═══ 7 · KPI & METRIC CARDS ═══════════════════════════════════════════════ */
 /* The strip asks for N columns but never below a legible card width: on a laptop an
@@ -2689,3 +2823,12 @@ button.primary {
   border: 1px solid var(--hairline);
   box-shadow: 0 24px 60px -28px rgba(15, 23, 42, .26);
 }
+
+/* The masthead keeps its tint — it is the one place colour is allowed to pool — but it is
+   moulded out of the page rather than outlined, and its plate is pressed into the card. */
+:root[data-theme="gloss"] .page-head { border-color: transparent; box-shadow: var(--relief-up); }
+:root[data-theme="gloss"] .hero-plate {
+  background: radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--hue) 10%, transparent), transparent 62%), var(--surface-inset);
+  box-shadow: var(--relief-in-soft);
+}
+:root[data-theme="gloss"] .page-head-bar { background: color-mix(in oklab, var(--surface-inset) 60%, transparent); }

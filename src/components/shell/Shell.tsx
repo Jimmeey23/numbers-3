@@ -298,16 +298,16 @@ export function PageHeader() {
     ? filters.locations.map((l) => l.split(',')[0]).join(', ')
     : 'All studios';
 
-  /* The head is the top of the tab, not a card laid on top of it: it runs the full width of the
-     work area, its tint dissolves into the page beneath, and the first section starts straight
-     after the rule. The frame is shared by all fourteen tabs — only the motif, the pattern and
-     the accent change, so every tab is recognisably the same product and still its own place. */
+  /* The masthead is a card, the width of the work column, built from the same material as the
+     sections under it. Its frame is identical on all fourteen tabs — eyebrow, name, standfirst,
+     motif, then a footing of scope facts and the controls that change them — so only the hue,
+     the pattern and the drawing tell you which tab you are on. */
   return (
     <header className="page-head" data-domain={meta.domain} data-tab={tab}>
+      <div className="page-head-aurora" aria-hidden="true" />
       <div className="page-head-pattern" aria-hidden="true" />
-      <div className="page-head-art" aria-hidden="true"><HeroGraphic tab={tab} /></div>
 
-      <div className="page-head-row">
+      <div className="page-head-top">
         <div className="page-head-main">
           <div className="page-eyebrow">
             <span className="page-eyebrow-rule" aria-hidden="true" />
@@ -317,6 +317,34 @@ export function PageHeader() {
           <h1 className="page-title">{meta.label}</h1>
           <p className="page-sub">{meta.blurb}</p>
         </div>
+        <div className="hero-plate" aria-hidden="true"><HeroGraphic tab={tab} /></div>
+      </div>
+
+      <div className="page-head-bar">
+        <dl className="page-facts">
+          <div className="page-fact">
+            <dt>Period</dt>
+            <dd><button className="page-fact-edit" onClick={() => setFiltersOpen(true)} title="Edit the period (F)">{scope ? scope.period.label : status === 'loading' ? 'Reading sources…' : '—'}</button></dd>
+          </div>
+          <div className="page-fact">
+            <dt>Rows</dt>
+            <dd className="tabular">{scope ? scope.rowsInScope.toLocaleString('en-IN') : '—'}</dd>
+          </div>
+          <div className="page-fact">
+            <dt>Against</dt>
+            <dd>{filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—'}</dd>
+          </div>
+          <div className="page-fact">
+            <dt>Studios</dt>
+            <dd title={studios}>{studios}</dd>
+          </div>
+          {filters.trainers.length > 0 && (
+            <div className="page-fact">
+              <dt>Trainers</dt>
+              <dd>{filters.trainers.length} selected</dd>
+            </div>
+          )}
+        </dl>
 
         <div className="page-head-actions">
           <button className="btn btn-xs" onClick={() => setFiltersOpen(true)} title="Period, studios, trainers, formats (F)">
@@ -336,31 +364,6 @@ export function PageHeader() {
           <TabExport />
         </div>
       </div>
-
-      <dl className="page-facts">
-        <div className="page-fact">
-          <dt>Period</dt>
-          <dd><button className="page-fact-edit" onClick={() => setFiltersOpen(true)} title="Edit the period (F)">{scope ? scope.period.label : status === 'loading' ? 'Reading sources…' : '—'}</button></dd>
-        </div>
-        <div className="page-fact">
-          <dt>Rows in scope</dt>
-          <dd className="tabular">{scope ? scope.rowsInScope.toLocaleString('en-IN') : '—'}</dd>
-        </div>
-        <div className="page-fact">
-          <dt>Compared with</dt>
-          <dd>{filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—'}</dd>
-        </div>
-        <div className="page-fact">
-          <dt>Studios</dt>
-          <dd title={studios}>{studios}</dd>
-        </div>
-        {filters.trainers.length > 0 && (
-          <div className="page-fact">
-            <dt>Trainers</dt>
-            <dd>{filters.trainers.length} selected</dd>
-          </div>
-        )}
-      </dl>
     </header>
   );
 }
