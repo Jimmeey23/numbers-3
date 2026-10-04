@@ -1,0 +1,552 @@
+{
+  "auditDate": "2026-10-04",
+  "snapshotManifest": [
+    {
+      "key": "recurring",
+      "title": "Recurring",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:12.162Z",
+      "bytes": 416715
+    },
+    {
+      "key": "sessions",
+      "title": "Sessions",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:12.925Z",
+      "bytes": 6143428
+    },
+    {
+      "key": "teacherRecurring",
+      "title": "Teacher Recurring",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:14.582Z",
+      "bytes": 999014
+    },
+    {
+      "key": "sales",
+      "title": "Sales",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:20.385Z",
+      "bytes": 13754866
+    },
+    {
+      "key": "payroll",
+      "title": "Payroll",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:22.149Z",
+      "bytes": 310318
+    },
+    {
+      "key": "new",
+      "title": "New",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:23.929Z",
+      "bytes": 9357268
+    },
+    {
+      "key": "lapsed",
+      "title": "Lapsed",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:27.251Z",
+      "bytes": 11188014
+    },
+    {
+      "key": "bookings",
+      "title": "Bookings",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:35.199Z",
+      "bytes": 59053490
+    },
+    {
+      "key": "leads",
+      "title": "Leads",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:39.664Z",
+      "bytes": 9807351
+    },
+    {
+      "key": "checkins",
+      "title": "Checkins",
+      "status": 200,
+      "type": "text/csv; charset=utf-8",
+      "fetchedAt": "2026-10-04T03:53:46.854Z",
+      "bytes": 64253333
+    }
+  ],
+  "scope": {
+    "start": "2026-09-01",
+    "end": "2026-09-30",
+    "prevStart": "2026-08-01",
+    "prevEnd": "2026-08-31",
+    "label": "Sep 2026",
+    "prevLabel": "Aug 2026",
+    "days": 30
+  },
+  "profile": {
+    "sessions": {
+      "rows": 25448,
+      "min": "2024-01-02",
+      "max": "2026-10-11",
+      "nullDates": 0,
+      "futureRows": 199,
+      "periodRows": 860
+    },
+    "checkins": {
+      "rows": 149533,
+      "min": "2024-01-02",
+      "max": "2026-10-11",
+      "nullDates": 0,
+      "futureRows": 285,
+      "periodRows": 5344
+    },
+    "bookings": {
+      "rows": 211414,
+      "min": "2020-01-01",
+      "max": "2026-10-03",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 6167
+    },
+    "sales": {
+      "rows": 24819,
+      "min": "2023-07-04",
+      "max": "2026-10-03",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 1000
+    },
+    "newc": {
+      "rows": 21092,
+      "min": "2020-01-01",
+      "max": "2026-10-03",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 391
+    },
+    "leads": {
+      "rows": 25177,
+      "min": "2024-04-25",
+      "max": "2026-10-03",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 622
+    },
+    "payroll": {
+      "rows": 1117,
+      "min": "2024-01-01",
+      "max": "2026-10-01",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 41
+    },
+    "lapsed": {
+      "rows": 29035,
+      "min": "2022-02-01",
+      "max": "2026-10-03",
+      "nullDates": 0,
+      "futureRows": 0,
+      "periodRows": 2752
+    },
+    "visits": {
+      "rows": 209516,
+      "min": "2020-01-01",
+      "max": "2026-10-11",
+      "nullDates": 0,
+      "futureRows": 285,
+      "periodRows": 6302
+    }
+  },
+  "displayedMetrics": {
+    "sales": {
+      "gross_revenue": 5954184.9399999995,
+      "net_revenue": 5669923.99000001,
+      "transactions": 867,
+      "aov": 6867.57201845444
+    },
+    "sessions": {
+      "sessions": 860,
+      "attendance": 4653,
+      "revenue": 4078685.8799999948,
+      "fill_rate": 0.42590389016018304,
+      "late_cancel_rate": 0.12874251497005987,
+      "no_show_rate": 0.000561377245508982
+    },
+    "visits": {
+      "visits": 4653,
+      "v_revenue": 4076093.999999933,
+      "v_booked": 6302,
+      "v_cancelled": 1602,
+      "v_late_cancel_rate": 0.12297683275150746,
+      "v_no_show_rate": 0.0019148936170212765,
+      "v_complimentary_rate": 0.11369009241349667
+    },
+    "payroll": {
+      "p_sessions": 860,
+      "p_customers": 4653,
+      "p_revenue": 4078686,
+      "p_cost": 1032000,
+      "p_contribution": 3046686,
+      "p_margin": 0.7469773353477076,
+      "payroll_pct_of_revenue": 0.25302266465229245,
+      "p_converted": 0,
+      "p_cost_per_acquired": null,
+      "p_new": 0,
+      "p_retained": 0
+    },
+    "newc": {
+      "new_clients": 387,
+      "conversion_rate": 0.09819121447028424,
+      "retention_rate": 0.12919896640826872,
+      "avg_conversion_span": 4.684210526315789,
+      "survival_90": 0
+    },
+    "lapsed": {
+      "memberships": 2752,
+      "active_memberships": 462,
+      "distinct_members": 1653,
+      "utilisation": 0.5551304347826087,
+      "risk_score": 40.104651162790695,
+      "churn_rate": 0.18459302325581395,
+      "renewal_rate": 0.32521802325581395
+    },
+    "leads": {
+      "leads": 622,
+      "lead_conversion_rate": 0.07234726688102894,
+      "pipeline_value": 318114.62218649517
+    },
+    "checkins": {
+      "checkins": 4653,
+      "c_paid": 4078685.879999933,
+      "class_hours": 766.3333333333334,
+      "attendee_hours": 4265.249999999785
+    }
+  },
+  "independent": {
+    "payroll": {
+      "paid": 4078686,
+      "cost": 1032000,
+      "converted": 0,
+      "margin": 0.7469773353477076,
+      "pctRevenue": 0.25302266465229245,
+      "costPerConverted": null,
+      "zeroPaidRows": 0,
+      "zeroConvertedRows": 41,
+      "nullConvertedRows": 0
+    },
+    "currentSessionAttendance": 4653,
+    "currentVisitAttendance": 4653,
+    "missingIdRows": {
+      "checkins": 0,
+      "bookings": 0
+    },
+    "lapsed": {
+      "numericCap": 3388,
+      "unlimited": 3628,
+      "missingCap": 22019,
+      "negativeDaysSince": 0
+    },
+    "acquisition": {
+      "fresh": 387,
+      "mature": 228,
+      "unmature": 159,
+      "all": {
+        "new_clients": {
+          "value": 387,
+          "n": 387,
+          "contributing": 387,
+          "coverage": 1,
+          "suspect": null
+        },
+        "conversion_rate": {
+          "value": 0.09819121447028424,
+          "n": 387,
+          "contributing": 387,
+          "coverage": 1,
+          "suspect": null
+        },
+        "retention_rate": {
+          "value": 0.12919896640826872,
+          "n": 387,
+          "contributing": 387,
+          "coverage": 1,
+          "suspect": null
+        }
+      },
+      "matureMetrics": {
+        "new_clients": {
+          "value": 228,
+          "n": 228,
+          "contributing": 228,
+          "coverage": 1,
+          "suspect": null
+        },
+        "conversion_rate": {
+          "value": 0.12280701754385964,
+          "n": 228,
+          "contributing": 228,
+          "coverage": 1,
+          "suspect": null
+        },
+        "retention_rate": {
+          "value": 0.15350877192982457,
+          "n": 228,
+          "contributing": 228,
+          "coverage": 1,
+          "suspect": null
+        }
+      }
+    }
+  },
+  "fixtures": {
+    "fixtures": [
+      {
+        "check": "Membership purchase products are not erased by numeric parsing",
+        "expected": 1,
+        "actual": null,
+        "passed": false
+      },
+      {
+        "check": "Member grouping preserves distinct identities with the same display name",
+        "expected": 2,
+        "actual": 1,
+        "passed": false
+      },
+      {
+        "check": "Payroll margin retains costs on zero-revenue rows",
+        "expected": 0,
+        "actual": 0.5,
+        "passed": false
+      },
+      {
+        "check": "Payroll share retains costs on zero-revenue rows",
+        "expected": 1,
+        "actual": 0.5,
+        "passed": false
+      },
+      {
+        "check": "Cost per acquisition includes zero-conversion rows",
+        "expected": 2000,
+        "actual": 1000,
+        "passed": false
+      },
+      {
+        "check": "Member tenure uses membership start, not purchase",
+        "expected": 20,
+        "actual": 29,
+        "passed": false
+      },
+      {
+        "check": "Renewal gap uses next membership start",
+        "expected": 5,
+        "actual": null,
+        "passed": false
+      },
+      {
+        "check": "Unknown payment does not imply complimentary attendance",
+        "expected": null,
+        "actual": 1,
+        "passed": false
+      },
+      {
+        "check": "Cancellation source coverage recognises unavailable lifecycle",
+        "expected": 0,
+        "actual": 1,
+        "passed": false
+      },
+      {
+        "check": "Cancellation source coverage warning is present",
+        "expected": true,
+        "actual": false,
+        "passed": false
+      },
+      {
+        "check": "Incomplete member identity preserves unresolved rows",
+        "expected": 2,
+        "actual": 1,
+        "passed": false
+      },
+      {
+        "check": "Undated observations are excluded from a dated period",
+        "expected": false,
+        "actual": true,
+        "passed": false
+      },
+      {
+        "check": "Same-count data refresh invalidates dormant insight value",
+        "expected": 99999,
+        "actual": 100,
+        "passed": false
+      }
+    ],
+    "overlapApproximation": {
+      "calculated": 1450,
+      "maximumPerMemberPolicy": 1800,
+      "firstClaimPolicy": 1100
+    }
+  },
+  "snapshotChecks": {
+    "scope": {
+      "start": "2026-09-01",
+      "end": "2026-09-30",
+      "prevStart": "2026-08-01",
+      "prevEnd": "2026-08-31",
+      "label": "Sep 2026",
+      "prevLabel": "Aug 2026",
+      "days": 30
+    },
+    "inferredToday": "2026-10-11",
+    "actualDate": "2026-10-04",
+    "sourceLoads": [
+      {
+        "key": "sessions",
+        "status": "ok",
+        "rows": 25448
+      },
+      {
+        "key": "recurring",
+        "status": "pending",
+        "rows": 0
+      },
+      {
+        "key": "teacherRecurring",
+        "status": "pending",
+        "rows": 0
+      },
+      {
+        "key": "sales",
+        "status": "ok",
+        "rows": 24819
+      },
+      {
+        "key": "new",
+        "status": "ok",
+        "rows": 21092
+      },
+      {
+        "key": "payroll",
+        "status": "ok",
+        "rows": 1117
+      },
+      {
+        "key": "lapsed",
+        "status": "ok",
+        "rows": 29035
+      },
+      {
+        "key": "bookings",
+        "status": "ok",
+        "rows": 211414
+      },
+      {
+        "key": "leads",
+        "status": "ok",
+        "rows": 25177
+      },
+      {
+        "key": "checkins",
+        "status": "ok",
+        "rows": 149533
+      }
+    ],
+    "futureSessions": 199,
+    "futureCheckins": 285,
+    "allPayroll": {
+      "rows": 1117,
+      "paid": 85699395,
+      "cost": 30537600,
+      "converted": 2694,
+      "actualCPA": 8940.311804008908,
+      "expectedCPA": 11335.412026726059,
+      "actualMargin": 0.6448002929308895,
+      "expectedMargin": 0.6436660958925089
+    },
+    "periodPayroll": {
+      "rows": 41,
+      "paid": 4078686,
+      "cost": 1032000,
+      "converted": 0,
+      "actualCPA": null,
+      "expectedCPA": null,
+      "actualMargin": 0.7469773353477076,
+      "expectedMargin": 0.7469773353477076
+    },
+    "acquisition": {
+      "allFirstVisits": 387,
+      "matureFirstVisits": 228,
+      "allConversion": 0.09819121447028424,
+      "matureConversion": 0.12280701754385964,
+      "thirdVisits": 17,
+      "purchasers": 28,
+      "negativeSourceCompositions": [
+        {
+          "source": "Website Form",
+          "first": 21,
+          "second": 4,
+          "purchased": 5,
+          "retained": 0,
+          "components": [
+            17,
+            -1,
+            5,
+            0
+          ]
+        }
+      ]
+    },
+    "durationCorruptedRows": 149133
+  },
+  "limitations": [
+    "Browser unavailable; no screenshot or client interaction verification.",
+    "No exhaustive certification of all 237 metrics.",
+    "Legacy audits force Sessions unavailable; fresh main-source checks use all ten snapshots."
+  ],
+  "schemaChecks": {
+    "newMembershipProductColumn": {
+      "populatedRows": 3909,
+      "numericRows": 0,
+      "rawType": "product-description-list",
+      "mapperType": "number"
+    },
+    "newMemberGrain": {
+      "rows": 21092,
+      "distinctIDs": 20911,
+      "duplicateIDs": 181,
+      "duplicateRowsAreExact": false
+    }
+  },
+  "dateChecks": {
+    "2026-10-04": {
+      "sessions": 123,
+      "capacity": 1539.0,
+      "attendance": 515.0,
+      "fillRate": 0.3346328784925276,
+      "zeroAttendanceSessions": 31
+    },
+    "2026-10-11": {
+      "sessions": 322,
+      "capacity": 4017.0,
+      "attendance": 515.0,
+      "fillRate": 0.1282051282051282,
+      "zeroAttendanceSessions": 230
+    }
+  },
+  "nameIdentityChecks": {
+    "all": {
+      "collidingNames": 420,
+      "distinctIDsInCollisions": 927
+    },
+    "september": {
+      "collidingNames": 2,
+      "distinctIDsInCollisions": 4
+    }
+  }
+}
