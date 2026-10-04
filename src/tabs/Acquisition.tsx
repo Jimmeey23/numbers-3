@@ -39,7 +39,6 @@ export function Acquisition({ scope }: { scope: Scope }) {
     const afp = metricValues(fresh, ['avg_first_purchase'], scope.ctx).avg_first_purchase.value ?? scope.ctx.medianFirstMembership;
     const ltv = metricValues(fresh, ['avg_ltv'], scope.ctx).avg_ltv.value ?? afp;
     const leads = scope.tables.leads;
-    const trialed = leads.filter((r) => r.trialed).length;
     /* Each stage is a subset of the one above it. Counting them independently produced more
        purchasers than third-visitors and a continuation rate above 100%. */
     const first = fresh.length;
@@ -52,10 +51,17 @@ export function Acquisition({ scope }: { scope: Scope }) {
     const stages: Stage[] = [];
     if (leads.length) {
       stages.push({ id: 'lead', label: 'Leads created', count: leads.length, note: 'Enquiries captured in the Leads sheet for this period.' });
-      stages.push({ id: 'trial', label: 'Booked or took a trial', count: trialed, lostValue: null, note: 'Leads with a trial scheduled, completed, or any recorded visit.' });
+      /* Taken from the New sheet, not from Leads. The Leads sheet under-records trials — in a
+         sample month 65 people had a September lead row and a September first visit while the
+         lead still read "Not Tried" — and it is scoped by enquiry date rather than visit date, so
+         reading the stage from there produced fewer trials than first visits. Counted here as
+         every qualified New row whose Is New label starts with "New", which is the same
+         population as the next stage: a trial and a first visit are the same event. */
+      stages.push({ id: 'trial', label: 'Booked or took a trial', count: first, lostValue: Math.max(0, leads.length - first) * afp * 0.15,
+        note: 'Every qualified row in the New sheet whose Is New label starts with "New". A trial is a first visit, so this equals the stage below it; the drop shown is from enquiry to attendance.' });
     }
     stages.push({ id: 'first', label: 'First visit', count: first, lostValue: null, note: 'People who actually walked in for a first class.' });
-    stages.push({ id: 'second', label: 'Came back once', count: second, lostValue: (first - second) * afp * 0.3, note: 'The single steepest step in the business — one visit and never again.' });
+    stages.push({ id: 'second', label: 'Second visit', count: second, lostValue: (first - second) * afp * 0.3, note: 'The single steepest step in the business — one visit and never again.' });
     stages.push({ id: 'purchase', label: 'First purchase', count: purchased, lostValue: (first - purchased) * afp, note: 'Any paid product bought after the trial. Not every buyer visits twice first, so this counts all first-visitors who bought, not only those who came back.' });
     stages.push({ id: 'member', label: 'Bought a membership', count: member, lostValue: (purchased - member) * Math.max(0, ltv - afp), note: 'Of those buyers, the ones who took recurring membership rather than a one-off.' });
     stages.push({ id: 'retained', label: 'Still active at 90 days', count: retained, lostValue: observed90.length ? (observed90.length - retained) * ltv * 0.5 : null,
@@ -69,7 +75,7 @@ export function Acquisition({ scope }: { scope: Scope }) {
     const purchase = fresh.filter((r) => r.converted);
     const member = purchase.filter((r) => (r.memberships_bought ?? 0) > 0);
     return {
-      lead: scope.tables.leads, trial: scope.tables.leads.filter((r) => r.trialed), first: fresh,
+      lead: scope.tables.leads, trial: fresh, first: fresh,
       second: fresh.filter((r) => (r.visits_post_trial ?? 0) > 0), purchase, member,
       retained: member.filter((r) => r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5 && (r.days_active ?? 0) >= 90),
     } as Record<string, Row[]>;
@@ -155,8 +161,8 @@ export function Acquisition({ scope }: { scope: Scope }) {
         subtitle="Every stage from enquiry to a member still training at 90 days, with the drop-off at each step valued in rupees. Click any band to list the people in it.">
         <FunnelChart stages={funnel} height={Math.max(280, funnel.length * 52)} unit="people"
           onStage={(st) => drill({ title: st.label, breadcrumb: ['Acquisition', 'Journey', st.label],
-            table: st.id === 'lead' || st.id === 'trial' ? 'leads' : 'newc', rows: funnelRows[st.id] ?? [],
-            metricIds: st.id === 'lead' || st.id === 'trial' ? ['leads', 'lead_conversion_rate', 'avg_touches', 'response_time_hours'] : ['new_clients', 'conversion_rate', 'avg_ltv', 'retention_rate'],
+            table: st.id === 'lead' ? 'leads' : 'newc', rows: funnelRows[st.id] ?? [],
+            metricIds: st.id === 'lead' ? ['leads', 'lead_conversion_rate', 'avg_touches', 'response_time_hours'] : ['new_clients', 'conversion_rate', 'avg_ltv', 'retention_rate'],
             domain: 'growth' })} />
         <div className="two-up" style={{ marginTop: 22 }}>
           <div>

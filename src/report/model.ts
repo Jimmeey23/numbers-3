@@ -414,9 +414,11 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
   const observed90 = members.filter((r) => r.ts !== null && scope.ctx.todayTs - r.ts >= 90 * 864e5);
   const stages: [string, number][] = [
     ['Leads created', (scope.tables.leads ?? []).length],
-    ['Took a trial', (scope.tables.leads ?? []).filter((r) => r.trialed).length],
+    /* From the New sheet, like every stage below it — the Leads sheet under-records trials and is
+       scoped by enquiry date, which made this stage smaller than the first visits it contains. */
+    ['Booked or took a trial', mature.length],
     ['First visit', mature.length],
-    ['Came back once', mature.filter((r) => (r.visits_post_trial ?? 0) > 0).length],
+    ['Second visit', mature.filter((r) => (r.visits_post_trial ?? 0) > 0).length],
     ['Bought something', bought.length],
     ['Bought a membership', members.length],
     ['Still active at 90 days', observed90.filter((r) => (r.days_active ?? 0) >= 90).length],
