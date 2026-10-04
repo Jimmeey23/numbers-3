@@ -787,3 +787,12 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
 .theme-item-text b{font-size:12.5px;font-weight:600;}
 .theme-item-text span{line-height:15px;white-space:normal;}
 .tab-endpoint-alt{display:inline-block;max-width:100%;overflow-x:auto;vertical-align:bottom;white-space:nowrap;user-select:all;}
+
+/* ── Trainer thumbnails ────────────────────────────────────────────────────
+   A face beside a name, at row height. Initials when there is no portrait, so the column keeps
+   one rhythm whether or not a photo exists. */
+.trainer-chip{flex-shrink:0;border-radius:999px;object-fit:cover;background:var(--surface-3);
+  border:1px solid var(--hairline-strong);display:inline-flex;align-items:center;justify-content:center;}
+.trainer-chip.is-initials{font-family:var(--font-display);font-size:9px;font-weight:650;letter-spacing:.02em;
+  color:var(--text-2);background:var(--hue-wash);border-color:color-mix(in srgb,var(--hue) 35%,transparent);}
+.trainer-chip.is-studio{border-radius:5px;}

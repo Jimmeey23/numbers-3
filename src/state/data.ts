@@ -91,6 +91,7 @@ export function computeScope(ds: Dataset, filters: Filters, ratePerSession: numb
   }
   const ctx: QueryContext = {
     ratePerSession, todayTs: ds.todayTs, durationDefaultMin: thresholds.durationDefaultMin, durationSuspect, slotFill: slotFillMap(all.sessions), suspect,
+    periodStart: period.start, periodEnd: period.end,
     dormantDays: thresholds.dormantDays, riskHigh: thresholds.riskHigh, zeroUsageDays: thresholds.zeroUsageDays,
     matureDays: thresholds.matureDays, medianFirstMembership: thresholds.medianFirstMembership,
   };

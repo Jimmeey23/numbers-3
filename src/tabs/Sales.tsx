@@ -17,7 +17,7 @@ import { fmtCurrency, fmtDate, fmtMonthShort, formatValue } from '../semantics/f
 import { useData } from '../state/data';
 import { maxBy } from '../semantics/stats';
 
-const S_METRICS = ['category_revenue', 'transactions', 'aov', 'discount_rate', 'unique_buyers', 'net_revenue', 'discounted_share'];
+const S_METRICS = ['category_revenue', 'transactions', 'aov', 'atv_net', 'discount_rate', 'discount_efficiency', 'unique_buyers', 'purchase_frequency', 'package_sell_through', 'net_revenue', 'discounted_share'];
 
 export function Sales({ scope }: { scope: Scope }) {
   const months = useMonths(scope);

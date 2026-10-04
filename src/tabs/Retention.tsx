@@ -18,7 +18,7 @@ import { useDrill } from '../state/drill';
 import { fmtCurrency, fmtDate, fmtMonthShort, fmtPercent, formatValue } from '../semantics/formats';
 import { maxBy } from '../semantics/stats';
 
-const R_METRICS = ['risk_score', 'utilisation', 'avg_days_since_visit', 'churn_rate', 'l_revenue', 'memberships'];
+const R_METRICS = ['risk_score', 'utilisation', 'avg_sessions_used_pct', 'avg_days_since_visit', 'avg_days_active', 'churn_rate', 'churn_rate_ending', 'early_exit_rate', 'discount_driven_lapse', 'l_revenue', 'memberships'];
 /* Bands are relative to the operator's high-risk threshold rather than fixed, so moving it in
    Settings moves the ladder, the KPI cards and the insights together. */
 const riskBandsFor = (high: number) => [

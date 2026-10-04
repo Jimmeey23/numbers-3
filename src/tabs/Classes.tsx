@@ -37,6 +37,7 @@ export const SESSION_COLUMNS = (theme: Theme): ColumnDef[] => [
   { id: 'mix', label: 'Payment mix', family: 'Revenue', mix: (rows) => [{ label: 'Membership', value: rows.reduce((a, r) => a + (r.memberships ?? 0), 0), color: formatColor(theme, 'Cycle') }, { label: 'Package', value: rows.reduce((a, r) => a + (r.packages ?? 0), 0), color: formatColor(theme, 'Pilates') }, { label: 'Intro', value: rows.reduce((a, r) => a + (r.intro_offers ?? 0), 0), color: formatColor(theme, 'Hosted') }, { label: 'Single', value: rows.reduce((a, r) => a + (r.single_classes ?? 0), 0), color: formatColor(theme, 'Strength') }] },
   { id: 'late_cancel_rate', metricId: 'late_cancel_rate', family: 'Behaviour', hidden: true },
   { id: 'non_paid_rate', metricId: 'non_paid_rate', family: 'Revenue', hidden: true },
+  { id: 'session_intelligence', metricId: 'session_intelligence', family: 'Utilisation', heat: true },
 ];
 
 export function Classes({ scope }: { scope: Scope }) {

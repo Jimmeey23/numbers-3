@@ -16,7 +16,7 @@ import { fmtCurrency, fmtDate, formatValue } from '../semantics/formats';
 import { categorical } from '../design/ramps';
 import { useView } from '../state/view';
 
-const A_METRICS = ['new_clients', 'second_visit_rate', 'conversion_rate', 'avg_conversion_span', 'avg_first_purchase', 'avg_ltv', 'retention_rate', 'zero_return_rate', 'survival_90'];
+const A_METRICS = ['new_clients', 'second_visit_rate', 'conversion_rate', 'avg_conversion_span', 'avg_first_purchase', 'avg_ltv', 'retention_rate', 'retention_of_converted', 'zero_return_rate', 'survival_90'];
 
 export function Acquisition({ scope }: { scope: Scope }) {
   const months = useMonths(scope);

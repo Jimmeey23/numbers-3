@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useOverlay } from '../../state/overlays';
+import { TrainerChip } from '../TrainerChip';
+import { trainerThumb } from '../../data/trainers';
 import { useDrill } from '../../state/drill';
 import { useScope } from '../../state/data';
 import { METRICS, metric } from '../../semantics/metrics';
@@ -106,7 +108,10 @@ export function DrillPanel() {
             <div style={{ flex: 1 }} />
             <button className="btn btn-xs" onClick={close}>Close <span className="kbd">Esc</span></button>
           </div>
-          <h2 className="t-display-s" style={{ margin: '0 0 14px' }}>{t.title} <span className="t-label-m muted">{t.rows.length.toLocaleString('en-IN')} rows</span></h2>
+          <h2 className="t-display-s" style={{ margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 9 }}>
+            {trainerThumb(t.title) && <TrainerChip name={t.title} size={34} />}
+            <span>{t.title} <span className="t-label-m muted">{t.rows.length.toLocaleString('en-IN')} rows</span></span>
+          </h2>
           {kpis && <div className="kpi-strip" style={{ ['--kpi-cols' as string]: Math.min(4, metricIds.length) }}>
             {metricIds.map((id, i) => <MetricCard key={id} metricId={id} value={kpis[id].value} n={kpis[id].n} coverage={kpis[id].coverage} contributing={kpis[id].contributing} suspect={kpis[id].suspect} variant="inline" index={i} rank={ranks?.[id]} />)}
           </div>}

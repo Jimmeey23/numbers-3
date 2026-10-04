@@ -309,3 +309,43 @@ first-visit trainer.
 - **Atlas.** The app is named Atlas and has a meridian-globe mark that draws itself in on mount,
   with the same gesture the sparklines use. Title, favicon, theme-color and the agent and export
   identifiers follow.
+
+## Pass 6 — Sales revenue was understated by 10%
+
+**Symptom.** The Sales tab showed ₹53.6L of gross revenue for September 2026. The sheet holds
+₹59.54L.
+
+**Cause.** `distinctSaleSum` collapsed every money column to one value per `Sale ID`, taking the
+largest line — on the belief that the export repeats sale-level payment on each line item. It does
+not. The Sales export's grain is `Sale Item ID`, and `Payment Value` and `Payment VAT` are per
+line. Measured on the live sheet:
+
+- 24,426 of 24,609 rows carry a `Payment Value` within 2% of `unit price × quantity`.
+- Of 1,699 multi-line sales, **none** have equal payment values across lines with differing unit
+  prices — which is what a repeated total would look like.
+- The only genuinely sale-level column is the one the export names as such,
+  `Sale Total Discount Value`, identical on every line of all 1,699.
+
+Collapsing therefore discarded the smaller lines of every multi-line sale: **₹77.5L of ₹15.88Cr
+all-time, ₹5.9L of ₹59.5L in September.**
+
+**Fixed.** Money columns sum across rows (`nonVoidSum`). `aov`, `arpu` and `atv_net` divide the
+summed total by distinct sales or buyers. `category_revenue` is now the line's own payment rather
+than a share of the largest line's payment allocated by list value — that rule both lost money and
+moved revenue between categories.
+
+Entity-level columns still dedupe, but by the entity: `deferred_revenue` and
+`unused_session_liability` key on `Sec. Membership ID`, falling back to `Sale ID`. A sale that
+sells two memberships now counts both; keying on the sale lost one.
+
+**Verified** against the raw CSV, bypassing the pipeline entirely:
+
+| | raw sheet | app before | app after |
+|---|---|---|---|
+| Gross revenue | ₹59.54L | ₹53.6L | ₹59.5L |
+| VAT | ₹2.84L | ₹2.6L | ₹2.8L |
+| Net of VAT | ₹56.70L | ₹51L | ₹56.7L |
+| AOV | — | ₹6,129 | ₹6,813 |
+
+Five fixtures added to `scripts/audit-new.mts` (now 18 checks): a two-line sale must sum, and a
+sale carrying two memberships must count both.

@@ -1,4 +1,6 @@
 import type { Theme } from '../../design/ramps';
+import { StudioChip, TrainerChip } from '../TrainerChip';
+import { studioThumb, trainerThumb } from '../../data/trainers';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GROUP_KEYS, metricValues, rollupLevel, type RollupNode, type Row } from '../../semantics/aggregations';
 import { metric, type QueryContext, type TableName } from '../../semantics/metrics';
@@ -315,6 +317,10 @@ function NodeRow({ n, i, isOpen, canOpen, columns, ctx, theme, heat, rank, selec
             <button aria-label={isOpen ? 'Collapse' : 'Expand'} onClick={(e) => { e.stopPropagation(); toggle(n, e.altKey); }} style={{ width: 16, display: 'inline-flex', justifyContent: 'center' }}><span className={`caret ${isOpen ? 'open' : ''}`}>▸</span></button>
           ) : <span className="faint" style={{ width: 16, textAlign: 'center' }}>·</span>}
           {rank !== undefined && rank <= 3 && <span className="medal top">{rank}</span>}
+          {/* A row that names a person gets their face. Detected from the label rather than from
+              the grouping key, because a trainer can be grouped at any level of the tree. */}
+          {trainerThumb(n.label) && <TrainerChip name={n.label} size={20} />}
+          {studioThumb(n.label) && <StudioChip location={n.label} size={20} />}
           <span className="group-name" style={{ maxWidth: 230 }} title={n.label}>{n.label}</span>
           <span className="group-count">{n.rows.length.toLocaleString('en-IN')}</span>
         </span>

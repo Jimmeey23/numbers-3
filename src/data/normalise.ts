@@ -617,11 +617,15 @@ export const reconcileSales = (rows: SaleRow[]): SaleRow[] => {
       const saleDiscount = Math.max(0, ...group.map((r) => Math.abs(r.sale_discount ?? 0)));
       for (const r of group) r.discount = saleDiscount ? saleDiscount * (listTotal ? (r.list_value ?? 0) / listTotal : 1 / group.length) : 0;
     }
-    const paymentValues = group.map((r) => r.value).filter((v): v is number => v !== null);
-    const payment = paymentValues.length ? Math.max(0, ...paymentValues) : null;
-    const weights = group.map((r) => Math.max(0, (r.list_value ?? r.value ?? 0) - (r.discount ?? 0)));
-    const weightTotal = weights.reduce((a, b) => a + b, 0);
-    group.forEach((r, i) => { r.category_value = r.voided ? null : payment === null ? null : payment * (weightTotal ? weights[i] / weightTotal : 1 / group.length); });
+    /* Payment Value is per line item, so a line's own payment IS its revenue — nothing needs
+       allocating. The previous rule took the largest line's payment as the sale total and spread
+       that across the lines, which both lost the other lines' money and moved revenue between
+       categories. A line with no payment of its own takes a share of whatever the sale's lines
+       do not account for, so category totals still reconcile to the sale. */
+    /* The export carries no sale-total column — only "Sale Total Discount Value" — so a line with
+       no Payment Value of its own contributes nothing rather than a guessed share. 228 rows of
+       24,837 are in that state; they show as missing coverage rather than as revenue. */
+    group.forEach((r) => { r.category_value = r.voided ? null : r.value; });
   }
   return rows;
 };

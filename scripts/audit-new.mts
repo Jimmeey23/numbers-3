@@ -23,11 +23,28 @@ T('avg_unit_price excludes voided line items', m('avg_unit_price',sales).value, 
 
 // 4. sale-level membership fields repeated on line items
 const mem = [
- {sale_id:'A', voided:false, mem_money_left:5000, mem_classes_left:10, rev_per_credit:500},
- {sale_id:'A', voided:false, mem_money_left:5000, mem_classes_left:10, rev_per_credit:500},
+ {sale_id:'A', mem_id:'M1', voided:false, mem_money_left:5000, mem_classes_left:10, rev_per_credit:500},
+ {sale_id:'A', mem_id:'M1', voided:false, mem_money_left:5000, mem_classes_left:10, rev_per_credit:500},
+];
+/* Two different memberships on one sale must count twice; keying on the sale alone lost one. */
+const twoMem = [
+ {sale_id:'A', mem_id:'M1', voided:false, mem_money_left:5000, mem_classes_left:10, rev_per_credit:500},
+ {sale_id:'A', mem_id:'M2', voided:false, mem_money_left:3000, mem_classes_left:6,  rev_per_credit:500},
 ];
 T('deferred_revenue counts a sale-level field once per sale', m('deferred_revenue',mem).value, 5000);
 T('unused_session_liability counts a sale-level field once per sale', m('unused_session_liability',mem).value, 5000);
+T('deferred_revenue counts two memberships on one sale twice', m('deferred_revenue',twoMem).value, 8000);
+
+/* 4b. Payment Value is per line item in this export, not a sale total repeated down the lines.
+   Collapsing it per sale discarded every line but the largest. */
+const lines = [
+ {sale_id:'S1', value:2799, net:2499, vat:300, voided:false, qty:1, unit_price:2799, member_id:'m1', category_value:2799},
+ {sale_id:'S1', value:2999, net:2678, vat:321, voided:false, qty:1, unit_price:2999, member_id:'m1', category_value:2999},
+];
+T('gross_revenue sums the line items of a sale', m('gross_revenue',lines).value, 5798);
+T('net_revenue sums the line items of a sale', m('net_revenue',lines).value, 5177);
+T('vat sums the line items of a sale', m('vat',lines).value, 621);
+T('aov divides the whole sale by one transaction', m('aov',lines).value, 5798);
 
 // 5. coverage on count metrics
 const r5 = m('empty_sessions',[{checked_in:1},{checked_in:null},{checked_in:null}]);
