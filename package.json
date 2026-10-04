@@ -11,6 +11,7 @@
     "api": "tsx server/index.mts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.109.0",
     "@types/papaparse": "^5.5.2",
     "clsx": "2.1.1",
     "papaparse": "^5.7.0",

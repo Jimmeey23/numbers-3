@@ -1,19 +1,27 @@
-import { useState, type ReactNode } from 'react';
+import { useContext, useEffect, useState, type ReactNode } from 'react';
 import { useInView } from './hooks';
 import { useView } from '../state/view';
 import { HeroGraphic } from './HeroGraphic';
+import { TabExtrasContext } from './TabExtrasContext';
 
 interface Props {
   title: string; subtitle?: string; domain?: string; actions?: ReactNode; children: ReactNode;
-  collapsed?: boolean; lazy?: boolean; id?: string; suspect?: string | null; index?: string; note?: string; hero?: boolean;
+  collapsed?: boolean; lazy?: boolean; id?: string; suspect?: string | null; index?: string; note?: string; hero?: boolean; footerContent?: boolean;
 }
 
 /** A horizontal register: index, title, actions, barre, content. Lazily mounts on scroll-into-view when `lazy`. */
-export function Register({ title, subtitle, domain, actions, children, collapsed = false, lazy = false, id, suspect, index, note, hero = false }: Props) {
+export function Register({ title, subtitle, domain, actions, children, collapsed = false, lazy = false, id, suspect, index, note, hero = false, footerContent = false }: Props) {
   const [open, setOpen] = useState(!collapsed);
   const { ref, inView } = useInView<HTMLElement>();
   const tab = useView((s) => s.tab);
+  const extras = useContext(TabExtrasContext);
+  const moveToFooter = collapsed && !!extras && !footerContent;
+  useEffect(() => {
+    if (!moveToFooter || !extras) return;
+    return extras.register(id ?? title, <Register title={title} subtitle={subtitle} domain={domain} actions={actions} id={id} suspect={suspect} index={index} note={note} hero={hero} footerContent>{children}</Register>);
+  }, [moveToFooter, extras, id, title, subtitle, domain, actions, suspect, index, note, hero, children]);
   const mount = !lazy || inView;
+  if (moveToFooter) return null;
   return (
     <section ref={ref} id={id} className="register" data-domain={domain} data-hero={hero || undefined} aria-label={title}>
       <div className="register-head">

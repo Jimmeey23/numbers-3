@@ -4,6 +4,7 @@ import { DEFAULT_FILTERS, resolvePeriod, useFilters, type Filters, type Preset }
 import { useData, useOptions } from '../../state/data';
 import { useView } from '../../state/view';
 import { fmtDate } from '../../semantics/formats';
+import { LOCATION_SHORT } from '../../data/sheets.config';
 
 const QUICK_PRESETS: { id: Preset; label: string }[] = [
   { id: 'last_week', label: 'Last week' },
@@ -84,7 +85,6 @@ export function FilterStrip() {
   const upd = (patch: Partial<Filters>) => setDraft({ ...f, ...patch });
   const chips = [
     period?.label,
-    filters.locations.length ? `${filters.locations.length} location${filters.locations.length > 1 ? 's' : ''}` : 'All locations',
     filters.trainers.length ? `${filters.trainers.length} trainers` : null,
     filters.formats.length ? filters.formats.join(', ') : null,
     filters.sources.length ? `${filters.sources.length} sources` : null,
@@ -108,6 +108,17 @@ export function FilterStrip() {
             <button key={p.id} className="quick-date-btn" aria-pressed={filters.preset === p.id || (p.id === 'month' && filters.preset === 'last_month')}
               onClick={(e) => { e.stopPropagation(); set({ preset: p.id, start: null, end: null }); useView.getState().announce(`${p.label} selected`); }}>
               {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="quick-location-filters" aria-label="Quick location filters">
+          <span className="quick-filter-caption">Location</span>
+          <button className="quick-date-btn" aria-pressed={filters.locations.length === 0}
+            onClick={(e) => { e.stopPropagation(); set({ locations: [] }); }}>All</button>
+          {opts.locations.slice(0, 5).map(({ value }) => (
+            <button key={value} className="quick-date-btn" title={value} aria-pressed={filters.locations.length === 1 && filters.locations[0] === value}
+              onClick={(e) => { e.stopPropagation(); set({ locations: filters.locations.length === 1 && filters.locations[0] === value ? [] : [value] }); }}>
+              {LOCATION_SHORT[value] ?? value.split(',')[0]}
             </button>
           ))}
         </div>

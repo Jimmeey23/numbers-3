@@ -24,11 +24,12 @@ export function useWidgets(tab: TabId, placement: 'top' | 'bottom') {
 }
 
 /** Drop this into a tab to host whatever the operator or an agent has built there. */
-export function WidgetSection({ tab, scope, placement = 'bottom' }: { tab: TabId; scope: Scope; placement?: 'top' | 'bottom' }) {
+export function WidgetSection({ tab, scope, placement = 'bottom', inFooter = false }: { tab: TabId; scope: Scope; placement?: 'top' | 'bottom'; inFooter?: boolean }) {
   const widgets = useWidgets(tab, placement);
   const [editing, setEditing] = useState<WidgetSpec | null>(null);
   const [building, setBuilding] = useState(false);
   useOverlay(building, useCallback(() => { setBuilding(false); setEditing(null); }, []));
+  if (placement === 'bottom' && !inFooter) return null;
   if (!widgets.length && placement === 'top') return null;
   return (
     <Register title={placement === 'top' ? 'Pinned' : 'Your widgets'} domain="neutral"

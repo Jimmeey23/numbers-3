@@ -68,16 +68,22 @@ interface FilterState {
   activeCount: () => number;
 }
 
-const fromUrl = (): Filters => ({ ...DEFAULT_FILTERS, ...decodeFilters(window.location.hash.split('?')[1] ?? '') });
+const fromUrl = (): Filters => {
+  const query = window.location.hash.split('?')[1];
+  if (query) return { ...DEFAULT_FILTERS, ...decodeFilters(query) };
+  try { return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem('floor.filters.v1') ?? '{}') }; }
+  catch { return { ...DEFAULT_FILTERS }; }
+};
+const saveFilters = (filters: Filters) => { try { localStorage.setItem('floor.filters.v1', JSON.stringify(filters)); } catch { /* local storage optional */ } };
 
 export const useFilters = create<FilterState>((set, get) => ({
   filters: fromUrl(),
-  set: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
-  replace: (f) => set({ filters: f }),
-  reset: () => set({ filters: { ...DEFAULT_FILTERS } }),
-  addTransient: (t) => set((s) => (s.filters.transient.some((x) => x.dim === t.dim && x.value === t.value) ? s : { filters: { ...s.filters, transient: [...s.filters.transient, t] } })),
-  removeTransient: (i) => set((s) => ({ filters: { ...s.filters, transient: s.filters.transient.filter((_, j) => j !== i) } })),
-  clearTransient: () => set((s) => ({ filters: { ...s.filters, transient: [] } })),
+  set: (patch) => set((s) => { const filters = { ...s.filters, ...patch }; saveFilters(filters); return { filters }; }),
+  replace: (filters) => { saveFilters(filters); set({ filters }); },
+  reset: () => { const filters = { ...DEFAULT_FILTERS }; saveFilters(filters); set({ filters }); },
+  addTransient: (t) => set((s) => { if (s.filters.transient.some((x) => x.dim === t.dim && x.value === t.value)) return s; const filters = { ...s.filters, transient: [...s.filters.transient, t] }; saveFilters(filters); return { filters }; }),
+  removeTransient: (i) => set((s) => { const filters = { ...s.filters, transient: s.filters.transient.filter((_, j) => j !== i) }; saveFilters(filters); return { filters }; }),
+  clearTransient: () => set((s) => { const filters = { ...s.filters, transient: [] }; saveFilters(filters); return { filters }; }),
   activeCount: () => { const f = get().filters; let n = 0; for (const k of LIST_KEYS) if (f[k].length) n++; if (f.newVsReturning !== 'all') n++; if (f.includeImports) n++; if (f.preset !== DEFAULT_FILTERS.preset) n++; return n + f.transient.length; },
 }));
 

@@ -74,6 +74,7 @@ export const GROUP_KEYS: Record<string, GroupKeyDef> = {
   hour_of_day: { id: 'hour_of_day', label: 'Hour of day', accessor: (r) => (r.time ? `${r.time.slice(0, 2)}:00` : null), sort: (a, b) => a.localeCompare(b) },
   daypart: { id: 'daypart', label: 'Daypart', accessor: (r) => { const h = r.time ? +r.time.slice(0, 2) : null; if (h === null) return null; return h < 7 ? 'Early (before 7)' : h < 10 ? 'Prime morning (7–10)' : h < 12 ? 'Late morning (10–12)' : h < 17 ? 'Midday (12–17)' : h < 20 ? 'Prime evening (17–20)' : 'Late (20+)'; },
     sort: (a, b) => ['Early (before 7)', 'Prime morning (7–10)', 'Late morning (10–12)', 'Midday (12–17)', 'Prime evening (17–20)', 'Late (20+)'].indexOf(a) - ['Early (before 7)', 'Prime morning (7–10)', 'Late morning (10–12)', 'Midday (12–17)', 'Prime evening (17–20)', 'Late (20+)'].indexOf(b) },
+  ampm: { id: 'ampm', label: 'AM / PM', accessor: (r) => r.time ? (+r.time.slice(0, 2) < 12 ? 'AM' : 'PM') : null },
   weekpart: { id: 'weekpart', label: 'Weekday / weekend', accessor: (r) => (r.day ? (r.day === 'Saturday' || r.day === 'Sunday' ? 'Weekend' : 'Weekday') : null) },
   quarter: { id: 'quarter', label: 'Quarter', accessor: (r) => (r.month ? `${r.month.slice(0, 4)} Q${Math.floor((+r.month.slice(5, 7) - 1) / 3) + 1}` : null) },
   year: { id: 'year', label: 'Year', accessor: (r) => (r.date ? r.date.slice(0, 4) : null) },

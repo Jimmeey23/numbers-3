@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { GROUP_KEYS, metricValues, rollupLevel, type RollupNode, type Row } from '../../semantics/aggregations';
 import { metric, type QueryContext, type TableName } from '../../semantics/metrics';
 import { fmtDelta, formatValue, type Fmt } from '../../semantics/formats';
-import { diverging, needsInvert } from '../../design/ramps';
+import { diverging } from '../../design/ramps';
 import { useView } from '../../state/view';
 import { useDrill } from '../../state/drill';
 import { csvEscape, downloadText, useCountUp, useFlip } from '../hooks';
@@ -22,7 +22,7 @@ export interface ColumnDef {
 
 export interface NestedTableProps {
   title: string; rows: Row[]; compareRows?: Row[]; table: TableName; groupKeys: string[]; availableKeys?: string[]; columns: ColumnDef[]; ctx: QueryContext; domain: string;
-  defaultSort?: { id: string; dir: 'asc' | 'desc' }; maxHeight?: number; rankBy?: string; filtersLabel: string; leafLabel?: string; onGroupKeysChange?: (k: string[]) => void;
+  defaultSort?: { id: string; dir: 'asc' | 'desc' }; maxHeight?: number; rankBy?: string; filtersLabel: string; leafLabel?: string; onGroupKeysChange?: (k: string[]) => void; minGroupSize?: number;
 }
 
 const colFmt = (c: ColumnDef): Fmt => c.format ?? (c.metricId ? metric(c.metricId).format : 'integer');
@@ -66,19 +66,19 @@ export function NestedTable(p: NestedTableProps) {
 
   // lazy child cache
   const childCache = useRef(new Map<string, RollupNode[]>());
-  const sig = useMemo(() => `${rows.length}|${keys.join(',')}|${metricIds.join(',')}|${p.ctx.ratePerSession}|${p.rows === rows ? 'a' : query}`, [rows, keys, metricIds, p.ctx.ratePerSession, p.rows, query]);
+  const sig = useMemo(() => `${rows.length}|${keys.join(',')}|${metricIds.join(',')}|${p.ctx.ratePerSession}|${p.minGroupSize ?? 1}|${p.rows === rows ? 'a' : query}`, [rows, keys, metricIds, p.ctx.ratePerSession, p.minGroupSize, p.rows, query]);
   useEffect(() => { childCache.current.clear(); }, [sig]);
 
-  const root = useMemo(() => rollupLevel(rows, keys, 0, metricIds, p.ctx), [rows, keys, metricIds, p.ctx]);
+  const root = useMemo(() => rollupLevel(rows, keys, 0, metricIds, p.ctx).filter((node) => node.rows.length >= (p.minGroupSize ?? 1)), [rows, keys, metricIds, p.ctx, p.minGroupSize]);
   const totalsV = useMemo(() => metricValues(rows, metricIds, p.ctx), [rows, metricIds, p.ctx]);
   const totalNode: RollupNode = useMemo(() => ({ id: '__total', key: 'Total', keyId: '', label: 'Total', level: -1, rows, values: totalsV, path: [] }), [rows, totalsV]);
 
   const childrenOf = useCallback((n: RollupNode): RollupNode[] => {
     if (n.level + 1 >= keys.length) return [];
     let c = childCache.current.get(n.id);
-    if (!c) { c = rollupLevel(n.rows, keys, n.level + 1, metricIds, p.ctx, n.path); childCache.current.set(n.id, c); }
+    if (!c) { c = rollupLevel(n.rows, keys, n.level + 1, metricIds, p.ctx, n.path).filter((node) => node.rows.length >= (p.minGroupSize ?? 1)); childCache.current.set(n.id, c); }
     return c;
-  }, [keys, metricIds, p.ctx]);
+  }, [keys, metricIds, p.ctx, p.minGroupSize]);
 
   const sortNodes = useCallback((ns: RollupNode[]) => {
     if (!sort) return ns;
@@ -214,7 +214,7 @@ export function NestedTable(p: NestedTableProps) {
             </select>
           )}
         </div>
-        <div style={{ flex: 1 }} />
+        <div className="tbl-toolbar-actions">
         <input ref={searchRef} className="input t-label-m" placeholder="Search rows  /" value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: 180 }} aria-label="Search rows" />
         <button className="btn btn-xs" onClick={() => setExpanded(new Set(flat.filter((n) => n.level < keys.length - 1).map((n) => n.id).concat(root.map((n) => n.id))))}>Expand all</button>
         <button className="btn btn-xs" onClick={() => setExpanded(new Set())}>Collapse</button>
@@ -232,7 +232,10 @@ export function NestedTable(p: NestedTableProps) {
           )}
         </div>
         <button className="btn btn-xs" onClick={exportCsv}>Export CSV</button>
+        </div>
       </div>
+
+      {columns.some((c) => c.heat) && <div className="table-heat-legend" aria-label="Heat colours compare each group with the table total"><span>Compared with total</span><i className="heat-low" /><span>Below</span><i className="heat-neutral" /><span>Near</span><i className="heat-high" /><span>Above</span><span className="heat-legend-note">Direction follows each metric</span></div>}
 
       {/* table */}
       <div ref={scroller} className="table-scroll" style={{ maxHeight: maxH, position: 'relative' }}
@@ -363,7 +366,7 @@ function Cell({ c, n, ctx, theme, heat, prev }: { c: ColumnDef; n: RollupNode; c
   if (c.heat && heat && v !== null) {
     const t = ((v - heat.center) / heat.span) * (hib ? 1 : -1);
     const bg = diverging(theme, t * 0.85);
-    style = { background: bg, color: Math.abs(t) > 0.62 && needsInvert(bg, theme) ? 'var(--heat-text-invert)' : undefined };
+    style = { background: `color-mix(in srgb, ${bg} 26%, var(--surface-1))` };
   }
   if (c.bar && heat && v !== null) {
     const th = c.threshold?.(ctx);

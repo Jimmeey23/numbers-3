@@ -15,6 +15,25 @@ import { useView } from '../state/view';
 import { useFilters } from '../state/filters';
 import { useDrill } from '../state/drill';
 import { fmtDateShort } from '../semantics/formats';
+import { metric } from '../semantics/metrics';
+
+const CLASS_VIEWS = [
+  ['Class', ['class_name']], ['Class + day', ['class_name', 'day']], ['Class + time', ['class_name', 'time']],
+  ['Class + day + time', ['class_name', 'day', 'time']],
+  ['Class + day + time + location', ['class_name', 'day', 'time', 'location']],
+  ['Class + day + time + instructor', ['class_name', 'day', 'time', 'trainer']],
+  ['Class + day + time + location + instructor', ['class_name', 'day', 'time', 'location', 'trainer']],
+  ['Class + location', ['class_name', 'location']], ['Class + instructor', ['class_name', 'trainer']],
+  ['Class + AM/PM', ['class_name', 'ampm']], ['Class + daypart', ['class_name', 'daypart']],
+  ['Class + weekday/weekend', ['class_name', 'weekpart']], ['Class + format', ['class_name', 'format']],
+  ['Class + room size', ['class_name', 'capacity_band']], ['Class + month', ['class_name', 'month']],
+  ['Format', ['format']], ['Format + location', ['format', 'location']], ['Format + day', ['format', 'day']],
+  ['Format + time', ['format', 'time']], ['Format + instructor', ['format', 'trainer']],
+  ['Location', ['location']], ['Location + day + time', ['location', 'day', 'time']],
+  ['Location + instructor', ['location', 'trainer']], ['Instructor', ['trainer']],
+  ['Instructor + day + time', ['trainer', 'day', 'time']],
+] as const;
+const RANK_METRICS = ['fill_rate', 'attendance', 'revenue', 'rev_pas', 'rev_pac', 'revenue_per_session', 'show_up_rate', 'empty_sessions', 'late_cancel_rate', 'no_show_rate', 'sessions'];
 
 export const SESSION_COLUMNS = (theme: Theme): ColumnDef[] => [
   { id: 'sessions', metricId: 'sessions', family: 'Volume', bar: true },
@@ -36,6 +55,7 @@ export const SESSION_COLUMNS = (theme: Theme): ColumnDef[] => [
   { id: 'lost_revenue', metricId: 'lost_revenue', family: 'Revenue' },
   { id: 'mix', label: 'Payment mix', family: 'Revenue', mix: (rows) => [{ label: 'Membership', value: rows.reduce((a, r) => a + (r.memberships ?? 0), 0), color: formatColor(theme, 'Cycle') }, { label: 'Package', value: rows.reduce((a, r) => a + (r.packages ?? 0), 0), color: formatColor(theme, 'Pilates') }, { label: 'Intro', value: rows.reduce((a, r) => a + (r.intro_offers ?? 0), 0), color: formatColor(theme, 'Hosted') }, { label: 'Single', value: rows.reduce((a, r) => a + (r.single_classes ?? 0), 0), color: formatColor(theme, 'Strength') }] },
   { id: 'late_cancel_rate', metricId: 'late_cancel_rate', family: 'Behaviour', hidden: true },
+  { id: 'no_show_rate', metricId: 'no_show_rate', family: 'Behaviour', hidden: true },
   { id: 'non_paid_rate', metricId: 'non_paid_rate', family: 'Revenue', hidden: true },
   { id: 'session_intelligence', metricId: 'session_intelligence', family: 'Utilisation', heat: true },
 ];
@@ -48,9 +68,20 @@ export function Classes({ scope }: { scope: Scope }) {
   const rows = scope.tables.sessions;
   const [layer, setLayer] = useState<'fill_rate' | 'rev_pas' | 'empty_sessions'>('fill_rate');
   const [loc, setLoc] = useState<string | null>(null);
+  const [viewIndex, setViewIndex] = useState(3);
+  const [rankMetric, setRankMetric] = useState('fill_rate');
+  const [excludeHosted, setExcludeHosted] = useState(false);
+  const [minAttendance, setMinAttendance] = useState(0);
+  const [minFill, setMinFill] = useState(0);
+  const [minSessions, setMinSessions] = useState(3);
+  const accepts = (r: Row) => (!excludeHosted || !/hosted|partnership/i.test([r.class_name, r.session_name, r.type, r.format].filter(Boolean).join(' ')))
+    && (r.checked_in ?? 0) >= minAttendance && (!minFill || (r.capacity > 0 && (r.checked_in ?? 0) / r.capacity >= minFill / 100));
+  const explorerRows = useMemo(() => rows.filter(accepts), [rows, excludeHosted, minAttendance, minFill]);
+  const explorerPrev = useMemo(() => scope.compare.sessions.filter(accepts), [scope.compare.sessions, excludeHosted, minAttendance, minFill]);
+  const viewKeys = [...CLASS_VIEWS[viewIndex][1]];
   const weekly = useMemo(() => seriesBy(rows, (r) => r.week, ['sessions', 'fill_rate', 'attendance'], scope.ctx), [rows, scope.ctx]);
-  const classNodes = useMemo(() => rollupLevel(rows, ['class_name'], 0, ['fill_rate', 'rev_pas', 'rev_pac', 'sessions', 'revenue_per_session', 'show_up_rate'], scope.ctx), [rows, scope.ctx]);
-  const classPrev = useMemo(() => rollupLevel(scope.compare.sessions, ['class_name'], 0, ['fill_rate', 'rev_pas', 'rev_pac', 'sessions', 'revenue_per_session', 'show_up_rate'], scope.ctx), [scope.compare.sessions, scope.ctx]);
+  const classNodes = useMemo(() => rollupLevel(explorerRows, ['class_name'], 0, RANK_METRICS, scope.ctx), [explorerRows, scope.ctx]);
+  const classPrev = useMemo(() => rollupLevel(explorerPrev, ['class_name'], 0, RANK_METRICS, scope.ctx), [explorerPrev, scope.ctx]);
   const columns = useMemo(() => SESSION_COLUMNS(theme).map((c) => (c.id === 'fill_rate' ? { ...c, bar: true, threshold: () => { const be = classNodes.length ? 0 : 0; return be; } } : c)), [theme, classNodes.length]);
   const locs = [...new Set(rows.map((r) => r.location).filter(Boolean))] as string[];
   const overbooked = useMemo(() => rows.filter((r) => r.booked !== null && r.capacity !== null && r.booked > r.capacity).sort((a, b) => (b.booked - b.capacity) - (a.booked - a.capacity)).slice(0, 30), [rows]);
@@ -67,11 +98,20 @@ export function Classes({ scope }: { scope: Scope }) {
           <XYChart categories={weekly.map((w) => fmtDateShort(w.key))} series={[{ id: 's', label: 'Sessions', color: 'var(--hue-attendance)', values: weekly.map((w) => w.values.sessions.value), kind: 'bar' }, { id: 'f', label: 'Fill rate', color: 'var(--hue-revenue)', values: weekly.map((w) => w.values.fill_rate.value), axis: 'right', fmt: 'percent' }]} fmtLeft="integer" fmtRight="percent" onClick={(i) => addTransient({ dim: 'week', value: weekly[i].key, label: `Week of ${fmtDateShort(weekly[i].key)}` })} />
         </ChartModule>
       </Register>
-      <Register title="Drill down" subtitle="Format → location → day + time → trainer. Drag the chips to regroup." domain="attendance" id="drill-table">
-        <NestedTable title="Classes" rows={rows} compareRows={scope.compare.sessions} table="sessions" groupKeys={['format', 'location', 'slot', 'trainer']} availableKeys={['format', 'location', 'slot', 'trainer', 'day', 'time', 'timeslot', 'daypart', 'weekpart', 'class_name', 'session', 'slot_uid', 'month', 'quarter', 'year', 'week', 'capacity_band', 'type', 'membership_type', 'is_new_label', 'visit_band', 'outcome']} columns={columns} ctx={scope.ctx} domain="attendance" defaultSort={{ id: 'sessions', dir: 'desc' }} filtersLabel={filtersLabel(scope)} rankBy="fill_rate" leafLabel="sessions" />
+      <Register title="Class performance explorer" subtitle="Switch between 25 class, time, location, format, and instructor views. Drag grouping chips for a custom combination." domain="attendance" id="drill-table">
+        <div className="class-explorer-controls">
+          <label>View<select className="input" value={viewIndex} onChange={(event) => setViewIndex(+event.target.value)}>{CLASS_VIEWS.map(([label], index) => <option key={label} value={index}>{label}</option>)}</select></label>
+          <label>Rank by<select className="input" value={rankMetric} onChange={(event) => setRankMetric(event.target.value)}>{RANK_METRICS.map((id) => <option key={id} value={id}>{metric(id).label}</option>)}</select></label>
+          <label>Min classes per group<input className="input" type="number" min="1" max="100" value={minSessions} onChange={(event) => setMinSessions(Math.max(1, +event.target.value || 1))} /></label>
+          <label>Min attendance per class<input className="input" type="number" min="0" max="100" value={minAttendance} onChange={(event) => setMinAttendance(Math.max(0, +event.target.value || 0))} /></label>
+          <label>Min fill %<input className="input" type="number" min="0" max="100" value={minFill} onChange={(event) => setMinFill(Math.max(0, Math.min(100, +event.target.value || 0)))} /></label>
+          <label className="class-explorer-check"><input type="checkbox" checked={excludeHosted} onChange={(event) => setExcludeHosted(event.target.checked)} /> Exclude hosted classes</label>
+        </div>
+        <div className="t-label-s muted" style={{ marginBottom: 10 }}>{explorerRows.length.toLocaleString('en-IN')} sessions match these controls. Groups with fewer than {minSessions} sessions are hidden. Ranking follows the selected metric.</div>
+        <NestedTable key={`${viewIndex}-${rankMetric}`} title={CLASS_VIEWS[viewIndex][0]} rows={explorerRows} compareRows={explorerPrev} table="sessions" groupKeys={viewKeys} availableKeys={['class_name', 'format', 'location', 'slot', 'trainer', 'day', 'time', 'timeslot', 'ampm', 'daypart', 'weekpart', 'session', 'slot_uid', 'month', 'quarter', 'year', 'week', 'capacity_band', 'type', 'membership_type', 'is_new_label', 'visit_band', 'outcome']} columns={columns} ctx={scope.ctx} domain="attendance" defaultSort={{ id: rankMetric, dir: 'desc' }} filtersLabel={filtersLabel(scope)} rankBy={rankMetric} leafLabel="sessions" minGroupSize={minSessions} />
       </Register>
       <Register title="Rankings and the fill × yield map" domain="attendance" lazy>
-        <Two a={<RankingList title="Classes by" nodes={classNodes} compareNodes={classPrev} metricOptions={['fill_rate', 'rev_pas', 'rev_pac', 'show_up_rate', 'revenue_per_session']} ctx={scope.ctx} table="sessions" domain="attendance" minSample={5} sampleLabel="sessions" />}
+        <Two a={<RankingList title="Classes by" nodes={classNodes} compareNodes={classPrev} metricOptions={RANK_METRICS} ctx={scope.ctx} table="sessions" domain="attendance" minSample={minSessions} sampleLabel="sessions" />}
           b={<ChartModule title="Fill rate × revenue per attendee" subtitle="Bubble = sessions" table={{ columns: ['Class', 'Fill', 'Rev per attendee', 'Sessions'], rows: classNodes.map((n) => [n.label, n.values.fill_rate.value === null ? null : `${(n.values.fill_rate.value * 100).toFixed(1)}%`, Math.round(n.values.rev_pac.value ?? 0), n.values.sessions.value]) }}>
             <Scatter points={classNodes.filter((n) => n.values.fill_rate.value !== null && n.values.rev_pac.value !== null).map((n) => ({ id: n.id, label: n.label, x: n.values.fill_rate.value!, y: n.values.rev_pac.value!, size: n.values.sessions.value ?? 1, n: n.rows.length, color: formatColor(theme, n.rows[0]?.format) }))} xLabel="Fill rate" yLabel="Revenue per attendee" quadrants={['Empty but premium', 'Star', 'Cut', 'Full but cheap']} onClick={(p) => { const n = classNodes.find((x) => x.id === p.id)!; drill({ title: n.label, breadcrumb: ['Classes', n.label], table: 'sessions', rows: n.rows, peers: classNodes.map((x) => ({ label: x.label, rows: x.rows })), metricIds: ['fill_rate', 'rev_pac', 'sessions', 'revenue'], domain: 'attendance' }); }} />
           </ChartModule>} />

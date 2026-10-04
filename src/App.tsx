@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { TitleBar, TabRail, InsightRail, StatusBar, CommandPalette, SettingsPanel } from './components/shell/Shell';
 import { FilterStrip } from './components/shell/FilterDrawer';
 import { TooltipLayer } from './components/Tooltip/Tooltip';
@@ -11,6 +11,8 @@ import { THEMES } from './design/ramps';
 import { useDrill } from './state/drill';
 import { SHEETS } from './data/sheets.config';
 import { TabEndpoint } from './components/shell/TabEndpoint';
+import { WidgetSection } from './components/Widgets/WidgetSection';
+import { TabExtrasContext } from './components/TabExtrasContext';
 import { buildTabPayload, readApiRequest } from './api/endpoint';
 import { buildAgentApi } from './api/agent';
 import { AskDock, AskPanel } from './components/Ask/AskPanel';
@@ -184,11 +186,12 @@ function Workspace() {
           {swapping && <div className="travel-barre" style={{ position: 'sticky', top: 0, zIndex: 5 }} />}
           <BlockedBanner />
           {status === 'error' && error ? <ErrorScreen error={error} /> : !scope ? <LoadingScreen /> : (
-            <Suspense fallback={<div style={{ padding: '24px 0' }}><div className="travel-barre" /></div>}>
-              <Tab key={tab} scope={scope} />
-            </Suspense>
+            <TabExtras key={tab} tab={tab} scope={scope}>
+              <Suspense fallback={<div style={{ padding: '24px 0' }}><div className="travel-barre" /></div>}>
+                <Tab scope={scope} />
+              </Suspense>
+            </TabExtras>
           )}
-          {scope && status !== 'error' && <TabEndpoint tab={tab} />}
         </main>
         <InsightRail />
       </div>
@@ -204,4 +207,25 @@ function Workspace() {
       <div className="sr-only" aria-live="polite">{scope ? `${scope.rowsInScope.toLocaleString('en-IN')} rows in scope for ${scope.period.label}` : ''}</div>
     </div>
   );
+}
+
+function TabExtras({ tab, scope, children }: { tab: TabId; scope: Scope; children: ReactNode }) {
+  const [entries, setEntries] = useState<Map<string, ReactNode>>(() => new Map());
+  const [open, setOpen] = useState(false);
+  const register = useCallback((id: string, content: ReactNode) => {
+    setEntries((previous) => new Map(previous).set(id, content));
+    return () => setEntries((previous) => { const next = new Map(previous); next.delete(id); return next; });
+  }, []);
+  const registry = useMemo(() => ({ register }), [register]);
+  return <TabExtrasContext.Provider value={registry}>
+    {children}
+    <details className="tab-extras" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary><span className="tab-extras-icon">▸</span><span><b>More analysis, custom widgets &amp; data access</b><small>{entries.size ? `${entries.size} deeper analysis section${entries.size === 1 ? '' : 's'} · ` : ''}Saved views and API tools for this tab</small></span></summary>
+      {open && <div className="tab-extras-body">
+        {[...entries.entries()].map(([id, content]) => <div key={id}>{content}</div>)}
+        <WidgetSection tab={tab} scope={scope} placement="bottom" inFooter />
+        <TabEndpoint tab={tab} inFooter />
+      </div>}
+    </details>
+  </TabExtrasContext.Provider>;
 }

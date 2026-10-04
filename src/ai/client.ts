@@ -1,5 +1,6 @@
 import type { ReportModel } from '../report/model';
 import type { TabId } from '../state/view';
+import { readAIFromCloud, saveAIToCloud } from '../sync/cloud';
 
 export interface AIConfig {
   provider: 'openai'; model: string; baseUrl: string; rememberKey: boolean;
@@ -90,29 +91,40 @@ async function openAIJson<T>(system: string, input: unknown): Promise<T> {
 
 export async function generateAIReport(model: ReportModel): Promise<AIReportIntelligence> {
   const config = readAIConfig();
+  const fingerprint = await reportFingerprint(model, config.model);
+  const cloudCopy = await readAIFromCloud<AIReportIntelligence>(fingerprint);
+  if (cloudCopy) return cloudCopy;
   const result = await openAIJson<Omit<AIReportIntelligence, 'provider' | 'model' | 'generatedAt'>>(
     `You are a senior boutique-fitness operating analyst. Produce decision-grade intelligence only from the supplied data. Never invent a number. Reconcile cross-functional effects across sales, leads, acquisition, retention, classes, attendance and payroll. Distinguish correlation from causation. Return JSON with keys: executiveSummary (string); crossFunctionalInsights (array, max 8, each headline, finding, evidence, recommendation, confidence high|medium|low); chapterBriefs (array, each chapterId, summary, implications string[], actions string[]); assumptions string[]. Be specific, concise and operational.`,
     compactReport(model),
   );
-  return {
+  const intelligence: AIReportIntelligence = {
     provider: 'openai', model: config.model, generatedAt: new Date().toISOString(),
     executiveSummary: String(result.executiveSummary ?? 'No executive summary was returned.'),
     crossFunctionalInsights: Array.isArray(result.crossFunctionalInsights) ? result.crossFunctionalInsights.slice(0, 8) : [],
     chapterBriefs: Array.isArray(result.chapterBriefs) ? result.chapterBriefs : [],
     assumptions: Array.isArray(result.assumptions) ? result.assumptions : [],
   };
+  await saveAIToCloud(fingerprint, 'report', null, (model.meta.scopeEnd ?? model.meta.dataThrough).slice(0, 7), model.meta.locations ?? [], intelligence);
+  return intelligence;
 }
 
-export async function generateAISignals(tab: TabId, payload: unknown): Promise<{ fingerprint: string; signals: AISignal[]; cached: boolean }> {
+export async function generateAISignals(tab: TabId, payload: unknown, scopeMonth: string, locations: string[]): Promise<{ fingerprint: string; signals: AISignal[]; cached: boolean }> {
   const config = readAIConfig();
   const fingerprint = await digest({ version: 2, model: config.model, tab, payload });
   const key = `floor.ai.signal-cache.${fingerprint}`;
-  try { const cached = localStorage.getItem(key); if (cached) return { fingerprint, signals: JSON.parse(cached), cached: true }; } catch { /* ignore */ }
+  try { const cached = localStorage.getItem(key); if (cached) { const signals = JSON.parse(cached) as AISignal[]; await saveAIToCloud(fingerprint, 'signals', tab, scopeMonth, locations, signals); return { fingerprint, signals, cached: true }; } } catch { /* ignore */ }
+  const cloudCopy = await readAIFromCloud<AISignal[]>(fingerprint);
+  if (cloudCopy) {
+    try { localStorage.setItem(key, JSON.stringify(cloudCopy)); } catch { /* local cache optional */ }
+    return { fingerprint, signals: cloudCopy, cached: true };
+  }
   const response = await openAIJson<{ signals: AISignal[] }>(
     `You are a senior boutique-fitness operations analyst. Analyze the supplied scoped tab snapshot. Return JSON {"signals": [...]} with 5 to 10 non-overlapping signals. Each signal must have title, body with exact evidence, action, severity critical|attention|opportunity|context, optional impactINR, entity and metricId. Do not invent facts or add generic advice. Prioritize controllable changes, anomalies, leading indicators and cross-metric contradictions.`,
     { tab, payload },
   );
   const signals = (response.signals ?? []).slice(0, 10);
   try { localStorage.setItem(key, JSON.stringify(signals)); } catch { /* cache best effort */ }
+  await saveAIToCloud(fingerprint, 'signals', tab, scopeMonth, locations, signals);
   return { fingerprint, signals, cached: false };
 }

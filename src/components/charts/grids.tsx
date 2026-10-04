@@ -19,6 +19,14 @@ export function Heatmap({ xs, ys, cells, fmt = 'percent', kind = 'attendance', c
   const span = maxBy(vals, (v) => Math.abs(v - mid), 1e-9);
   const colorOf = (v: number) => (kind === 'diverging' ? diverging(theme, (v - mid) / span) : sequential(theme, kind, (v - min) / (max - min || 1)));
   return (
+    <div className="heatmap-shell">
+      <div className="heatmap-legend" aria-label={`${title ?? 'Heatmap'} colour legend`}>
+        <span>{kind === 'diverging' ? 'Below reference' : 'Lower'}</span>
+        <div className="heatmap-legend-scale" aria-hidden="true">{[0, 1, 2, 3, 4].map((step) => <i key={step} style={{ background: colorOf(kind === 'diverging' ? mid + (step - 2) * span / 2 : min + step * (max - min) / 4) }} />)}</div>
+        <span>{kind === 'diverging' ? `Reference ${formatValue(fmt, mid)}` : `${formatValue(fmt, min)} → ${formatValue(fmt, max)}`}</span>
+        {kind === 'diverging' && <span>Above reference</span>}
+        <span className="heatmap-legend-missing"><i /> Insufficient data</span>
+      </div>
     <div style={{ overflow: 'auto' }} role="table" aria-label={title ?? 'Heatmap'}>
       <div style={{ display: 'grid', gridTemplateColumns: `120px repeat(${xs.length}, minmax(52px, 1fr))`, gap: 2, minWidth: 120 + xs.length * 54 }}>
         <div />
@@ -28,6 +36,7 @@ export function Heatmap({ xs, ys, cells, fmt = 'percent', kind = 'attendance', c
         ))}
       </div>
       <style>{`@keyframes fadeCell{from{opacity:0}to{opacity:1}}`}</style>
+    </div>
     </div>
   );
 }
@@ -65,6 +74,8 @@ export function ScheduleGrid({ slots, onClick, center = 0.5 }: { slots: SlotCard
   const maxCap = maxBy(slots, (s) => s.capacity, 1);
   const rowH = 44;
   return (
+    <div className="heatmap-shell">
+      <div className="heatmap-legend" aria-label="Schedule fill colour legend"><span>Below target</span><div className="heatmap-legend-scale" aria-hidden="true">{[-1,-0.5,0,0.5,1].map((value) => <i key={value} style={{ background: diverging(theme, value) }} />)}</div><span>Target {formatValue('percent', center)}</span><span>Above target</span></div>
     <div style={{ overflow: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `48px repeat(7, minmax(120px, 1fr))`, gap: 2, minWidth: 900 }}>
         <div />
@@ -83,6 +94,7 @@ export function ScheduleGrid({ slots, onClick, center = 0.5 }: { slots: SlotCard
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 }

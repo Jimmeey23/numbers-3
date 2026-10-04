@@ -43,20 +43,20 @@ const applyAttr = (k: string, v: string) => document.documentElement.setAttribut
 const attr = document.documentElement.getAttribute('data-theme');
 const initialTheme: Theme = isTheme(attr) ? attr : 'matte';
 const initialDensity = (document.documentElement.getAttribute('data-density') as Density) || 'compact';
-const tabFromHash = (): TabId => { const h = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; return (TAB_IDS as readonly string[]).includes(h) ? h : 'overview'; };
+const tabFromHash = (): TabId => { const h = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; if ((TAB_IDS as readonly string[]).includes(h)) return h; const saved = ls<TabId>('floor.tab', 'overview'); return (TAB_IDS as readonly string[]).includes(saved) ? saved : 'overview'; };
 
 export const useView = create<ViewState>((set) => ({
-  theme: initialTheme, density: initialDensity, tab: tabFromHash(), railOpen: window.innerWidth >= 1600, filtersOpen: false, comparison: false, paletteOpen: false, settingsOpen: false, askOpen: false, reportOpen: false,
+  theme: initialTheme, density: initialDensity, tab: tabFromHash(), railOpen: window.innerWidth >= 1600, filtersOpen: false, comparison: ls('floor.comparison', false), paletteOpen: false, settingsOpen: false, askOpen: false, reportOpen: false,
   ratePerSession: ls('floor.rate', 1200), thresholds: { ...DEFAULT_THRESHOLDS, ...ls('floor.thresholds', {}) },
   savedViews: [...PRESET_VIEWS, ...ls<SavedView[]>('floor.views', [])], dismissed: ls('floor.dismissed', {}), announcement: '',
   /* `data-mode` rides alongside `data-theme`: the chrome rules that care only whether the
      material is dark or light are written against the mode, so a new theme needs no new CSS. */
   setTheme: (theme) => { applyAttr('data-theme', theme); applyAttr('data-mode', isDark(theme) ? 'dark' : 'light'); localStorage.setItem('floor.theme', theme); set({ theme }); },
   setDensity: (density) => { applyAttr('data-density', density); localStorage.setItem('floor.density', density); set({ density }); },
-  setTab: (tab) => set({ tab }),
+  setTab: (tab) => { save('floor.tab', tab); set({ tab }); },
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
-  toggleComparison: () => set((s) => ({ comparison: !s.comparison })),
+  toggleComparison: () => set((s) => { const comparison = !s.comparison; save('floor.comparison', comparison); return { comparison }; }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setAskOpen: (askOpen) => set({ askOpen }),
