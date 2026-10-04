@@ -349,3 +349,38 @@ sells two memberships now counts both; keying on the sale lost one.
 
 Five fixtures added to `scripts/audit-new.mts` (now 18 checks): a two-line sale must sum, and a
 sale carrying two memberships must count both.
+
+## Pass 7 — every metric audited against its source sheet
+
+`scripts/audit-sources.mts` fetches all nine sheets and runs four passes: do the columns a metric
+names exist, does it compute, is the value in range, and is anything double counted. 19 high and
+11 medium findings on the first run; each was checked by hand against the sheet before anything
+changed. Full account in `docs/metric-digest.md`.
+
+Fixed:
+
+- **Late-cancel rate read 0.6% instead of 15.4%.** In Bookings, `Cancelled` is a superset of
+  `Late Cancelled` — 29,099 rows carry both, none carries `Late Cancelled` alone. The visit
+  grain's `cancelled` means "cancelled ahead of the penalty window", so the raw flag put every
+  late cancellation outside the base of show-up, no-show and late-cancel rate and nulled the
+  late-cancel numerator. Now `Cancelled AND NOT Late Cancelled`. Cancel rate 29.1% → 16.2%,
+  late-cancel 0.6% → 15.4%, show-up 99.1% → 84.4%, and the three again sum to 100%.
+- **Three Lapsed columns are present but never populated** — `No Shows`, `Days Frozen`,
+  `Discount Value`, all 0 on 29,068 rows. The loader now detects an all-zero column, raises a
+  defect and marks `l_no_shows`, `days_frozen` and `l_discount_rate` unreliable, so they read as
+  unknown rather than as a confident zero.
+- **`refund_rate` read a `Refunded` column the Bookings sheet does not have** — permanently 0%.
+  Removed; `voided_rate` on Sales is the real answer.
+- **`p_retention_of_converted` read 129%.** The Payroll sheet's `Retained` is not a subset of its
+  `Converted` (441 of 1,117 rows have Retained > Converted). Removed. `p_retention_rate` divides
+  by `New`, which holds on every row.
+- **LTV was counted twice for 181 members** who carry two New rows; `total_ltv` now counts one
+  Ltv per `Member Id`.
+- **Eight metrics cited a column name the sheet does not use** (`Completed Sessions` for
+  `Total Sessions Completed`, a `Sale Id` column Bookings lacks). Provenance only — the code read
+  the right field — but the definition popout was wrong.
+- **Ten metrics computed on under a quarter of rows without declaring coverage.**
+
+Four audit flags were false positives and were dismissed with evidence; the checker was tightened
+so it does not repeat them. Five fixtures added to `audit-new.mts` (now 23) covering the
+cancellation rule.

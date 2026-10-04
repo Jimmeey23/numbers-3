@@ -28,6 +28,10 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
     return months.map((m) => ({ m, rows: byMonth.get(m) ?? [], values: metricValues(byMonth.get(m) ?? [], metricIds, ctx) }));
   };
   const cells = useMemo(() => build(rows), [rows, months, metricIds, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* Columns read newest-first, left to right. Everything is still computed in calendar order —
+     MoM compares a month with the one before it, not with its left-hand neighbour — so this is a
+     display order only: `order` holds chronological indices, reversed. */
+  const order = useMemo(() => months.map((_, i) => i).reverse(), [months]);
   const groupCells = useMemo(() => (groups ?? []).map((g) => ({ label: g.label, cells: build(g.rows) })), [groups, months, metricIds, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A custom metric can legitimately produce no value for a month. Treat every non-finite
@@ -47,7 +51,8 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
   };
 
   const exportCsv = () => {
-    const lines = [['Metric', ...months.map(fmtMonthShort)].join(','), ...metricIds.map((id) => [metric(id).label, ...cells.map((c) => c.values[id].value ?? '')].map(csvEscape).join(','))];
+    const lines = [['Metric', ...order.map((i) => fmtMonthShort(months[i]))].join(','),
+      ...metricIds.map((id) => [metric(id).label, ...order.map((i) => cells[i].values[id].value ?? '')].map(csvEscape).join(','))];
     downloadText('month-on-month.csv', lines.join('\n'));
   };
 
@@ -63,10 +68,11 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
       <tr key={rowKey} onMouseEnter={() => setHover(rowKey)} onMouseLeave={() => setHover(null)} style={{ position: 'relative' }}>
         <td className="pin-l t-heading-s" style={{ paddingLeft: indent ? 28 : undefined, position: 'sticky', left: 0 }}>
           {def.label}
-          {hover === rowKey && <div style={{ position: 'absolute', left: 200, right: 0, top: 4, pointerEvents: 'none', opacity: 0.85 }}><Sparkline data={shown} width={Math.max(120, months.length * 64)} height={24} color="var(--hue)" area={false} /></div>}
+          {hover === rowKey && <div style={{ position: 'absolute', left: 200, right: 0, top: 4, pointerEvents: 'none', opacity: 0.85 }}><Sparkline data={order.map((i) => shown[i])} width={Math.max(120, months.length * 64)} height={24} color="var(--hue)" area={false} /></div>}
         </td>
-        {cs.map((c, i) => <MoMCell key={c.m} id={id} v={shown[i]} raw={series[i]} prev={series[i - 1] ?? null} yoy={series[i - 12] ?? null} rank={nums.length ? [...nums].sort((a, b) => b - a).indexOf(shown[i] as number) + 1 : 0} n={c.rows.length} month={c.m} mode={mode} t={shown[i] === null ? null : ((shown[i]! - center) / span) * (def.higherIsBetter ? 1 : -1)} theme={theme} last={i === cs.length - 1} hidden={hover === rowKey} seasonal={seasonality ? (shown[i] === null || !mean ? null : shown[i]! / mean - 1) : null}
-          onClick={() => addTransient({ dim: 'month', value: c.m, label: fmtMonthShort(c.m) })} />)}
+        {order.map((i) => { const c = cs[i]; return (
+          <MoMCell key={c.m} id={id} v={shown[i]} raw={series[i]} prev={series[i - 1] ?? null} yoy={series[i - 12] ?? null} rank={nums.length ? [...nums].sort((a, b) => b - a).indexOf(shown[i] as number) + 1 : 0} n={c.rows.length} month={c.m} mode={mode} t={shown[i] === null ? null : ((shown[i]! - center) / span) * (def.higherIsBetter ? 1 : -1)} theme={theme} latest={i === cs.length - 1} hidden={hover === rowKey} seasonal={seasonality ? (shown[i] === null || !mean ? null : shown[i]! / mean - 1) : null}
+            onClick={() => addTransient({ dim: 'month', value: c.m, label: fmtMonthShort(c.m) })} />); })}
       </tr>
     );
   };
@@ -83,10 +89,10 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
         <button className="btn btn-xs" onClick={exportCsv}>Export CSV</button>
       </div>
       <div className="table-scroll" style={{ overflow: 'auto', border: '1px solid var(--hairline)', maxHeight: 520 }}
-        data-summary={`${title} places each registered metric on a row and the latest twelve calendar months across columns. Absolute, month-on-month and indexed views transform the same underlying monthly rollups.`}
+        data-summary={`${title} places each registered metric on a row and the latest calendar months across columns, newest first. Absolute, month-on-month and indexed views transform the same underlying monthly rollups.`}
         data-calculation="Absolute values use the metric registry formula. MoM % is (current − previous) ÷ |previous| and stays blank when the previous value is zero or missing. Index = 100 divides each month by the first non-zero month. Heat is normalized within each row; rates are recomputed from monthly numerators and denominators.">
         <table className="tbl" style={{ minWidth: 200 + months.length * 72 }}>
-          <thead><tr><th className="pin-l t-heading-s" style={{ minWidth: 200 }}>Metric</th>{months.map((m, i) => <th key={m} className="t-heading-s" style={{ minWidth: 72, borderRight: i === months.length - 1 ? '1px solid var(--hue)' : undefined }}>{fmtMonthShort(m)}</th>)}</tr></thead>
+          <thead><tr><th className="pin-l t-heading-s" style={{ minWidth: 200 }}>Metric</th>{order.map((i) => <th key={months[i]} className="t-heading-s" style={{ minWidth: 72, borderLeft: i === months.length - 1 ? '2px solid var(--hue)' : undefined }}>{fmtMonthShort(months[i])}</th>)}</tr></thead>
           <tbody className="fade-swap" key={mode}>
             {metricIds.map((id) => renderRow(id, cells, ''))}
             {groupCells.map((g) => (
@@ -98,18 +104,18 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
           </tbody>
         </table>
       </div>
-      <div className="t-label-s faint" style={{ marginTop: 6 }}>Heat is normalised per row against its own distribution. Click a cell to filter the whole tab to that month.</div>
+      <div className="t-label-s faint" style={{ marginTop: 6 }}>Months run newest first, left to right; month-on-month and indexed views still compare against the preceding calendar month. Heat is normalised per row against its own distribution. Click a cell to filter the whole tab to that month.</div>
     </div>
   );
 }
 
-function MoMCell({ id, v, raw, prev, yoy, rank, n, month, mode, t, theme, last, hidden, seasonal, onClick }: { id: string; v: number | null; raw: number | null; prev: number | null; yoy: number | null; rank: number; n: number; month: string; mode: Mode; t: number | null; theme: Theme; last: boolean; hidden: boolean; seasonal: number | null; onClick: () => void }) {
+function MoMCell({ id, v, raw, prev, yoy, rank, n, month, mode, t, theme, latest, hidden, seasonal, onClick }: { id: string; v: number | null; raw: number | null; prev: number | null; yoy: number | null; rank: number; n: number; month: string; mode: Mode; t: number | null; theme: Theme; latest: boolean; hidden: boolean; seasonal: number | null; onClick: () => void }) {
   const def = metric(id);
   const tip = useTooltip(() => <TipBody context={`${def.label} · ${fmtMonthShort(month)}`} value={formatValue(def.format, raw)} delta={`${fmtDelta(def.format, raw, prev).text} vs previous month · ${fmtDelta(def.format, raw, yoy).text} vs same month last year`} rank={`Rank ${rank} of 12`} n={`n = ${n.toLocaleString('en-IN')} rows`} hint="Click to filter to this month" />, [raw, prev, month]);
   const bg = t === null ? undefined : diverging(theme, t);
   const text = v === null ? '—' : mode === 'abs' ? formatValue(def.format, v) : mode === 'mom' ? `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}%` : v.toFixed(0);
   return (
-    <td {...tip} onClick={onClick} className="t-num" style={{ background: bg, color: bg && t !== null && Math.abs(t) > 0.62 && needsInvert(bg, theme) ? 'var(--heat-text-invert)' : undefined, borderRight: last ? '1px solid var(--hue)' : undefined, cursor: 'pointer', opacity: hidden ? 0.35 : 1, transition: 'background var(--m-base) var(--ease-out), opacity var(--m-instant)', position: 'relative' }}>
+    <td {...tip} onClick={onClick} className="t-num" style={{ background: bg, color: bg && t !== null && Math.abs(t) > 0.62 && needsInvert(bg, theme) ? 'var(--heat-text-invert)' : undefined, borderLeft: latest ? '2px solid var(--hue)' : undefined, cursor: 'pointer', opacity: hidden ? 0.35 : 1, transition: 'background var(--m-base) var(--ease-out), opacity var(--m-instant)', position: 'relative' }}>
       {text}
       {seasonal !== null && <div style={{ position: 'absolute', left: '50%', bottom: 2, height: 3, width: `${Math.min(50, Math.abs(seasonal) * 100)}%`, background: seasonal >= 0 ? 'var(--pos)' : 'var(--neg)', transform: seasonal >= 0 ? 'none' : 'translateX(-100%)' }} />}
     </td>

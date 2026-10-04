@@ -66,6 +66,23 @@ T('aov denominator equals the Transactions metric', m('aov',noid).value, m('gros
 T('v_complimentary_rate ignores rows with unknown Paid', m('v_complimentary_rate',[{attended:true,paid:null,complimentary:false}]).value, null);
 T('zero_value_share ignores bookings with unknown Sale Value', m('zero_value_share',[{value:null}]).value, null);
 
+// 8b. A late cancellation is also flagged Cancelled in the Bookings sheet. `cancelled` in the
+//     visit grain means "cancelled ahead of the penalty window", so the reconciliation must strip
+//     the late ones out — otherwise they fall outside the base of every booking-outcome rate and
+//     the late-cancel numerator is nulled.
+const { buildVisits } = await import('../src/data/normalise.ts');
+const mk = (o: Record<string, unknown>) => o as never;
+const lateBooking = buildVisits([], [mk({ date: '2026-09-01', time: '09:00', member_id: 'm1', cancelled: true, late_cancelled: true, attended: false, no_show: false, derived: false })]);
+T('a late cancellation is not counted as cancelled ahead', lateBooking[0].cancelled, false);
+T('a late cancellation keeps its late flag', lateBooking[0].late_cancelled, true);
+const aheadBooking = buildVisits([], [mk({ date: '2026-09-01', time: '10:00', member_id: 'm2', cancelled: true, late_cancelled: false, attended: false, no_show: false, derived: false })]);
+T('a cancellation made ahead stays cancelled', aheadBooking[0].cancelled, true);
+const folded = buildVisits(
+  [mk({ date: '2026-09-02', time: '09:00', member_id: 'm3', checked_in: false, late_cancelled: false })],
+  [mk({ date: '2026-09-02', time: '09:00', member_id: 'm3', cancelled: true, late_cancelled: true, attended: false, no_show: false, derived: false })]);
+T('Bookings is authoritative when it says a check-in row was late-cancelled', folded[0].late_cancelled, true);
+T('…and that row is not treated as cancelled ahead', folded[0].cancelled, false);
+
 // 9. labels must be unique across the whole registry, not just within a table
 const byLabel = new Map<string, string[]>();
 for (const d of METRIC_LIST) { const a = byLabel.get(d.label) ?? []; a.push(`${d.id}[${d.table}]`); byLabel.set(d.label, a); }

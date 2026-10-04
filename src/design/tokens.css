@@ -367,17 +367,28 @@
   --hue-wash:color-mix(in oklch, var(--hue) 12%, var(--surface-1));
   --hue-wash-strong:color-mix(in oklch, var(--hue) 24%, var(--surface-1));
   --hue-glow:var(--glow) color-mix(in srgb, var(--hue) 45%, transparent);
+  /* Richer decorative derivatives. These are fills and washes only — never text — so they can
+     carry far more chroma than the ink tokens, which are pinned to 4.5:1. The two neighbours are
+     taken from the domain ramp rather than from a hand-picked pair, so every theme and every
+     domain gets a gradient that belongs to it. */
+  --hue-next:var(--hue-growth);
+  --hue-wash-rich:color-mix(in oklch, var(--hue) 20%, var(--surface-1));
+  --hue-grad-a:color-mix(in oklch, var(--hue) 82%, var(--surface-1));
+  --hue-grad-b:color-mix(in oklch, var(--hue-next) 70%, var(--surface-1));
+  --hue-edge:color-mix(in oklch, var(--hue) 46%, var(--hairline));
+  --hue-veil:color-mix(in srgb, var(--hue) 14%, transparent);
+  --hue-veil-2:color-mix(in srgb, var(--hue-next) 11%, transparent);
   --pos-wash:color-mix(in oklch, var(--pos) 12%, var(--surface-1));
   --neg-wash:color-mix(in oklch, var(--neg) 12%, var(--surface-1));
   --warn-wash:color-mix(in oklch, var(--warn) 12%, var(--surface-1));
   --info-wash:color-mix(in oklch, var(--info) 12%, var(--surface-1));
 }
-[data-domain="attendance"]{ --hue:var(--hue-attendance); --hue-ink:var(--ink-attendance); }
-[data-domain="revenue"]{ --hue:var(--hue-revenue); --hue-ink:var(--ink-revenue); }
-[data-domain="growth"]{ --hue:var(--hue-growth); --hue-ink:var(--ink-growth); }
-[data-domain="people"]{ --hue:var(--hue-people); --hue-ink:var(--ink-people); }
-[data-domain="risk"]{ --hue:var(--hue-risk); --hue-ink:var(--ink-risk); }
-[data-domain="neutral"]{ --hue:var(--null); --hue-ink:var(--ink-neutral); }
+[data-domain="attendance"]{ --hue:var(--hue-attendance); --hue-ink:var(--ink-attendance); --hue-next:var(--hue-people); }
+[data-domain="revenue"]{ --hue:var(--hue-revenue); --hue-ink:var(--ink-revenue); --hue-next:var(--hue-risk); }
+[data-domain="growth"]{ --hue:var(--hue-growth); --hue-ink:var(--ink-growth); --hue-next:var(--hue-attendance); }
+[data-domain="people"]{ --hue:var(--hue-people); --hue-ink:var(--ink-people); --hue-next:var(--hue-attendance); }
+[data-domain="risk"]{ --hue:var(--hue-risk); --hue-ink:var(--ink-risk); --hue-next:var(--hue-revenue); }
+[data-domain="neutral"]{ --hue:var(--null); --hue-ink:var(--ink-neutral); --hue-next:var(--hue-attendance); }
 
 @media (prefers-reduced-motion:reduce){
   :root{--m-instant:0ms;--m-quick:0ms;--m-base:0ms;

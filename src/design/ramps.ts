@@ -87,16 +87,27 @@ interface Ramp {
   pos: string; neg: string; warn: string; text3: string; hairline: string; surface: string;
 }
 
+
 function build(spec: ThemeSpec): Ramp {
   const [att, rev, gro, peo, ris] = spec.accents;
-  const lift = (c: string) => blend(c, spec.dark ? '#FFFFFF' : '#000000', 0.26);
   return {
     diverging: div(spec),
     seqAttendance: seq(spec, att),
     seqRevenue: seq(spec, rev),
-    /* Ten series: the five accents, then the same five shifted, so the sixth line is related to
-       the first rather than an eleventh unrelated hue. */
-    categorical: [att, rev, gro, ris, peo, lift(att), lift(rev), lift(gro), lift(ris), lift(peo)],
+    /* Ten series: the five domain anchors, then the midpoint of each adjacent pair.
+       Four constructions were measured against two criteria — the closest pair's RGB distance,
+       and each colour's contrast against its own theme's surface:
+
+         lightened copies of the anchors   distance 11–39   contrast ≥4.59
+         midpoints of adjacent anchors     distance 20–43   contrast ≥4.59   ← this one
+         midpoints plus a lightness step   distance 20–60   light themes collide
+         150° hue rotation                 distance 22–61   contrast falls to 2.30
+
+       A lightened copy of blue is still blue at lower opacity, which is why it scored worst on
+       separability; a midpoint is a hue of its own at the same lightness, so it keeps the
+       family's contrast while pulling the series apart. */
+    categorical: [att, rev, gro, ris, peo,
+      blend(att, peo, 0.5), blend(rev, ris, 0.5), blend(gro, att, 0.45), blend(ris, gro, 0.5), blend(peo, rev, 0.45)],
     format: { 'Barre 57': rev, Cycle: att, Strength: ris, Pilates: peo, Hosted: gro, Other: gro, Unknown: spec.nullc },
     domain: { attendance: att, revenue: rev, growth: gro, people: peo, risk: ris, neutral: spec.nullc },
     pos: spec.pos, neg: spec.neg, warn: spec.warn, text3: spec.text3, hairline: spec.hairline, surface: spec.surface,

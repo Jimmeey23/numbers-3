@@ -89,6 +89,7 @@ export function computeScope(ds: Dataset, filters: Filters, ratePerSession: numb
   if (tables.payroll.length && taught > 0 && outcomes === 0) {
     for (const id of ['p_new', 'p_converted', 'p_retained', 'p_conversion_rate', 'p_retention_rate', 'p_conversion_value', 'p_cost_per_acquired']) suspect.add(id);
   }
+  for (const id of ds.emptyColumnMetrics ?? []) suspect.add(id);
   const ctx: QueryContext = {
     ratePerSession, todayTs: ds.todayTs, durationDefaultMin: thresholds.durationDefaultMin, durationSuspect, slotFill: slotFillMap(all.sessions), suspect,
     periodStart: period.start, periodEnd: period.end,

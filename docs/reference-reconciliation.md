@@ -22,7 +22,7 @@ and the difference is noted below rather than removed.
 | 35 | Average Days Active | `avg_days_active` | — |
 | 36 | Discount-Driven Lapse % | `discount_driven_lapse` | — |
 | 41 | Trainer Score (composite) | `trainer_score` | Their weights exactly: class average 40%, fill 30%, conversion 20%, retention 10%, capped 0–100. |
-| 43 | Trainer Retention Rate | `p_retention_of_converted` | Retained / Converted. `p_retention_rate` divides by new handled. |
+| 43 | Trainer Retention Rate | ~~`p_retention_of_converted`~~ | **Withdrawn.** Retained / Converted is not computable on this export: the Payroll sheet's `Retained` is not a subset of its `Converted` — 441 of 1,117 trainer-months have Retained > Converted, and the metric read 129%. Both are independent outcomes of the New cohort. `p_retention_rate` divides by `New`, which holds on every row. |
 | 49 | Session Intelligence Composite | `session_intelligence` | Their weights exactly: class avg ×5 at 40%, fill at 35%, session volume ×2 at 25%. |
 
 `QueryContext` gained `periodStart` / `periodEnd` so a metric can use "rows whose own date falls

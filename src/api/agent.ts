@@ -80,7 +80,7 @@ export const ENDPOINTS: TabEndpoint[] = [
   { tab: 'payroll', title: 'Payroll', table: 'payroll', description: 'Trainer economics: cost, contribution margin and conversion value.',
     headline: ['p_sessions', 'p_customers', 'p_revenue', 'p_cost', 'p_margin', 'payroll_pct_of_revenue'],
     groupBy: ['location', 'trainer', 'month'],
-    metrics: ['p_sessions', 'p_empty', 'p_empty_rate', 'p_customers', 'p_avg_per_session', 'p_revenue', 'p_rev_per_session', 'p_rev_per_customer', 'p_cost', 'p_contribution', 'p_margin', 'payroll_pct_of_revenue', 'p_converted', 'p_conversion_rate', 'p_retained', 'p_retention_rate', 'p_retention_of_converted', 'trainer_score'] },
+    metrics: ['p_sessions', 'p_empty', 'p_empty_rate', 'p_customers', 'p_avg_per_session', 'p_revenue', 'p_rev_per_session', 'p_rev_per_customer', 'p_cost', 'p_contribution', 'p_margin', 'payroll_pct_of_revenue', 'p_converted', 'p_conversion_rate', 'p_retained', 'p_retention_rate', 'trainer_score'] },
   { tab: 'late-cancellations', title: 'Late cancellations', table: 'visits', description: 'Penalty-window cancellations: trend, concentration and affected demand.',
     headline: ['v_late_cancels', 'v_late_cancel_rate', 'v_booked', 'v_show_up_rate', 'v_no_show_rate'],
     groupBy: ['location', 'class_name', 'timeslot', 'trainer', 'member', 'format', 'month'],

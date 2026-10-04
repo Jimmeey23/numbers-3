@@ -21,12 +21,14 @@ export function TabEndpoint({ tab }: { tab: TabId }) {
     navigator.clipboard?.writeText(text).then(() => { setCopied(what); announce(`${what} copied`); window.setTimeout(() => setCopied(''), 1600); },
       () => announce('Clipboard is blocked in this browser'));
   };
+  /* Collapsed by default: it is reference, and it sits at the foot of every tab. `details` keeps
+     it keyboard-reachable and findable by in-page search without any state of its own. */
   return (
-    <section className="tab-endpoint" aria-label="Agent endpoint for this tab">
-      <div className="tab-endpoint-head">
+    <details className="tab-endpoint">
+      <summary className="tab-endpoint-head">
         <span className="eyebrow">Agent endpoint</span>
         <span className="t-label-s faint">{ep.title} · {ep.table} grain · raw rows and the consolidated view, under the filters now applied</span>
-      </div>
+      </summary>
       <div className="tab-endpoint-row">
         <code className="tab-endpoint-url" title={url}>{url}</code>
         <button className="btn btn-xs" onClick={() => copy(url, 'Endpoint URL')}>{copied === 'Endpoint URL' ? 'Copied' : 'Copy URL'}</button>
@@ -48,6 +50,6 @@ export function TabEndpoint({ tab }: { tab: TabId }) {
         {' '}<code className="tab-endpoint-alt">{fallback}</code> — that one needs a caller that executes JavaScript.
         An agent already inside the page should call <code>window.floor.get('{tab}')</code>.
       </p>
-    </section>
+    </details>
   );
 }

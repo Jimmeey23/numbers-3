@@ -422,7 +422,14 @@ export function buildVisits(checkins: CheckinRow[], bookings: BookingRow[]): Vis
     const hit = k === null ? undefined : index.get(k);
     if (hit) {
       hit.in_bookings = true;
-      hit.cancelled = b.cancelled;                  // only Bookings knows about pre-class cancellations
+      /* In the Bookings sheet `Cancelled` is a superset of `Late Cancelled`: every one of the
+         29,099 late cancellations is also flagged cancelled, and `Late Cancelled` is never set
+         on its own. `cancelled` here means "cancelled ahead of the penalty window", which is the
+         sense every rate metric reads it in — show-up, no-show and late-cancel rate all exclude
+         it from their base. Taking the raw flag put late cancellations outside that base and
+         nulled the late-cancel numerator, so the rate read 0.6% instead of roughly 15%. */
+      hit.cancelled = b.cancelled && !b.late_cancelled;
+      if (b.late_cancelled) hit.late_cancelled = true;   // Bookings is authoritative on cancellation state
       if (hit.session_key === null) hit.session_key = b.session_key;
       if (hit.slot_uid === null) hit.slot_uid = b.slot_uid;
       if (b.lead_time_days !== null) hit.lead_time_days = b.lead_time_days;
@@ -437,7 +444,7 @@ export function buildVisits(checkins: CheckinRow[], bookings: BookingRow[]): Vis
       session_key: b.session_key, session_id: null, slot_uid: b.slot_uid,
       member_id: b.member_id, member_name: b.customer, email: b.email, time: b.time,
       class_name: b.class_name, capacity: null,
-      attended: b.attended, late_cancelled: b.late_cancelled, cancelled: b.cancelled,
+      attended: b.attended, late_cancelled: b.late_cancelled, cancelled: b.cancelled && !b.late_cancelled,
       no_show: b.no_show, complimentary: false,
       paid: b.value, product: b.sale_item, category: null, class_no: b.class_no,
       is_new_label: b.is_new_label, lead_time_days: b.lead_time_days, booked_ts: b.sale_ts,

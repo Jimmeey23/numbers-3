@@ -224,6 +224,9 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
     rowsAffected: ckOnly + bkOnly,
     impact: 'Visits are counted once from the reconciled visit grain (Checkins authoritative), so every tab agrees. Booking-lifecycle metrics — cancellation rate, lead time — can only be measured on rows Bookings does carry.', status: 'mitigated' });
 
+  /* Metric ids whose only source column turned out to be empty; passed to the query context
+     so the card renders them with a caveat rather than as a real zero. */
+  const emptyColumnMetrics = new Set<string>();
   const sales = reconcileSales(await consume('sales', (r) => mapSaleRow(r)));
   const payroll = await consume('payroll', (r) => mapPayrollRow(r));
 
@@ -255,6 +258,28 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
 
   const lapsed = await consume('lapsed', (r) => mapLapsedRow(r, todayTs));
   const leads = await consume('leads', (r) => mapLeadRow(r, todayTs));
+
+  /* Columns that are present but never populated. A metric over one of these reports a confident
+     zero, which reads as "there were none" when the truth is "the export does not record it" —
+     the more misleading of the two. Detected rather than hard-coded, so a column that starts
+     being filled stops being flagged without a code change. */
+  const EMPTY_CANDIDATES: { col: string; get: (r: typeof lapsed[number]) => number | null; metrics: string[] }[] = [
+    { col: 'No Shows', get: (r) => r.no_shows, metrics: ['l_no_shows'] },
+    { col: 'Days Frozen', get: (r) => r.days_frozen, metrics: ['days_frozen'] },
+    { col: 'Discount Value', get: (r) => r.discount_value, metrics: ['l_discount_rate'] },
+  ];
+  for (const c of EMPTY_CANDIDATES) {
+    if (!lapsed.length) break;
+    let nonZero = 0;
+    for (const r of lapsed) { const v = c.get(r); if (v !== null && v !== 0) { nonZero++; break; } }
+    if (nonZero) continue;
+    for (const id of c.metrics) emptyColumnMetrics.add(id);
+    defects.push({ id: `lapsed-empty-${c.col.toLowerCase().replace(/\s+/g, '-')}`, sheet: 'Lapsed', column: c.col,
+      description: `Every one of the ${lapsed.length.toLocaleString('en-IN')} rows carries 0. The column exists in the export but is never populated.`,
+      rowsAffected: lapsed.length,
+      impact: `${c.metrics.join(', ')} would read a confident zero. ${c.metrics.length > 1 ? 'They are' : 'It is'} marked unreliable instead, so the card shows the caveat rather than implying there were none.`,
+      status: 'open' });
+  }
 
   /* Carry member-acquisition dimensions onto downstream financial and membership rows. Without
      this join, selecting a trainer, source or first-visit format would silently stop filtering on
@@ -301,7 +326,7 @@ export async function loadDataset(onProgress?: Progress, force = false): Promise
   }
 
   onProgress?.([...loads], 'Ready');
-  return { visits, sessions, checkins, sales, newc, lapsed, payroll, leads, bookings, loads, defects, today, todayTs, dataThrough, loadedAt: Date.now() };
+  return { visits, sessions, checkins, sales, newc, lapsed, payroll, leads, bookings, loads, defects, today, todayTs, dataThrough, emptyColumnMetrics: [...emptyColumnMetrics], loadedAt: Date.now() };
 }
 
 /** Offline assembly used by scripts/render-test.mts — same code path, CSV text in, Dataset out. */

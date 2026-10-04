@@ -359,4 +359,6 @@ export interface Dataset {
   dataThrough: string;      // latest observation on or before today — source freshness, not "now"
 
   loadedAt: number;
+  /** Metric ids whose only source column is present but never populated. */
+  emptyColumnMetrics: string[];
 }

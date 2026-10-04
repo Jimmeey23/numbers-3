@@ -760,9 +760,16 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
 /* ── The tab's agent endpoint ──────────────────────────────────────────────
    Printed at the foot of every tab. Quiet by default — it is reference, not a control — but the
    URL itself stays selectable and never wraps into illegibility. */
-.tab-endpoint{margin-top:var(--sp-8);padding:13px 15px 14px;border:1px dashed var(--hairline-strong);
-  border-radius:var(--r-m);background:var(--surface-1);display:grid;gap:9px;}
-.tab-endpoint-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.tab-endpoint{margin-top:var(--sp-8);padding:11px 15px;border:1px dashed var(--hairline-strong);
+  border-radius:var(--r-m);background:var(--surface-1);}
+.tab-endpoint[open]{padding-bottom:14px;display:grid;gap:9px;}
+.tab-endpoint-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;cursor:pointer;list-style:none;
+  user-select:none;transition:color var(--m-quick) var(--ease-out);}
+.tab-endpoint-head::-webkit-details-marker{display:none;}
+.tab-endpoint-head::before{content:'▸';display:inline-block;font-size:9px;color:var(--text-3);
+  transition:transform var(--m-quick) var(--ease-out);}
+.tab-endpoint[open] .tab-endpoint-head::before{transform:rotate(90deg);}
+.tab-endpoint-head:hover .eyebrow{color:var(--hue-ink);}
 .tab-endpoint-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .tab-endpoint-url{flex:1 1 320px;min-width:0;padding:6px 9px;border-radius:var(--r-xs);
   background:var(--surface-2);border:1px solid var(--hairline);color:var(--text-2);
@@ -796,3 +803,109 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
 .trainer-chip.is-initials{font-family:var(--font-display);font-size:9px;font-weight:650;letter-spacing:.02em;
   color:var(--text-2);background:var(--hue-wash);border-color:color-mix(in srgb,var(--hue) 35%,transparent);}
 .trainer-chip.is-studio{border-radius:5px;}
+
+/* ── The hero register ─────────────────────────────────────────────────────
+   The first register on a tab is the one carrying the KPI strip, so it is selected by what it
+   contains rather than by a flag each tab has to remember to set. It gets a tinted field in the
+   active domain's colour, two slow-drifting light sources, and a sweeping rule — enough motion
+   to feel alive at a glance and little enough to ignore while reading. Everything here is
+   decorative: no text sits on these layers, so they can carry real chroma. */
+.register:has(> .register-body > .kpi-strip){position:relative;isolation:isolate;
+  padding-inline:clamp(14px,1.6vw,26px);margin-inline:calc(-1 * clamp(14px,1.6vw,26px));
+  border-radius:var(--r-l);overflow:hidden;}
+.register:has(> .register-body > .kpi-strip)::before{
+  content:'';position:absolute;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--hue-veil), transparent 58%),
+    radial-gradient(90% 120% at 100% 0%, var(--hue-veil-2), transparent 62%),
+    linear-gradient(118deg, var(--hue-wash-rich) 0%, var(--surface-1) 46%, color-mix(in oklch, var(--hue-next) 11%, var(--surface-1)) 100%);}
+/* Two soft light sources, drifting on different periods so the field never visibly loops. */
+.register:has(> .register-body > .kpi-strip)::after{
+  content:'';position:absolute;z-index:-1;pointer-events:none;
+  inset:-40% -10% auto -10%;height:190%;
+  background:
+    radial-gradient(52% 62% at 14% 26%, color-mix(in srgb, var(--hue) 15%, transparent), transparent 78%),
+    radial-gradient(46% 56% at 86% 66%, color-mix(in srgb, var(--hue-next) 13%, transparent), transparent 80%);
+  filter:blur(28px);
+  animation:hero-drift 34s var(--ease-soft) infinite alternate;}
+@keyframes hero-drift{
+  0%  {transform:translate3d(-3%,-2%,0) scale(1.02);}
+  50% {transform:translate3d(2%,1.5%,0) scale(1.06);}
+  100%{transform:translate3d(4%,-1%,0) scale(1.01);}}
+
+/* A light canvas swallows a tint that a dark one would drown in, so the field is pushed harder
+   there: more chroma in the veils, a visible edge, and a texture that gives the band a surface. */
+:root[data-mode="light"]{--hue-veil:color-mix(in srgb, var(--hue) 30%, transparent);
+  --hue-veil-2:color-mix(in srgb, var(--hue-next) 23%, transparent);}
+:root[data-mode="dark"] .register:has(> .register-body > .kpi-strip)::before{opacity:.72;}
+:root[data-mode="dark"] .register:has(> .register-body > .kpi-strip)::after{opacity:.6;}
+:root[data-mode="light"] .register:has(> .register-body > .kpi-strip){
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--hue) 13%, transparent),
+             inset 0 1px 0 rgba(255,255,255,.9);}
+
+/* A fine dot field, panning slowly. It is the only thing in the hero with a hard edge, which is
+   what stops the gradients reading as a blur rather than a surface. */
+.register:has(> .register-body > .kpi-strip) .register-head::before{
+  content:'';position:absolute;inset:0 0 auto;height:210px;z-index:-1;pointer-events:none;
+  background-image:radial-gradient(color-mix(in srgb, var(--hue) 26%, transparent) 1px, transparent 1px);
+  background-size:20px 20px;
+  -webkit-mask-image:radial-gradient(130% 100% at 88% 0%, #000, transparent 68%);
+  mask-image:radial-gradient(130% 100% at 88% 0%, #000, transparent 68%);
+  opacity:.34;animation:hero-pan 48s linear infinite;}
+@keyframes hero-pan{to{background-position:220px 110px;}}
+
+/* A slow pulse in the top-right corner, in the domain's own colour: the one piece of motion that
+   is unmistakably alive rather than ambient. */
+.register:has(> .register-body > .kpi-strip) .register-head{position:relative;}
+
+/* A small bar motif in the hero's top-right: eight columns breathing on staggered periods. It is
+   decoration, not data — it carries no value and is hidden from assistive technology — but it
+   reads as the subject of the page rather than as abstract ornament. */
+.hero-motif{display:none;}
+.register:has(> .register-body > .kpi-strip) .hero-motif{position:absolute;top:50%;right:calc(100% + 18px);transform:translateY(-50%);
+  display:flex;align-items:flex-end;gap:5px;height:44px;pointer-events:none;opacity:.85;}
+.hero-motif i{display:block;width:6px;border-radius:3px 3px 1px 1px;
+  background:linear-gradient(180deg, var(--hue-grad-a), var(--hue-grad-b));
+  animation:motif-breathe 3.4s var(--ease-soft) infinite alternate;}
+.hero-motif i:nth-child(1){height:38%;animation-delay:-2.9s;}
+.hero-motif i:nth-child(2){height:62%;animation-delay:-2.4s;}
+.hero-motif i:nth-child(3){height:46%;animation-delay:-1.9s;}
+.hero-motif i:nth-child(4){height:84%;animation-delay:-1.5s;}
+.hero-motif i:nth-child(5){height:58%;animation-delay:-1.1s;}
+.hero-motif i:nth-child(6){height:96%;animation-delay:-0.7s;}
+.hero-motif i:nth-child(7){height:52%;animation-delay:-0.3s;}
+.hero-motif i:nth-child(8){height:72%;animation-delay:0s;}
+@keyframes motif-breathe{from{transform:scaleY(.62);opacity:.55;}to{transform:scaleY(1);opacity:1;}}
+.hero-motif i{transform-origin:bottom;}
+@media (max-width:900px){.hero-motif{display:none;}}
+
+/* The index chip and title lift out of the field. */
+.register:has(> .register-body > .kpi-strip) .register-index{
+  padding:2px 9px;border-radius:var(--r-full);background:var(--hue-wash-rich);
+  color:var(--hue-ink);border:1px solid var(--hue-edge);}
+.register:has(> .register-body > .kpi-strip) .register-head h2{
+  background:linear-gradient(96deg, var(--text-1) 18%, var(--hue-ink) 130%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+
+/* The rule under the hero header carries a travelling highlight. */
+.register:has(> .register-body > .kpi-strip) > .barre{position:relative;overflow:hidden;
+  background:linear-gradient(90deg, var(--hue-edge), var(--hairline) 42%, var(--hairline));}
+.register:has(> .register-body > .kpi-strip) > .barre::after{
+  content:'';position:absolute;inset:0;width:34%;
+  background:linear-gradient(90deg, transparent, var(--hue), transparent);
+  animation:barre-sweep 5.5s var(--ease-soft) infinite;}
+@keyframes barre-sweep{0%{transform:translateX(-120%);}60%,100%{transform:translateX(420%);}}
+
+/* The cards sit on the field rather than in it. */
+.register:has(> .register-body > .kpi-strip) .kpi-card{
+  backdrop-filter:saturate(1.15);
+  border-color:color-mix(in srgb, var(--hue) 14%, var(--hairline));}
+.register:has(> .register-body > .kpi-strip) .kpi-card.is-clickable:hover{
+  border-color:var(--hue-edge);}
+
+@media (prefers-reduced-motion:reduce){
+  .register:has(> .register-body > .kpi-strip)::after,
+  .register:has(> .register-body > .kpi-strip) .register-head::before,
+  .hero-motif i{animation:none;}
+  .register:has(> .register-body > .kpi-strip) > .barre::after{display:none;}
+}

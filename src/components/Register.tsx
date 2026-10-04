@@ -28,7 +28,11 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
           </div>
           {subtitle && <div className="t-body-s muted" style={{ marginTop: 3, maxWidth: 900 }}>{subtitle}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>{actions}</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, position: 'relative' }}>
+          {actions}
+          {/* Decoration only, and only in the hero — the CSS hides it everywhere else. */}
+          <span className="hero-motif" aria-hidden>{Array.from({ length: 8 }, (_, i) => <i key={i} />)}</span>
+        </div>
       </div>
       <div className="barre" />
       {open && <div className="register-body">{mount ? children : <div className="travel-barre" />}</div>}

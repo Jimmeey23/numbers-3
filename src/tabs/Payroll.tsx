@@ -15,7 +15,7 @@ import { useFilters } from '../state/filters';
 import { fmtCurrency, fmtMonthShort, formatValue } from '../semantics/formats';
 import { formatColor } from '../design/ramps';
 
-const P_METRICS = ['p_margin', 'p_conversion_rate', 'p_contribution', 'p_rev_per_session', 'p_retention_rate', 'p_retention_of_converted', 'trainer_score', 'p_empty_rate', 'p_sessions'];
+const P_METRICS = ['p_margin', 'p_conversion_rate', 'p_contribution', 'p_rev_per_session', 'p_retention_rate', 'trainer_score', 'p_empty_rate', 'p_sessions'];
 
 export function Payroll({ scope }: { scope: Scope }) {
   const months = useMonths(scope);
