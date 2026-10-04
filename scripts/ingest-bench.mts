@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+const g = globalThis as any;
+g.window = { location: { hash: '' }, innerWidth: 1600, matchMedia: () => ({ matches: false }), addEventListener() {} };
+g.document = { documentElement: { getAttribute: () => 'matte', setAttribute() {} } };
+g.localStorage = { getItem: () => null, setItem() {} };
+const { loadDataset } = await import('../src/data/ingest.ts');
+const { SHEETS } = await import('../src/data/sheets.config.ts');
+const { resolveUrl } = await import('../src/data/sources.ts');
+const FILES: Record<string, string> = { new: 'New', checkins: 'Checkins', bookings: 'Bookings', sales: 'Sales', lapsed: 'Lapsed', payroll: 'Payroll', leads: 'Leads' };
+const g2 = globalThis as any;
+const mb = () => (process.memoryUsage().heapUsed / 1e6).toFixed(0);
+const mbGc = () => { if (g2.gc) g2.gc(); return (process.memoryUsage().heapUsed / 1e6).toFixed(0); };
+globalThis.fetch = (async (url: string) => {
+  const cfg = SHEETS.find((c) => resolveUrl(c) === url);
+  const f = cfg ? FILES[cfg.key] : undefined;
+  if (!f || !fs.existsSync(`/tmp/${f}.csv`)) return new Response('', { status: 401, headers: { 'content-type': 'text/html' } });
+  return new Response(fs.readFileSync(`/tmp/${f}.csv`), { status: 200, headers: { 'content-type': 'text/csv' } });
+}) as any;
+const t0 = performance.now();
+const ds = await loadDataset((_l, phase) => console.log(`  ${phase.padEnd(26)} heap ${mb()} MB  ${((performance.now() - t0) / 1000).toFixed(1)}s`), true);
+console.log('TOTAL', ((performance.now() - t0) / 1000).toFixed(1), 's · heap after GC', mbGc(), 'MB · rss', (process.memoryUsage().rss/1e6).toFixed(0), 'MB');
+console.log('rows:', Object.entries({ sessions: ds.sessions, checkins: ds.checkins, bookings: ds.bookings, sales: ds.sales, newc: ds.newc, lapsed: ds.lapsed, payroll: ds.payroll, leads: ds.leads }).map(([k, v]) => `${k} ${v.length.toLocaleString('en-IN')}`).join(' · '));
+console.log('today', ds.today, '· defects', ds.defects.map((d) => `${d.id}(${d.rowsAffected})`).join(', '));
+console.log('loads', ds.loads.map((l) => `${l.title}:${l.status}:${l.rows}`).join(' '));

@@ -1,0 +1,16 @@
+/* Two families. Archivo (variable wght+wdth) for numbers and headings; Instrument Sans for chrome. */
+.t-display-xl{font-family:var(--font-display);font-size:56px;line-height:52px;font-weight:700;font-variation-settings:"wdth" 112;letter-spacing:-.025em;}
+.t-display-l{font-family:var(--font-display);font-size:40px;line-height:40px;font-weight:650;font-variation-settings:"wdth" 105;letter-spacing:-.02em;}
+.t-display-m{font-family:var(--font-display);font-size:30px;line-height:32px;font-weight:600;font-variation-settings:"wdth" 100;letter-spacing:-.015em;}
+.t-display-s{font-family:var(--font-display);font-size:22px;line-height:26px;font-weight:600;font-variation-settings:"wdth" 95;letter-spacing:-.01em;}
+.t-heading-l{font-family:var(--font-display);font-size:18px;line-height:24px;font-weight:600;font-variation-settings:"wdth" 92;}
+.t-heading-m{font-family:var(--font-display);font-size:15px;line-height:20px;font-weight:600;font-variation-settings:"wdth" 88;}
+.t-heading-s{font-family:var(--font-display);font-size:13px;line-height:18px;font-weight:600;font-variation-settings:"wdth" 80;letter-spacing:.005em;}
+.t-heading-xs{font-family:var(--font-display);font-size:11px;line-height:14px;font-weight:650;font-variation-settings:"wdth" 75;letter-spacing:.02em;}
+.t-body-m{font-family:var(--font-ui);font-size:14px;line-height:21px;font-weight:400;}
+.t-body-s{font-family:var(--font-ui);font-size:13px;line-height:19px;font-weight:400;}
+.t-label-m{font-family:var(--font-ui);font-size:12px;line-height:16px;font-weight:500;}
+.t-label-s{font-family:var(--font-ui);font-size:11px;line-height:14px;font-weight:500;}
+.t-num{font-family:var(--font-display);font-size:var(--num-size);line-height:var(--num-lh);font-weight:500;font-variation-settings:"wdth" var(--num-wdth);font-variant-numeric:tabular-nums lining-nums;}
+.t-num-dense{font-family:var(--font-display);font-size:12px;line-height:16px;font-weight:500;font-variation-settings:"wdth" 80;font-variant-numeric:tabular-nums lining-nums;}
+.tabular{font-variant-numeric:tabular-nums lining-nums;}
