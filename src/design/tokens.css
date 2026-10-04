@@ -537,6 +537,72 @@
   --border-1: 1px solid var(--hairline);
 }
 
+/* ── Soft relief (modern neumorphism) ─────────────────────────────────────────
+   Not the 2020 plastic look: one light source at the top-left, a highlight and a
+   shadow that are both *small* in relation to the radius, and a hairline that
+   still carries the edge. Everything is mixed from the live surface tokens, so a
+   relief recipe is written once and is correct in all eight palettes.
+
+     --relief-up      a surface lifted off the page (cards, menus)
+     --relief-up-lg   the same, for the large containers
+     --relief-hover   a lift on pointer
+     --relief-in      recessed: inputs, tracks, wells, table bodies
+     --relief-in-soft a shallower well, for cells inside a card
+     --relief-press   the pressed/active state of a control
+   `--relief-light` and `--relief-dark` are the two ends of the light source. */
+:root {
+  --relief-light: rgba(255, 255, 255, .055);
+  --relief-dark: rgba(0, 0, 0, .55);
+  --relief-up:
+    -1px -1px 2px 0 var(--relief-light),
+    0 2px 5px -1px var(--relief-dark),
+    0 1px 1px -1px rgba(0, 0, 0, .5);
+  --relief-up-lg:
+    -1.5px -1.5px 3px 0 var(--relief-light),
+    0 14px 32px -16px var(--relief-dark),
+    0 3px 10px -6px rgba(0, 0, 0, .55);
+  --relief-hover:
+    -1.5px -1.5px 3px 0 var(--relief-light),
+    0 10px 22px -10px var(--relief-dark),
+    0 2px 6px -3px rgba(0, 0, 0, .5);
+  --relief-in:
+    inset 2px 2px 5px -2px var(--relief-dark),
+    inset -1px -1px 2px 0 var(--relief-light);
+  --relief-in-soft:
+    inset 1px 1px 3px -1px var(--relief-dark),
+    inset -1px -1px 1px 0 var(--relief-light);
+  --relief-press:
+    inset 2px 2px 4px -1px var(--relief-dark),
+    inset -1px -1px 2px 0 var(--relief-light);
+}
+:root[data-mode="light"] {
+  /* On a light ground the highlight does the work and the shadow stays cool and
+     wide, otherwise the surface reads as dirty rather than raised. */
+  --relief-light: rgba(255, 255, 255, .95);
+  --relief-dark: color-mix(in oklab, var(--text-3) 34%, transparent);
+  --relief-up:
+    -2px -2px 4px 0 var(--relief-light),
+    0 2px 6px -2px var(--relief-dark),
+    0 1px 2px -1px color-mix(in oklab, var(--text-3) 22%, transparent);
+  --relief-up-lg:
+    -3px -3px 7px 0 var(--relief-light),
+    0 16px 34px -18px var(--relief-dark),
+    0 3px 10px -7px color-mix(in oklab, var(--text-3) 26%, transparent);
+  --relief-hover:
+    -3px -3px 6px 0 var(--relief-light),
+    0 12px 24px -12px var(--relief-dark),
+    0 2px 6px -3px color-mix(in oklab, var(--text-3) 24%, transparent);
+  --relief-in:
+    inset 2px 2px 5px -2px var(--relief-dark),
+    inset -2px -2px 4px 0 var(--relief-light);
+  --relief-in-soft:
+    inset 1px 1px 3px -1px var(--relief-dark),
+    inset -1px -1px 2px 0 var(--relief-light);
+  --relief-press:
+    inset 2px 2px 5px -1px var(--relief-dark),
+    inset -2px -2px 3px 0 var(--relief-light);
+}
+
 [data-domain="attendance"] { --hue: var(--hue-attendance); --hue-ink: var(--ink-attendance); --hue-next: var(--hue-people); }
 [data-domain="revenue"]    { --hue: var(--hue-revenue);    --hue-ink: var(--ink-revenue);    --hue-next: var(--hue-risk); }
 [data-domain="growth"]     { --hue: var(--hue-growth);     --hue-ink: var(--ink-growth);     --hue-next: var(--hue-attendance); }

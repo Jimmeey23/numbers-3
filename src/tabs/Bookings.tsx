@@ -38,7 +38,7 @@ export function Bookings({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="bookings" scope={scope} placement="top" />
-      <Register title="Bookings" subtitle={rows[0]?.in_bookings === false ? 'Rebuilt from Checkins (Bookings sheet is private): pre-class cancellations are not visible, so cancellation rate reads 0 — see Data health' : 'See who booked, attended, cancelled, or missed a session, and how early each decision was made.'} domain="attendance">
+      <Register identity title="Bookings" subtitle={rows[0]?.in_bookings === false ? 'Rebuilt from Checkins (Bookings sheet is private): pre-class cancellations are not visible, so cancellation rate reads 0 — see Data health' : 'See who booked, attended, cancelled, or missed a session, and how early each decision was made.'} domain="attendance">
         <KpiStrip scope={scope} table="visits" ids={['v_booked', 'v_unique_bookers', 'v_cancel_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_effective_attendance', 'v_lead_time', 'v_rev_per_visit']} />
       </Register>
       <Register title="Weekly outcomes" subtitle="Attended, late-cancelled, no-show and cancelled, with effective attendance overlaid" domain="attendance">
@@ -70,7 +70,6 @@ export function Bookings({ scope }: { scope: Scope }) {
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Trainer loyalty index — share of a trainer's regulars (3+ visits) who take 60%+ of their classes with them</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Trainer</th><th className="t-heading-s">Regulars</th><th className="t-heading-s">Loyal</th><th className="t-heading-s">Loyalty index</th></tr></thead><tbody>{loyalty.map((l) => <tr key={l.k}><td className="t-body-s">{l.k}</td><td className="t-num">{l.total}</td><td className="t-num">{l.loyal}</td><td className="t-num">{formatValue('percent', l.idx)}</td></tr>)}</tbody></table></div></div>
         </div>
       </Register>
-      <WidgetSection tab="bookings" scope={scope} placement="bottom" />
     </>
   );
 }

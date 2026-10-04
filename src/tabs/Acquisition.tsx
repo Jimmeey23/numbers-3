@@ -145,7 +145,7 @@ export function Acquisition({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="acquisition" scope={scope} placement="top" />
-      <Register title="Acquisition" domain="growth"
+      <Register identity title="Acquisition" domain="growth"
         subtitle={matured
           ? `${fresh.length.toLocaleString('en-IN')} first visits with at least ${scope.ctx.matureDays} days of history, so return and conversion rates are settled. ${immature.toLocaleString('en-IN')} more recent joiners are held back.`
           : `All ${allFresh.length.toLocaleString('en-IN')} first visits in scope, including ${immature.toLocaleString('en-IN')} who joined too recently to have returned yet — rates will read low.`}
@@ -220,7 +220,6 @@ export function Acquisition({ scope }: { scope: Scope }) {
             b={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>Win-back pool — lapsed or churned, ranked by prior LTV</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Client</th><th className="t-heading-s">Status</th><th className="t-heading-s">LTV</th><th className="t-heading-s">Last visit</th></tr></thead><tbody>{winback.map((r) => <tr key={r.member_id}><td className="t-body-s">{r.name}</td><td className="t-body-s">{r.lifecycle}</td><td className="t-num">{fmtCurrency(r.ltv)}</td><td className="t-num">{fmtDate(r.last_visit)}</td></tr>)}</tbody></table></div></div>} />
         </div>
       </Register>
-      <WidgetSection tab="acquisition" scope={scope} placement="bottom" />
     </>
   );
 }

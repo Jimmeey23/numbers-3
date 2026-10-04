@@ -48,7 +48,7 @@ export function Payroll({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="payroll" scope={scope} placement="top" />
-      <Register title="Payroll" subtitle={`Compare instructor revenue and session cost at ${fmtCurrency(ratePerSession, false)} per session. Adjust the rate to recalculate margins`} domain="people" actions={rateCard}>
+      <Register identity title="Payroll" subtitle={`Compare instructor revenue and session cost at ${fmtCurrency(ratePerSession, false)} per session. Adjust the rate to recalculate margins`} domain="people" actions={rateCard}>
         <KpiStrip scope={scope} table="payroll" ids={['p_sessions', 'p_customers', 'p_revenue', 'p_rev_per_session', 'p_cost', 'payroll_pct_of_revenue', 'p_margin', 'p_empty_cost']} />
       </Register>
       <Register title="Revenue against cost per trainer" subtitle="Sorted by contribution margin" domain="people">
@@ -76,7 +76,6 @@ export function Payroll({ scope }: { scope: Scope }) {
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Conversion and retention value; cost per acquired member</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Trainer</th><th className="t-heading-s">New handled</th><th className="t-heading-s">Converted</th><th className="t-heading-s">Conversion value</th><th className="t-heading-s">Retained</th><th className="t-heading-s">Cost per acquired</th></tr></thead><tbody>{rollupLevel(rows, ['trainer'], 0, ['p_new', 'p_converted', 'p_conversion_value', 'p_retained', 'p_cost_per_acquired'], scope.ctx).sort((a, b) => (b.values.p_conversion_value.value ?? 0) - (a.values.p_conversion_value.value ?? 0)).map((n) => <tr key={n.id}><td className="t-body-s">{n.label}</td><td className="t-num">{n.values.p_new.value}</td><td className="t-num">{n.values.p_converted.value}</td><td className="t-num">{fmtCurrency(n.values.p_conversion_value.value)}</td><td className="t-num">{n.values.p_retained.value}</td><td className="t-num">{fmtCurrency(n.values.p_cost_per_acquired.value)}</td></tr>)}</tbody></table></div></div>
         </div>
       </Register>
-      <WidgetSection tab="payroll" scope={scope} placement="bottom" />
     </>
   );
 }

@@ -241,7 +241,7 @@ export function Retention({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="retention" scope={scope} placement="top" />
-      <Register title="Retention" index="① State" domain="risk"
+      <Register identity title="Retention" index="① State" domain="risk"
         subtitle={`${members.length.toLocaleString('en-IN')} members holding ${rows.length.toLocaleString('en-IN')} memberships live in ${scope.period.label}. Risk blends utilisation, recency, cancellations and attendance.`}>
         <KpiStrip scope={scope} table="lapsed" ids={['active_memberships', 'distinct_members', 'churn_rate', 'gross_revenue_retention', 'repeat_member_rate', 'member_ltv', 'high_risk_members', 'revenue_at_risk_30d']} />
         <div style={{ marginTop: 18 }}>
@@ -485,7 +485,6 @@ function FreezeSplit({ rows, scope }: { rows: Row[]; scope: Scope }) {
     <>
       <HBars items={groups.map((g) => ({ label: g.label, value: g.churn, sub: `${g.n} records` }))} fmt="percent" max={max} color="var(--warn)" />
       <div className="t-label-s faint" style={{ marginTop: 6 }}>Churn rate by freeze history. Renewal: {groups.map((g) => `${g.label} ${formatValue('percent', g.renew)}`).join(' · ')}</div>
-      <WidgetSection tab="retention" scope={scope} placement="bottom" />
     </>
   );
 }

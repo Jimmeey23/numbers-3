@@ -4,6 +4,7 @@ import { historyMonths, metricValues, seriesBy, type Row } from '../semantics/ag
 import { metric, type TableName } from '../semantics/metrics';
 import { MetricCard } from '../components/MetricCard/MetricCard';
 import { Heatmap, type HeatCell } from '../components/charts/grids';
+import type { HeatKind } from '../design/ramps';
 import { ChartModule } from '../components/charts/core';
 import { useFilters } from '../state/filters';
 import { useView } from '../state/view';
@@ -61,7 +62,7 @@ export function MixedKpiStrip({ scope, items, variant = 'hero' }: { scope: Scope
 }
 
 /** Day × hour heatmap for any table carrying day + time. */
-export function DayTimeHeatmap({ rows, metricId, scope, minN = 3, kind }: { rows: Row[]; metricId: string; scope: Scope; minN?: number; kind?: 'attendance' | 'revenue' | 'diverging' }) {
+export function DayTimeHeatmap({ rows, metricId, scope, minN = 3, kind }: { rows: Row[]; metricId: string; scope: Scope; minN?: number; kind?: HeatKind | 'diverging' }) {
   const addTransient = useFilters((s) => s.addTransient);
   const def = metric(metricId);
   const { xs, cells } = useMemo(() => {
@@ -72,7 +73,7 @@ export function DayTimeHeatmap({ rows, metricId, scope, minN = 3, kind }: { rows
   }, [rows, metricId, scope.ctx]);
   if (!cells.length) return <EmptyState title="No sessions carry a day and time in this scope" body="Widen the period or clear day and slot filters." />;
   const table = { columns: ['Day', ...xs.map((x) => fmtTime12(x))], rows: DAYS.map((d) => [d, ...xs.map((x) => { const c = cells.find((k) => k.x === x && k.y === d); return c?.value ?? null; })]) };
-  return <ChartModule title={`${def.label} by day and hour`} subtitle="Click a cell to filter the tab to that exact day and hour. Tables that do not carry a time of day are unaffected — the filter chip says which." table={table}><Heatmap xs={xs} ys={DAYS} cells={cells} fmt={def.format} kind={kind ?? (def.domain === 'revenue' ? 'revenue' : def.domain === 'risk' ? 'diverging' : 'attendance')} minN={minN} xLabel={(x) => fmtTime12(x)} yLabel={(y) => y.slice(0, 3)} title={`${def.label} by day and hour`}
+  return <ChartModule title={`${def.label} by day and hour`} subtitle="Click a cell to filter the tab to that exact day and hour. Tables that do not carry a time of day are unaffected — the filter chip says which." table={table}><Heatmap xs={xs} ys={DAYS} cells={cells} fmt={def.format} kind={kind ?? (def.domain === 'risk' ? 'diverging' : (def.domain as HeatKind))} minN={minN} xLabel={(x) => fmtTime12(x)} yLabel={(y) => y.slice(0, 3)} title={`${def.label} by day and hour`}
     onClick={(c) => { addTransient({ dim: 'day', value: c.y }); addTransient({ dim: 'hour_of_day', value: c.x, label: fmtTime12(c.x) }); }} /></ChartModule>;
 }
 
@@ -87,7 +88,7 @@ export function CohortTriangle({ rows, cohortOf, alive, scope, months = 14, valu
   const xs = Array.from({ length: months }, (_, i) => `M+${i}`);
   const table = { columns: ['Cohort', ...xs], rows: ms.map((m) => [fmtMonthShort(m), ...xs.map((x) => { const c = cells.find((k) => k.x === x && k.y === m); return c ? Number((c.value ?? 0).toFixed(3)) : null; })]) };
   return <ChartModule title="Cohort survival" subtitle="Each row is an entry month; each column is months elapsed since" table={table}>
-    <Heatmap xs={xs} ys={ms} cells={cells} fmt="percent" kind="attendance" yLabel={fmtMonthShort} title="Cohort survival" cellH={24} />
+    <Heatmap xs={xs} ys={ms} cells={cells} fmt="percent" yLabel={fmtMonthShort} title="Cohort survival" cellH={24} />
   </ChartModule>;
 }
 

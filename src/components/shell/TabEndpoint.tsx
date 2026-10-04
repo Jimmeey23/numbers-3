@@ -10,7 +10,7 @@ import { tabEndpointUrl, tabFallbackUrl } from '../../api/endpoint';
 import type { TabId } from '../../state/view';
 import { useView } from '../../state/view';
 
-export function TabEndpoint({ tab }: { tab: TabId }) {
+export function TabEndpoint({ tab, bare = false }: { tab: TabId; bare?: boolean }) {
   const ep = useMemo(() => ENDPOINTS.find((e) => e.tab === tab), [tab]);
   const url = useMemo(() => tabEndpointUrl(tab), [tab]);
   const fallback = useMemo(() => tabFallbackUrl(tab), [tab]);
@@ -23,12 +23,8 @@ export function TabEndpoint({ tab }: { tab: TabId }) {
   };
   /* Collapsed by default: it is reference, and it sits at the foot of every tab. `details` keeps
      it keyboard-reachable and findable by in-page search without any state of its own. */
-  return (
-    <details className="tab-endpoint">
-      <summary className="tab-endpoint-head">
-        <span className="eyebrow">Agent endpoint</span>
-        <span className="t-label-s faint">{ep.title} · {ep.table} grain · raw rows and the consolidated view, under the filters now applied</span>
-      </summary>
+  const body = (
+    <>
       <div className="tab-endpoint-row">
         <code className="tab-endpoint-url" title={url}>{url}</code>
         <button className="btn btn-xs" onClick={() => copy(url, 'Endpoint URL')}>{copied === 'Endpoint URL' ? 'Copied' : 'Copy URL'}</button>
@@ -50,6 +46,25 @@ export function TabEndpoint({ tab }: { tab: TabId }) {
         {' '}<code className="tab-endpoint-alt">{fallback}</code> — that one needs a caller that executes JavaScript.
         An agent already inside the page should call <code>window.floor.get('{tab}')</code>.
       </p>
+    </>
+  );
+  if (bare) {
+    return (
+      <div className="tab-endpoint is-bare">
+        <p className="t-body-s muted tab-endpoint-lede">{ep.title} · {ep.table} grain · raw rows and the consolidated view, under the filters now applied.</p>
+        {body}
+      </div>
+    );
+  }
+  /* Collapsed by default when used on its own: it is reference, and `details` keeps it
+     keyboard-reachable and findable by in-page search without any state of its own. */
+  return (
+    <details className="tab-endpoint">
+      <summary className="tab-endpoint-head">
+        <span className="eyebrow">Agent endpoint</span>
+        <span className="t-label-s faint">{ep.title} · {ep.table} grain · raw rows and the consolidated view, under the filters now applied</span>
+      </summary>
+      {body}
     </details>
   );
 }

@@ -59,7 +59,7 @@ export function Classes({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="classes" scope={scope} placement="top" />
-      <Register title="Classes" subtitle={derived ? 'Session grain rebuilt from Checkins (Sessions sheet is private) — see Data health' : 'See how session supply, occupied seats, cancellations, and revenue per class move together.'} domain="attendance">
+      <Register identity title="Classes" subtitle={derived ? 'Session grain rebuilt from Checkins (Sessions sheet is private) — see Data health' : 'See how session supply, occupied seats, cancellations, and revenue per class move together.'} domain="attendance">
         <KpiStrip scope={scope} table="sessions" ids={['sessions', 'seats', 'attendance', 'fill_rate', 'empty_sessions', 'rev_pas', 'revenue_per_session', 'late_cancel_rate']} />
       </Register>
       <Register title="Does adding classes dilute fill?" subtitle="Sessions per week as bars, fill rate as a line" domain="attendance">
@@ -91,7 +91,6 @@ export function Classes({ scope }: { scope: Scope }) {
             {overbooked.length ? <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Date</th><th className="t-heading-s">Time</th><th className="t-heading-s">Class</th><th className="t-heading-s">Trainer</th><th className="t-heading-s">Capacity</th><th className="t-heading-s">Booked</th><th className="t-heading-s">Over by</th></tr></thead><tbody>{overbooked.map((r: Row) => <tr key={r.session_id}><td className="t-body-s">{fmtDateShort(r.date)}</td><td className="t-num">{r.time}</td><td className="t-body-s">{r.class_name}</td><td className="t-body-s">{r.trainer}</td><td className="t-num">{r.capacity}</td><td className="t-num">{r.booked}</td><td className="t-num pos">+{r.booked - r.capacity}</td></tr>)}</tbody></table></div> : <div className="muted t-body-s">No session was booked beyond capacity in this scope.</div>}</div>
         </div>
       </Register>
-      <WidgetSection tab="classes" scope={scope} placement="bottom" />
     </>
   );
 }

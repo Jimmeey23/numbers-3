@@ -81,8 +81,12 @@ const div = (spec: ThemeSpec) => {
     spec.surface, blend(spec.surface, a, 0.45), a, blend(a, spec.dark ? '#FFFFFF' : '#000000', 0.18)];
 };
 
+export type HeatKind = 'attendance' | 'revenue' | 'growth' | 'people' | 'risk' | 'neutral';
+
 interface Ramp {
   diverging: string[]; seqAttendance: string[]; seqRevenue: string[]; categorical: string[];
+  /** One sequential ramp per domain accent, so a heatmap can take the colour of the tab it is on. */
+  seq: Record<HeatKind, string[]>;
   format: Record<string, string>; domain: Record<string, string>;
   pos: string; neg: string; warn: string; text3: string; hairline: string; surface: string;
 }
@@ -94,6 +98,10 @@ function build(spec: ThemeSpec): Ramp {
     diverging: div(spec),
     seqAttendance: seq(spec, att),
     seqRevenue: seq(spec, rev),
+    seq: {
+      attendance: seq(spec, att), revenue: seq(spec, rev), growth: seq(spec, gro),
+      people: seq(spec, peo), risk: seq(spec, ris), neutral: seq(spec, spec.nullc),
+    },
     /* Ten series: the five domain anchors, then the midpoint of each adjacent pair.
        Four constructions were measured against two criteria — the closest pair's RGB distance,
        and each colour's contrast against its own theme's surface:
@@ -135,7 +143,10 @@ const ramp = (theme: Theme) => RAMPS[theme] ?? RAMPS.matte;
 
 /** Diverging fill: t ∈ [-1,1]; 0 disappears into the surface. */
 export const diverging = (theme: Theme, t: number) => sample(ramp(theme).diverging, (Math.max(-1, Math.min(1, t)) + 1) / 2);
-export const sequential = (theme: Theme, kind: 'attendance' | 'revenue', t: number) => sample(kind === 'attendance' ? ramp(theme).seqAttendance : ramp(theme).seqRevenue, t);
+export const sequential = (theme: Theme, kind: HeatKind, t: number) => sample(ramp(theme).seq[kind] ?? ramp(theme).seqAttendance, t);
+/** The ramp itself, for legends and gradients. */
+export const sequentialRamp = (theme: Theme, kind: HeatKind) => ramp(theme).seq[kind] ?? ramp(theme).seqAttendance;
+export const divergingRamp = (theme: Theme) => ramp(theme).diverging;
 export const formatColor = (theme: Theme, f: string | null | undefined) => ramp(theme).format[f ?? 'Unknown'] ?? ramp(theme).format.Unknown;
 export const categorical = (theme: Theme, i: number) => ramp(theme).categorical[i % 10];
 export const domainColor = (theme: Theme, d: string) => ramp(theme).domain[d] ?? ramp(theme).domain.neutral;

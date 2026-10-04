@@ -118,7 +118,7 @@ export function DataHealth({ scope }: { scope: Scope }) {
           </div>
         </Register>
       )}
-      <Register title="Data health" subtitle="See which sources loaded, where records are incomplete, and whether shared numbers reconcile." domain="neutral" hero actions={<button className="btn btn-xs" onClick={() => load(true)}>Retry all</button>}>
+      <Register identity title="Data health" subtitle="See which sources loaded, where records are incomplete, and whether shared numbers reconcile." domain="neutral" hero actions={<button className="btn btn-xs" onClick={() => load(true)}>Retry all</button>}>
         <div className="kpi-strip" style={{ ['--kpi-cols' as string]: 6 }}>
           <MetricCard metricId="sessions" labelOverride="Rows loaded" value={totalRows} variant="standard" />
           <MetricCard metricId="sessions" labelOverride="Sheets ok / derived / failed" value={loads.filter((l) => l.status === 'ok').length} benchmark={{ label: `derived ${loads.filter((l) => l.status === 'derived').length} · failed ${loads.filter((l) => l.status === 'error' || l.status === 'empty').length}`, value: null }} />
@@ -231,7 +231,6 @@ floor.export('sales', 'markdown')`}</pre>
         <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s" style={{ textAlign: 'left' }}>Sheet · column</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Defect</th><th className="t-heading-s">Rows</th><th className="t-heading-s" style={{ textAlign: 'left' }}>Impact</th><th className="t-heading-s">Status</th></tr></thead>
           <tbody>{(ds?.defects ?? []).map((d) => <tr key={d.id}><td className="t-body-s">{d.sheet} · {d.column}</td><td className="t-body-s" style={{ textAlign: 'left', whiteSpace: 'normal' }}>{d.description}</td><td className="t-num">{d.rowsAffected.toLocaleString('en-IN')}</td><td className="t-body-s muted" style={{ textAlign: 'left', whiteSpace: 'normal', maxWidth: 480 }}>{d.impact}</td><td><span className={`t-label-s pill ${d.status === 'open' ? 'warn' : 'pos'}`} style={{ border: '1px solid currentColor', padding: '1px 8px' }}>{d.status === 'open' ? 'Open' : 'Mitigated'}</span></td></tr>)}</tbody></table></div>
       </Register>
-      <WidgetSection tab="health" scope={scope} placement="bottom" />
     </>
   );
 }

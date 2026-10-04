@@ -54,7 +54,7 @@ export function Sales({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="sales" scope={scope} placement="top" />
-      <Register title="Sales" subtitle="Track what community members buy, how much they spend, and where discounts change realised revenue." domain="revenue">
+      <Register identity title="Sales" subtitle="Track what community members buy, how much they spend, and where discounts change realised revenue." domain="revenue">
         <KpiStrip scope={scope} table="sales" ids={['gross_revenue', 'net_revenue', 'transactions', 'aov', 'unique_buyers', 'arpu', 'discount_rate', 'deferred_revenue']} />
       </Register>
       <Register title="Revenue by category over time" subtitle="Each sale payment is allocated once across its post-discount line items; category shares therefore reconcile to total gross revenue" domain="revenue">
@@ -91,7 +91,6 @@ export function Sales({ scope }: { scope: Scope }) {
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Price realisation by product — realised unit price against the highest list price seen</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Product</th><th className="t-heading-s">List</th><th className="t-heading-s">Realised</th><th className="t-heading-s">Realisation</th><th className="t-heading-s">Units</th></tr></thead><tbody>{price.slice(0, 20).map((p) => <tr key={p.n.id}><td className="t-body-s">{p.n.label}</td><td className="t-num">{fmtCurrency(p.list)}</td><td className="t-num">{fmtCurrency(p.realised)}</td><td className={`t-num ${(p.ratio ?? 1) < 0.8 ? 'neg' : ''}`}>{formatValue('percent', p.ratio)}</td><td className="t-num">{p.n.values.units.value}</td></tr>)}</tbody></table></div></div>
         </div>
       </Register>
-      <WidgetSection tab="sales" scope={scope} placement="bottom" />
     </>
   );
 }

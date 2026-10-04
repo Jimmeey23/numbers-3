@@ -29,7 +29,7 @@ export function LateCancellations({ scope }: { scope: Scope }) {
   if (!rows.length) return <SectionEmpty what="booking outcomes" scope={scope} />;
   return <>
     <WidgetSection tab="late-cancellations" scope={scope} placement="top" />
-    <Register title="Late cancellations" subtitle="Find when late cancellations cluster and how much usable capacity they remove." domain="risk">
+    <Register identity title="Late cancellations" subtitle="Find when late cancellations cluster and how much usable capacity they remove." domain="risk">
       <KpiStrip scope={scope} table="visits" ids={IDS} />
     </Register>
     <Register title="14-month movement" subtitle="Counts and rates are shown together so volume changes are not mistaken for behaviour changes" domain="risk">
@@ -44,6 +44,5 @@ export function LateCancellations({ scope }: { scope: Scope }) {
       <Two a={<RankingList title="Members by" nodes={members} metricOptions={['v_late_cancels', 'v_late_cancel_rate']} ctx={scope.ctx} table="visits" domain="risk" minSample={1} sampleLabel="bookings" />} b={<RankingList title="Trainers by" nodes={trainers} metricOptions={['v_late_cancels', 'v_late_cancel_rate']} ctx={scope.ctx} table="visits" domain="risk" minSample={3} sampleLabel="bookings" />} />
     </Register>
     <Register title="Month on month" domain="risk" lazy><MoMTable rows={scope.all.visits} metricIds={IDS} months={months} ctx={scope.ctx} domain="risk" /></Register>
-    <WidgetSection tab="late-cancellations" scope={scope} placement="bottom" />
   </>;
 }

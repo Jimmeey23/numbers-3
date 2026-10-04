@@ -119,7 +119,7 @@ export function Overview({ scope }: { scope: Scope }) {
       <div style={{ padding: '8px 0 0' }}>
         <PulseRibbon days={ribbon} played={played} onPlayed={() => { ribbonPlayed = true; setPlayed(true); }} onRange={(s, e) => set({ preset: 'custom', start: s, end: e })} />
       </div>
-      <Register title="Business state" subtitle={`${scope.period.label} versus ${scope.period.prevLabel}: revenue, studio visits, new members, and retention in one view.`} domain="attendance">
+      <Register identity title="Business state" subtitle={`${scope.period.label} versus ${scope.period.prevLabel}: revenue, studio visits, new members, and retention in one view.`} domain="attendance">
         <MixedKpiStrip scope={scope} items={[{ table: 'sales', id: 'gross_revenue' }, { table: 'sales', id: 'aov' }, { table: 'visits', id: 'visits' }, { table: 'sessions', id: 'fill_rate' }, { table: 'newc', id: 'new_clients' }, { table: 'newc', id: 'conversion_rate' }, { table: 'lapsed', id: 'active_memberships' }, { table: 'lapsed', id: 'churn_rate' }]} />
       </Register>
       <Register title="Why revenue moved" subtitle="Volume and price account for the whole change between the two periods. Mix, first-time sales and churn exposure overlap with them, so they are shown separately below rather than added in." domain="revenue">
@@ -155,7 +155,6 @@ export function Overview({ scope }: { scope: Scope }) {
         <Two a={<PnL scope={scope} />} b={<div style={{ display: 'grid', gap: 8 }}><div className="t-heading-m">Alert register</div>{insights.slice(0, 8).map((i) => <InsightCard key={i.key} insight={i} compact />)}{!insights.length && <div className="muted t-body-s">No alerts in scope.</div>}</div>} />
       </Register>
       </div>
-      <WidgetSection tab="overview" scope={scope} placement="bottom" />
     </>
   );
 }

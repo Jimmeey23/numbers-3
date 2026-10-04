@@ -10,7 +10,7 @@ import { TABS, useView, type TabId } from './state/view';
 import { THEMES } from './design/ramps';
 import { useDrill } from './state/drill';
 import { SHEETS } from './data/sheets.config';
-import { TabEndpoint } from './components/shell/TabEndpoint';
+import { TabFooter } from './components/shell/TabFooter';
 import { buildTabPayload, readApiRequest } from './api/endpoint';
 import { buildAgentApi } from './api/agent';
 import { AskDock, AskPanel } from './components/Ask/AskPanel';
@@ -208,7 +208,7 @@ function Workspace() {
                 </Suspense>
               </>
             )}
-            {scope && status !== 'error' && <TabEndpoint tab={tab} />}
+            {scope && status !== 'error' && <TabFooter tab={tab} scope={scope} />}
           </main>
           <InsightRail />
         </div>

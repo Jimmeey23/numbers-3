@@ -81,7 +81,7 @@ export function Trainers({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="trainers" scope={scope} placement="top" />
-      <Register title="Trainers" subtitle="Compare instructor demand, class fill, and revenue across the times they teach." domain="people">
+      <Register identity title="Trainers" subtitle="Compare instructor demand, class fill, and revenue across the times they teach." domain="people">
         <KpiStrip scope={scope} table="sessions" ids={['active_trainers', 'sessions', 'avg_class_size_incl', 'fill_rate', 'revenue_per_session', 'teaching_hours', 'draw_premium_spread', 'top3_revenue_concentration']} />
       </Register>
       <Register title="Popular vs profitable" subtitle="Draw premium against revenue per attendee; bubble = sessions" domain="people">
@@ -111,7 +111,6 @@ export function Trainers({ scope }: { scope: Scope }) {
           <div><div className="t-heading-m" style={{ marginBottom: 6 }}>Development — gap to the peer median fill ({formatValue('percent', median)})</div><div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Trainer</th><th className="t-heading-s">Fill</th><th className="t-heading-s">Gap to median</th><th className="t-heading-s">Consistency (CV)</th><th className="t-heading-s">n</th></tr></thead><tbody>{dev.map((d) => <tr key={d.t}><td className="t-body-s">{d.t}</td><td className="t-num">{formatValue('percent', d.fill)}</td><td className={`t-num ${d.gap < 0 ? 'neg' : 'pos'}`}>{formatValue('pp', d.gap)}</td><td className="t-num">{formatValue('ratio', d.cv)}</td><td className="t-num">{d.n}</td></tr>)}</tbody></table></div></div>
         </div>
       </Register>
-      <WidgetSection tab="trainers" scope={scope} placement="bottom" />
     </>
   );
 }

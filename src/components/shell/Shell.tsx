@@ -3,6 +3,8 @@ import { DEFAULT_THRESHOLDS, TAB_GROUPS, TABS, tabMeta, useView, type TabId } fr
 import { useDockedPanel, useOverlay } from '../../state/overlays';
 import { Logo } from './Logo';
 import { Icon, TAB_ICONS } from './Icons';
+import { HeroGraphic } from '../HeroGraphic';
+import { useFooter } from '../../state/footer';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -133,18 +135,19 @@ export function TitleBar() {
   const filters = useFilters((s) => s.filters);
   const replace = useFilters((s) => s.replace);
   const [views, setViews] = useState(false);
-  const meta = tabMeta(tab);
   return (
     <header className="topbar">
+      {/* The tab names itself once, in the page hero. The bar carries what is true of every
+          number on screen — the scope — so it stays useful after the hero scrolls away. */}
       <div className="topbar-heading">
-        <div className="topbar-title">
-          <span>{meta.label}</span>
-          {scope && <span className="status-pill" style={{ color: 'var(--hue-ink)', borderColor: 'var(--hue-edge)' }}>{scope.period.label}</span>}
+        <div className="topbar-scope">
+          <span className="topbar-period">{scope ? scope.period.label : 'Reading sources…'}</span>
+          {scope && filters.compare !== 'none' && <span className="topbar-vs">vs {scope.period.prevLabel}</span>}
         </div>
         <div className="topbar-sub">
           {scope
-            ? `${scope.rowsInScope.toLocaleString('en-IN')} rows in scope${filters.compare === 'none' ? '' : ` · compared with ${scope.period.prevLabel}`}`
-            : 'Reading sources…'}
+            ? `${scope.rowsInScope.toLocaleString('en-IN')} rows · ${filters.locations.length ? `${filters.locations.length} ${filters.locations.length === 1 ? 'studio' : 'studios'}` : 'all studios'}${filters.trainers.length ? ` · ${filters.trainers.length} trainers` : ''}`
+            : 'Nine sheets'}
         </div>
       </div>
 
@@ -286,35 +289,47 @@ export function PageHeader() {
   const tab = useView((s) => s.tab);
   const scope = useScope();
   const setFiltersOpen = useView((s) => s.setFiltersOpen);
+  const setPaletteOpen = useView((s) => s.setPaletteOpen);
   const meta = tabMeta(tab);
   const filters = useFilters((s) => s.filters);
-  const locations = filters.locations.length ? `${filters.locations.length} selected` : 'All studios';
+  const reveal = useFooter((s) => s.reveal);
+  const slots = useFooter((s) => s.slots);
+  const studios = filters.locations.length
+    ? filters.locations.map((l) => l.split(',')[0]).join(', ')
+    : 'All studios';
+  const stats: { label: string; value: string; onClick?: () => void; title?: string }[] = [
+    { label: 'Period', value: scope ? scope.period.label : '—', onClick: () => setFiltersOpen(true), title: 'Edit the period (F)' },
+    { label: 'Rows in scope', value: scope ? scope.rowsInScope.toLocaleString('en-IN') : '—' },
+    { label: 'Compared with', value: filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—' },
+    { label: 'Studios', value: studios },
+  ];
   return (
-    <header className="page-head" data-domain={meta.domain}>
-      <div className="page-head-main">
-        <span className="eyebrow">{meta.group}</span>
-        <h1 className="page-title">
-          <span>{meta.label}</span>
-        </h1>
+    <header className="page-hero" data-domain={meta.domain}>
+      <div className="page-hero-art" aria-hidden="true"><HeroGraphic tab={tab} /></div>
+      <div className="page-hero-main">
+        <div className="page-hero-eyebrow">
+          <span className="page-hero-group">{meta.group}</span>
+          <span className="page-hero-dot" aria-hidden="true" />
+          <span className="page-hero-key">{meta.key ? `Shortcut ${meta.key}` : 'Section'}</span>
+        </div>
+        <h1 className="page-title">{meta.label}</h1>
         <p className="page-sub">{meta.blurb}</p>
+        <div className="page-hero-actions">
+          <button className="btn btn-xs" onClick={() => setFiltersOpen(true)}>Adjust scope <span className="kbd">F</span></button>
+          <button className="btn btn-xs" onClick={() => setPaletteOpen(true)}>Jump to a metric <span className="kbd">⌘K</span></button>
+          <button className="btn btn-xs" onClick={() => { reveal('reference'); window.setTimeout(() => document.querySelector('.tab-footer')?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 60); }}>
+            Reference &amp; API{slots.length ? ` (${slots.length})` : ''}
+          </button>
+        </div>
       </div>
-      <div className="page-meta">
-        <button className="page-stat" onClick={() => setFiltersOpen(true)} title="Edit the period (F)" style={{ textAlign: 'left', cursor: 'pointer' }}>
-          <span>Period</span>
-          <b>{scope ? scope.period.label : '—'}</b>
-        </button>
-        <div className="page-stat">
-          <span>Rows in scope</span>
-          <b>{scope ? scope.rowsInScope.toLocaleString('en-IN') : '—'}</b>
-        </div>
-        <div className="page-stat">
-          <span>Compared with</span>
-          <b>{filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—'}</b>
-        </div>
-        <div className="page-stat">
-          <span>Studios</span>
-          <b>{locations}</b>
-        </div>
+      <div className="page-hero-stats">
+        {stats.map((st) => (
+          st.onClick
+            ? <button key={st.label} className="page-stat is-button" onClick={st.onClick} title={st.title}>
+                <span>{st.label}</span><b>{st.value}</b>
+              </button>
+            : <div key={st.label} className="page-stat"><span>{st.label}</span><b title={st.value}>{st.value}</b></div>
+        ))}
       </div>
     </header>
   );

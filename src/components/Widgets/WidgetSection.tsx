@@ -24,12 +24,32 @@ export function useWidgets(tab: TabId, placement: 'top' | 'bottom') {
 }
 
 /** Drop this into a tab to host whatever the operator or an agent has built there. */
-export function WidgetSection({ tab, scope, placement = 'bottom' }: { tab: TabId; scope: Scope; placement?: 'top' | 'bottom' }) {
+export function WidgetSection({ tab, scope, placement = 'bottom', bare = false }: { tab: TabId; scope: Scope; placement?: 'top' | 'bottom'; bare?: boolean }) {
   const widgets = useWidgets(tab, placement);
   const [editing, setEditing] = useState<WidgetSpec | null>(null);
   const [building, setBuilding] = useState(false);
   useOverlay(building, useCallback(() => { setBuilding(false); setEditing(null); }, []));
   if (!widgets.length && placement === 'top') return null;
+  /* Inside the tab footer the section supplies only its contents — the footer already carries the
+     heading, the count and the chrome. */
+  if (bare) {
+    return (
+      <div className="widget-bare">
+        <div className="widget-bare-head">
+          <p className="t-body-s muted">{widgets.length
+            ? 'Built here or by an agent. Each one recomputes from the current filters — these are live views, not snapshots.'
+            : 'Nothing built for this tab yet. Add a table, chart or metric card and it stays here across reloads.'}</p>
+          <button className="btn btn-xs btn-primary" onClick={() => { setEditing(null); setBuilding(true); }}>+ Build a widget</button>
+        </div>
+        {widgets.length > 0 && (
+          <div className="widget-grid">
+            {widgets.map((w) => <CustomWidget key={w.id} spec={w} scope={scope} onEdit={(s) => { setEditing(s); setBuilding(true); }} />)}
+          </div>
+        )}
+        {building && <WidgetBuilder tab={tab} existing={editing} onClose={() => { setBuilding(false); setEditing(null); }} />}
+      </div>
+    );
+  }
   return (
     <Register title={placement === 'top' ? 'Pinned' : 'Your widgets'} domain="neutral"
       index={placement === 'top' ? 'Pinned' : 'Custom'}

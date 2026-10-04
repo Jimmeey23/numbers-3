@@ -70,7 +70,7 @@ export function Slots({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="slots" scope={scope} placement="top" />
-      <Register title="Slots" subtitle="See which recurring session times fill, earn, or need a schedule change." domain="attendance">
+      <Register identity title="Slots" subtitle="See which recurring session times fill, earn, or need a schedule change." domain="attendance">
         <KpiStrip scope={scope} table="sessions" ids={['active_slots', 'sessions', 'fill_rate', 'avg_class_size_incl', 'revenue_per_session', 'rev_per_seat_hour', 'empty_session_rate', 'below_break_even']} />
       </Register>
       <Register title="The week as it runs" subtitle="Each card is a recurring slot, sized by capacity and coloured by fill against the studio average. Click to filter." domain="attendance">
@@ -101,7 +101,6 @@ export function Slots({ scope }: { scope: Scope }) {
             <div className="table-scroll" style={{ maxHeight: 400 }}><table className="tbl"><thead><tr><th className="t-heading-s">Slot</th><th className="t-heading-s">Trainer</th><th className="t-heading-s">Trainer fill</th><th className="t-heading-s">Slot avg</th><th className="t-heading-s">Impact</th><th className="t-heading-s">n</th></tr></thead><tbody>{substitution.map((s) => <tr key={s.slot + s.trainer}><td className="t-body-s">{s.slot}</td><td className="t-body-s">{s.trainer}</td><td className="t-num">{formatValue('percent', s.fill)}</td><td className="t-num">{formatValue('percent', s.slotFill)}</td><td className={`t-num ${s.fill >= s.slotFill ? 'pos' : 'neg'}`}>{formatValue('pp', s.fill - s.slotFill)}</td><td className="t-num">{s.n}</td></tr>)}</tbody></table></div></div>
         </div>
       </Register>
-      <WidgetSection tab="slots" scope={scope} placement="bottom" />
     </>
   );
 }
