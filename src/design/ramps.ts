@@ -31,9 +31,9 @@ const SPECS: ThemeSpec[] = [
   { id: 'matte', label: 'Matte', blurb: 'Matte black, neon accents. Light comes only from the data.', dark: true,
     surface: '#0E0E0F', accents: ['#00E5FF', '#FF2E88', '#00FFA3', '#B87CFF', '#FFC400'],
     pos: '#00FFA3', neg: '#FF4D6A', warn: '#FFC400', text3: '#7F7F88', hairline: '#242427', nullc: '#4A4A52' },
-  { id: 'gloss', label: 'Gloss', blurb: 'Bright white, blue accents. Surfaces extrude from the page.', dark: false,
-    surface: '#FFFFFF', accents: ['#1668E3', '#0B3FA8', '#0B7765', '#5C46D4', '#A35C00'],
-    pos: '#0E8A5F', neg: '#C32B4B', warn: '#A35C00', text3: '#5D6C84', hairline: '#E2EAF4', nullc: '#9AA8BC' },
+  { id: 'gloss', label: 'Gloss', blurb: 'Bright white with blue, pink, teal, violet and amber accents.', dark: false,
+    surface: '#FFFFFF', accents: ['#1773E8', '#D72E81', '#099D83', '#754DE0', '#D18010'],
+    pos: '#087D63', neg: '#C82C5B', warn: '#A66507', text3: '#607390', hairline: '#DCE6F5', nullc: '#91A5C1' },
   { id: 'carbon', label: 'Carbon', blurb: 'Graphite and warm, restrained accents. The quietest theme.', dark: true,
     surface: '#1C2023', accents: ['#3FBFA8', '#E8756B', '#9FC46A', '#8E9BF0', '#E8A33D'],
     pos: '#7FC77A', neg: '#E8756B', warn: '#E8A33D', text3: '#7E888F', hairline: '#32383D', nullc: '#59616A' },
@@ -106,8 +106,10 @@ function build(spec: ThemeSpec): Ramp {
        A lightened copy of blue is still blue at lower opacity, which is why it scored worst on
        separability; a midpoint is a hue of its own at the same lightness, so it keeps the
        family's contrast while pulling the series apart. */
-    categorical: [att, rev, gro, ris, peo,
-      blend(att, peo, 0.5), blend(rev, ris, 0.5), blend(gro, att, 0.45), blend(ris, gro, 0.5), blend(peo, rev, 0.45)],
+    categorical: spec.id === 'gloss'
+      ? [att, rev, gro, ris, peo, '#0799BF', '#A640BB', '#78A91E', '#DF594E', '#5064D1']
+      : [att, rev, gro, ris, peo,
+        blend(att, peo, 0.5), blend(rev, ris, 0.5), blend(gro, att, 0.45), blend(ris, gro, 0.5), blend(peo, rev, 0.45)],
     format: { 'Barre 57': rev, Cycle: att, Strength: ris, Pilates: peo, Hosted: gro, Other: gro, Unknown: spec.nullc },
     domain: { attendance: att, revenue: rev, growth: gro, people: peo, risk: ris, neutral: spec.nullc },
     pos: spec.pos, neg: spec.neg, warn: spec.warn, text3: spec.text3, hairline: spec.hairline, surface: spec.surface,

@@ -50,30 +50,30 @@
   color-scheme:dark;
 }
 
-/* Gloss — Bright white with blue accents. Surfaces are extruded from the page, never painted on it. */
+/* Gloss — luminous cool neutrals with distinct blue, pink, teal, violet and amber data accents. */
 :root[data-theme="gloss"] {
-  --canvas:#FFFFFF;      --surface-1:#FFFFFF;  --surface-2:#F5F8FD;
-  --surface-3:#EBF1FA;   --surface-inset:#F1F5FB;  --surface-raised:#FFFFFF;
-  --hairline:#E2EAF4;    --hairline-strong:#8296AF;  --rule:#E2EAF4;
+  --canvas:#F4F8FF;      --surface-1:#FFFFFF;  --surface-2:#F1F6FF;
+  --surface-3:#E3EDFC;   --surface-inset:#EAF2FD;  --surface-raised:#FFFFFF;
+  --hairline:#DCE6F5;    --hairline-strong:#8DA4C4;  --rule:#DCE6F5;
   --overlay:rgba(12,18,28,.38);
-  --text-1:#0A1220;      --text-2:#3B4961;     --text-3:#5D6C84;
+  --text-1:#11213C;      --text-2:#405574;     --text-3:#607390;
   --text-inverse:#FFFFFF;
 
-  --hue-attendance:#1668E3;
-  --hue-revenue:#0B3FA8;
-  --hue-growth:#0B7765;
-  --hue-people:#5C46D4;
-  --hue-risk:#A35C00;
+  --hue-attendance:#1773E8;
+  --hue-revenue:#D72E81;
+  --hue-growth:#099D83;
+  --hue-people:#754DE0;
+  --hue-risk:#D18010;
 
-  --ink-attendance:#1565DC;
-  --ink-revenue:#0B3FA8;
-  --ink-growth:#0B7765;
-  --ink-people:#5C46D4;
-  --ink-risk:#9E5900;
-  --ink-neutral:#3B4961;
+  --ink-attendance:#0C55AE;
+  --ink-revenue:#A51C5D;
+  --ink-growth:#08745F;
+  --ink-people:#5632B1;
+  --ink-risk:#87520A;
+  --ink-neutral:#405574;
 
-  --pos:#0E8A5F; --neg:#C32B4B; --warn:#A35C00; --info:#1668E3; --null:#9AA8BC;
-  --focus:#1668E3; --glow:0 0 18px;
+  --pos:#087D63; --neg:#C82C5B; --warn:#A66507; --info:#1773E8; --null:#91A5C1;
+  --focus:#1773E8; --glow:0 0 20px;
   --heat-text-invert:#FFFFFF; --on-hue:#FFFFFF;
   --elev-1:0 1px 2px rgba(16,24,40,.05); --elev-2:0 4px 10px -2px rgba(16,24,40,.07),0 2px 4px -2px rgba(16,24,40,.04);
   --elev-3:0 12px 28px -6px rgba(16,24,40,.12),0 4px 8px -4px rgba(16,24,40,.05);
@@ -389,6 +389,8 @@
 [data-domain="people"]{ --hue:var(--hue-people); --hue-ink:var(--ink-people); --hue-next:var(--hue-attendance); }
 [data-domain="risk"]{ --hue:var(--hue-risk); --hue-ink:var(--ink-risk); --hue-next:var(--hue-revenue); }
 [data-domain="neutral"]{ --hue:var(--null); --hue-ink:var(--ink-neutral); --hue-next:var(--hue-attendance); }
+:root[data-theme="gloss"] [data-domain="growth"],
+:root[data-theme="gloss"] [data-domain="risk"]{ --on-hue:#11213C; }
 
 @media (prefers-reduced-motion:reduce){
   :root{--m-instant:0ms;--m-quick:0ms;--m-base:0ms;

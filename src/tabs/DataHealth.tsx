@@ -118,7 +118,7 @@ export function DataHealth({ scope }: { scope: Scope }) {
           </div>
         </Register>
       )}
-      <Register title="Data health" subtitle="What loaded, what didn't, and whether the sheets agree with each other" domain="neutral" actions={<button className="btn btn-xs" onClick={() => load(true)}>Retry all</button>}>
+      <Register title="Data health" subtitle="See which sources loaded, where records are incomplete, and whether shared numbers reconcile." domain="neutral" hero actions={<button className="btn btn-xs" onClick={() => load(true)}>Retry all</button>}>
         <div className="kpi-strip" style={{ ['--kpi-cols' as string]: 6 }}>
           <MetricCard metricId="sessions" labelOverride="Rows loaded" value={totalRows} variant="standard" />
           <MetricCard metricId="sessions" labelOverride="Sheets ok / derived / failed" value={loads.filter((l) => l.status === 'ok').length} benchmark={{ label: `derived ${loads.filter((l) => l.status === 'derived').length} · failed ${loads.filter((l) => l.status === 'error' || l.status === 'empty').length}`, value: null }} />

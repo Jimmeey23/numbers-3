@@ -94,7 +94,7 @@ export function Attendance({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="attendance" scope={scope} placement="top" />
-      <Register title="Attendance" subtitle="Every check-in, with the member's lifecycle attached" domain="attendance">
+      <Register title="Attendance" subtitle="Follow studio visits, member frequency, and the point where the next visit drops away." domain="attendance">
         <KpiStrip scope={scope} table="visits" ids={['visits', 'v_unique_members', 'v_mau', 'v_visits_per_member', 'v_complimentary_rate', 'v_rev_per_visit', 'v_power_users', 'v_late_cancels']} />
       </Register>
       <Register title="The visit-number cliff" subtitle="How many members reach each visit number, and the share who make it to the next" domain="attendance">

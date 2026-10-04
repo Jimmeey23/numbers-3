@@ -70,7 +70,7 @@ export function Slots({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="slots" scope={scope} placement="top" />
-      <Register title="Slots" subtitle="A schedule-design tool. The output is a keep / watch / move / cut list." domain="attendance">
+      <Register title="Slots" subtitle="See which recurring session times fill, earn, or need a schedule change." domain="attendance">
         <KpiStrip scope={scope} table="sessions" ids={['active_slots', 'sessions', 'fill_rate', 'avg_class_size_incl', 'revenue_per_session', 'rev_per_seat_hour', 'empty_session_rate', 'below_break_even']} />
       </Register>
       <Register title="The week as it runs" subtitle="Each card is a recurring slot, sized by capacity and coloured by fill against the studio average. Click to filter." domain="attendance">

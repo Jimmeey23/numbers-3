@@ -36,15 +36,17 @@ export function TitleBar() {
   return (
     <header className="titlebar">
       <div className="brand">
-        <Logo />
-        <span className="brand-mark">ATLAS</span>
+        <button type="button" className="brand-home" onClick={() => { setTab('overview'); document.getElementById('canvas')?.scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label="Atlas home, open Overview" title="Go to Overview">
+          <Logo />
+          <span className="brand-mark">ATLAS</span>
+        </button>
         <span className="brand-rule" aria-hidden="true" />
         <span className="t-label-m muted titlebar-sub">Physique 57 India</span>
       </div>
       <nav className="t-label-s faint titlebar-locations" aria-label="Locations in scope">
         {locations.map((l) => <span key={l}>{l}</span>)}
       </nav>
-      <div style={{ flex: 1, minWidth: 0 }} />
+      <div className="titlebar-spacer" />
       <div className="tb-group">
         <button className="btn btn-xs" aria-pressed={comparison} onClick={toggleComparison} title="Show the comparison value under every figure (C)">Compare</button>
         <div style={{ position: 'relative' }}>
@@ -118,10 +120,10 @@ function TabExport() {
 
 export function TabRail() {
   const tab = useView((s) => s.tab); const setTab = useView((s) => s.setTab);
-  const ref = useRef<HTMLDivElement>(null); const [bar, setBar] = useState({ left: 0, width: 0 });
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
-    if (el) { setBar({ left: el.offsetLeft, width: el.offsetWidth }); el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [tab]);
   const domain = TABS.find((t) => t.id === tab)?.domain ?? 'attendance';
   return (
@@ -132,7 +134,6 @@ export function TabRail() {
           {t.label}
         </button>
       ))}
-      <div className="barre barre-glow tabrail-barre" style={{ left: bar.left, width: bar.width }} />
     </div>
   );
 }
@@ -200,12 +201,18 @@ export function InsightRail() {
     finally { setAiBusy(false); }
   };
   return (
-    <aside aria-label="Insight rail" style={{ width: railOpen ? 320 : 44, flexShrink: 0, borderLeft: '1px solid var(--hairline)', background: 'var(--surface-1)', transition: 'width var(--m-base) var(--ease-out)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <button onClick={toggleRail} aria-expanded={railOpen} className="t-heading-s" style={{ height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--hairline)', whiteSpace: 'nowrap' }} title="Insight rail (S)">
-        <span>{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Insights <span className="muted">{forTab.length + custom.length}</span></span> : <span style={{ writingMode: 'vertical-rl', display: 'flex', gap: 6, alignItems: 'center' }}>{forTab.length + custom.length}<i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--neg)', opacity: counts.critical ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--warn)', opacity: counts.attention ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--pos)', opacity: counts.opportunity ? 1 : 0.2 }} /></span>}
+    <aside aria-label="Insights" className={`insight-rail ${railOpen ? 'is-open' : 'is-closed'}`}>
+      <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : 'Expand insights'}>
+        <span className="insight-rail-chevron" aria-hidden="true">{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Insights <span className="insight-rail-count">{forTab.length + custom.length}</span></span> : <span className="insight-rail-vertical">Insights</span>}
       </button>
       {railOpen && (
-        <div style={{ padding: 12, overflow: 'auto', display: 'grid', gap: 10, alignContent: 'start' }}>
+        <div className="insight-rail-content">
+          <div className="insight-rail-intro">Signals for this view</div>
+          <div className="insight-rail-severity" aria-label="Insight counts by severity">
+            <span><i style={{ background: 'var(--neg)' }} />{counts.critical} critical</span>
+            <span><i style={{ background: 'var(--warn)' }} />{counts.attention} attention</span>
+            <span><i style={{ background: 'var(--pos)' }} />{counts.opportunity} opportunity</span>
+          </div>
           {impact.length > 0 && (
             <div className="impact-summary">
               {impact.map((b) => (
@@ -218,7 +225,7 @@ export function InsightRail() {
             </div>
           )}
           <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
-          <div className="t-label-s faint">AI insights are fingerprinted, saved on this device, and reused while the displayed data and scope stay the same.</div>
+          <div className="t-label-s faint">AI insights are saved on this device for the current data and filters.</div>
           {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}

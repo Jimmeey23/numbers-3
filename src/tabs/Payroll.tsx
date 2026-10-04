@@ -40,15 +40,15 @@ export function Payroll({ scope }: { scope: Scope }) {
   if (load?.status === 'error') return <div style={{ paddingTop: 20 }}><SheetMissing title="Payroll sheet" load={load} /></div>;
   if (!rows.length) return <div style={{ paddingTop: 20 }}><SectionEmpty what="payroll rows" scope={scope} /></div>;
   const rateCard = (
-    <div className="surface chrome" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 14, minWidth: 320 }}>
-      <div><div className="t-heading-s muted">Rate per session</div><div className="t-display-s tabular">{fmtCurrency(ratePerSession, false)}</div></div>
-      <input type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} style={{ flex: 1 }} aria-label="Rate per session" />
+    <div className="payroll-rate-control">
+      <label htmlFor="payroll-rate" className="payroll-rate-label">Rate per session <strong className="tabular">{fmtCurrency(ratePerSession, false)}</strong></label>
+      <input id="payroll-rate" type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} aria-label="Rate per session" />
     </div>
   );
   return (
     <>
       <WidgetSection tab="payroll" scope={scope} placement="top" />
-      <Register title="Payroll" subtitle={`Trainer economics at an assumed ${fmtCurrency(ratePerSession, false)} per session — move the slider and every margin recomputes`} domain="people" actions={rateCard}>
+      <Register title="Payroll" subtitle={`Compare instructor revenue and session cost at ${fmtCurrency(ratePerSession, false)} per session. Adjust the rate to recalculate margins`} domain="people" actions={rateCard}>
         <KpiStrip scope={scope} table="payroll" ids={['p_sessions', 'p_customers', 'p_revenue', 'p_rev_per_session', 'p_cost', 'payroll_pct_of_revenue', 'p_margin', 'p_empty_cost']} />
       </Register>
       <Register title="Revenue against cost per trainer" subtitle="Sorted by contribution margin" domain="people">

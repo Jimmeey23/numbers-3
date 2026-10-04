@@ -54,7 +54,7 @@ export function Sales({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="sales" scope={scope} placement="top" />
-      <Register title="Sales" domain="revenue">
+      <Register title="Sales" subtitle="Track what community members buy, how much they spend, and where discounts change realised revenue." domain="revenue">
         <KpiStrip scope={scope} table="sales" ids={['gross_revenue', 'net_revenue', 'transactions', 'aov', 'unique_buyers', 'arpu', 'discount_rate', 'deferred_revenue']} />
       </Register>
       <Register title="Revenue by category over time" subtitle="Each sale payment is allocated once across its post-discount line items; category shares therefore reconcile to total gross revenue" domain="revenue">

@@ -3,7 +3,8 @@ import type { Scope } from '../state/data';
 import { Register } from '../components/Register';
 import { WidgetSection } from '../components/Widgets/WidgetSection';
 import { MixedKpiStrip, DayTimeHeatmap, Two, useMonths, filtersLabel } from './common';
-import { PulseRibbon, Waterfall } from '../components/charts/special';
+import { PulseRibbon } from '../components/charts/special';
+import { RevenueDrivers } from '../components/charts/RevenueDrivers';
 import { ChartModule, HBars, XYChart } from '../components/charts/core';
 import { NestedTable, type ColumnDef } from '../components/NestedTable/NestedTable';
 import { MoMTable } from '../components/MoMTable/MoMTable';
@@ -49,7 +50,7 @@ export function Overview({ scope }: { scope: Scope }) {
     const txPrev = vp.transactions.value || 1; const txCur = vc.transactions.value || 1;
     const aovPrev = prevRev / txPrev; const aovCur = curRev / txCur;
     const volume = (txCur - txPrev) * aovPrev; const price = (aovCur - aovPrev) * txCur;
-    return [{ label: scope.period.prevLabel, value: prevRev, total: true }, { label: 'Volume', value: volume }, { label: 'Price', value: price }, { label: 'Current', value: curRev, total: true }];
+    return [{ label: scope.period.prevLabel, value: prevRev, total: true }, { label: 'Transactions', value: volume }, { label: 'Average transaction value', value: price }, { label: scope.period.label, value: curRev, total: true }];
   }, [scope]);
 
   /* Overlapping context, each measured on its own terms and never summed with the bridge. */
@@ -108,28 +109,33 @@ export function Overview({ scope }: { scope: Scope }) {
 
   const heatRows = loc ? scope.tables.sessions.filter((r) => r.location === loc) : scope.tables.sessions;
   const locs = [...new Set(scope.tables.sessions.map((r) => r.location).filter(Boolean))] as string[];
+  const previousTransactions = metricValues(scope.compare.sales, ['transactions'], scope.ctx).transactions.value ?? 0;
+  const currentTransactions = metricValues(scope.tables.sales, ['transactions'], scope.ctx).transactions.value ?? 0;
 
   return (
     <>
       <WidgetSection tab="overview" scope={scope} placement="top" />
+      <div className="overview-workspace">
       <div style={{ padding: '8px 0 0' }}>
         <PulseRibbon days={ribbon} played={played} onPlayed={() => { ribbonPlayed = true; setPlayed(true); }} onRange={(s, e) => set({ preset: 'custom', start: s, end: e })} />
       </div>
-      <Register title="Business state" subtitle={`${scope.period.label} vs ${scope.period.prevLabel}. New clients and conversion count everyone who had a first visit in the period, including people who joined too recently to have returned or bought — the Acquisition tab holds those back, so its rates read higher. Active memberships counts live membership records, not members who visited.`} domain="attendance">
+      <Register title="Business state" subtitle={`${scope.period.label} versus ${scope.period.prevLabel}: revenue, studio visits, new members, and retention in one view.`} domain="attendance">
         <MixedKpiStrip scope={scope} items={[{ table: 'sales', id: 'gross_revenue' }, { table: 'sales', id: 'aov' }, { table: 'visits', id: 'visits' }, { table: 'sessions', id: 'fill_rate' }, { table: 'newc', id: 'new_clients' }, { table: 'newc', id: 'conversion_rate' }, { table: 'lapsed', id: 'active_memberships' }, { table: 'lapsed', id: 'churn_rate' }]} />
       </Register>
       <Register title="Why revenue moved" subtitle="Volume and price account for the whole change between the two periods. Mix, first-time sales and churn exposure overlap with them, so they are shown separately below rather than added in." domain="revenue">
-        <ChartModule title="Revenue bridge" subtitle="Exhaustive: opening revenue + volume + price = closing revenue, with no residual" table={{ columns: ['Step', 'Value'], rows: bridge.map((b) => [b.label, Math.round(b.value)]) }}>
-          <Waterfall steps={bridge} />
+        <ChartModule title="What changed revenue" subtitle="Compare the two periods, then select a driver to see how it contributed." table={{ columns: ['Step', 'Value'], rows: bridge.map((b) => [b.label, Math.round(b.value)]) }}>
+          <RevenueDrivers previous={bridge[0].value} current={bridge[3].value} volume={bridge[1].value} price={bridge[2].value}
+            previousTransactions={previousTransactions} currentTransactions={currentTransactions}
+            previousLabel={scope.period.prevLabel} currentLabel={scope.period.label} />
         </ChartModule>
-        <div className="t-label-s faint" style={{ marginTop: 6 }}>Volume = Δtransactions × prior AOV · Price = ΔAOV × current transactions. The two are exhaustive by construction, so there is no residual to report.</div>
+        <div className="t-label-s faint" style={{ marginTop: 6 }}>Transaction effect = change in transactions × earlier average value. Average value effect = change in average value × current transactions. Together they reconcile to the revenue change.</div>
         <div style={{ marginTop: 14 }}>
-          <div className="t-heading-s" style={{ marginBottom: 4 }}>Context — overlapping with the bridge, not additional to it</div>
-          <table className="tbl"><tbody>{bridgeContext.map((c) => <tr key={c.label}>
+          <div className="t-heading-s" style={{ marginBottom: 4 }}>Related context — already reflected in the revenue change</div>
+          <div className="table-scroll overview-context-table"><table className="tbl"><tbody>{bridgeContext.map((c) => <tr key={c.label}>
             <td className="t-body-s">{c.label}</td>
             <td className="t-num">{c.value !== null ? fmtCurrency(c.value) : `${formatValue('percent', c.pct ?? null)} (${(c.delta ?? 0) >= 0 ? '+' : ''}${formatValue('pp', c.delta ?? null)})`}</td>
             <td className="t-label-s faint">{c.note}</td>
-          </tr>)}</tbody></table>
+          </tr>)}</tbody></table></div>
         </div>
       </Register>
       <Register title="Location scorecard" subtitle="Location → domain → metric, with 14-month shape and rank" domain="attendance" id="drill-table">
@@ -137,7 +143,7 @@ export function Overview({ scope }: { scope: Scope }) {
       </Register>
       <Register title="Movers and locations" domain="revenue">
         <Two a={<ChartModule title="Biggest movers by rupee impact" subtitle="Products and trainers, current vs comparison" table={{ columns: ['Entity', 'Δ Revenue'], rows: movers.map((m) => [m.label, Math.round(m.value)]) }}><HBars items={movers.map((m) => ({ label: m.label, value: m.value, sub: m.sub }))} fmt="currency" diverge /></ChartModule>}
-          b={<div><div className="t-heading-m" style={{ marginBottom: 6 }}>Location small multiples — gross revenue, 14 months</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>{smallMultiples.map((s) => <div key={s.l} className="surface chrome" style={{ padding: 10 }}><div className="t-heading-s muted">{s.l}</div><div className="t-display-s tabular">{fmtCurrency(s.cur)}</div><Sparkline data={s.series} width={240} height={36} color="var(--hue-revenue)" /></div>)}</div></div>} />
+          b={<div className="overview-locations"><div className="t-heading-m" style={{ marginBottom: 6 }}>Location small multiples — gross revenue, 14 months</div><div className="overview-location-grid">{smallMultiples.map((s) => <div key={s.l} className="surface chrome overview-location-card" style={{ padding: 10 }}><div className="t-heading-s muted">{s.l}</div><div className="t-display-s tabular">{fmtCurrency(s.cur)}</div><Sparkline data={s.series} width={240} height={36} color="var(--hue-revenue)" /></div>)}</div></div>} />
       </Register>
       <Register title="When the studio fills" subtitle="Fill rate by day and hour" domain="attendance" lazy actions={<div style={{ display: 'flex', gap: 2 }}><button className="btn btn-xs" aria-pressed={loc === null} onClick={() => setLoc(null)}>All</button>{locs.map((l) => <button key={l} className="btn btn-xs" aria-pressed={loc === l} onClick={() => setLoc(l)}>{l.split(',')[0]}</button>)}</div>}>
         <DayTimeHeatmap rows={heatRows} metricId="fill_rate" scope={scope} />
@@ -148,6 +154,7 @@ export function Overview({ scope }: { scope: Scope }) {
       <Register title="Location P&L, format performance and alerts" domain="revenue" collapsed lazy>
         <Two a={<PnL scope={scope} />} b={<div style={{ display: 'grid', gap: 8 }}><div className="t-heading-m">Alert register</div>{insights.slice(0, 8).map((i) => <InsightCard key={i.key} insight={i} compact />)}{!insights.length && <div className="muted t-body-s">No alerts in scope.</div>}</div>} />
       </Register>
+      </div>
       <WidgetSection tab="overview" scope={scope} placement="bottom" />
     </>
   );

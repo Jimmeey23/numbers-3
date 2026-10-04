@@ -38,7 +38,7 @@ export function Bookings({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="bookings" scope={scope} placement="top" />
-      <Register title="Bookings" subtitle={rows[0]?.in_bookings === false ? 'Rebuilt from Checkins (Bookings sheet is private): pre-class cancellations are not visible, so cancellation rate reads 0 — see Data health' : 'From the Bookings sheet'} domain="attendance">
+      <Register title="Bookings" subtitle={rows[0]?.in_bookings === false ? 'Rebuilt from Checkins (Bookings sheet is private): pre-class cancellations are not visible, so cancellation rate reads 0 — see Data health' : 'See who booked, attended, cancelled, or missed a session, and how early each decision was made.'} domain="attendance">
         <KpiStrip scope={scope} table="visits" ids={['v_booked', 'v_unique_bookers', 'v_cancel_rate', 'v_late_cancel_rate', 'v_no_show_rate', 'v_effective_attendance', 'v_lead_time', 'v_rev_per_visit']} />
       </Register>
       <Register title="Weekly outcomes" subtitle="Attended, late-cancelled, no-show and cancelled, with effective attendance overlaid" domain="attendance">

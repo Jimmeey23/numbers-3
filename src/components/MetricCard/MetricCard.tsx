@@ -24,9 +24,9 @@ export function Sparkline({ data, width, height, color, area = true, delay = 0, 
     return { line, area: areaP, last: { x: x(l[0]), y: y(l[1]) } };
   }, [data, width, height, pts]);
   const ref = usePathDraw(animate ? path.line : null, 480, delay);
-  if (!path.line) return <svg width={width} height={height} />;
+  if (!path.line) return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ maxWidth: '100%' }} />;
   return (
-    <svg width={width} height={height} aria-hidden="true" style={{ overflow: 'visible', display: 'block' }}>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" style={{ overflow: 'visible', display: 'block', maxWidth: '100%' }}>
       {area && <path d={path.area} fill={color} opacity={0.1} />}
       <path ref={ref} d={path.line} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
       {path.last && <circle cx={path.last.x} cy={path.last.y} r={2} fill={color} />}

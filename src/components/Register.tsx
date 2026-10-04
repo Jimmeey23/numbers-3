@@ -1,18 +1,21 @@
 import { useState, type ReactNode } from 'react';
 import { useInView } from './hooks';
+import { useView } from '../state/view';
+import { HeroGraphic } from './HeroGraphic';
 
 interface Props {
   title: string; subtitle?: string; domain?: string; actions?: ReactNode; children: ReactNode;
-  collapsed?: boolean; lazy?: boolean; id?: string; suspect?: string | null; index?: string; note?: string;
+  collapsed?: boolean; lazy?: boolean; id?: string; suspect?: string | null; index?: string; note?: string; hero?: boolean;
 }
 
 /** A horizontal register: index, title, actions, barre, content. Lazily mounts on scroll-into-view when `lazy`. */
-export function Register({ title, subtitle, domain, actions, children, collapsed = false, lazy = false, id, suspect, index, note }: Props) {
+export function Register({ title, subtitle, domain, actions, children, collapsed = false, lazy = false, id, suspect, index, note, hero = false }: Props) {
   const [open, setOpen] = useState(!collapsed);
   const { ref, inView } = useInView<HTMLElement>();
+  const tab = useView((s) => s.tab);
   const mount = !lazy || inView;
   return (
-    <section ref={ref} id={id} className="register" data-domain={domain} aria-label={title}>
+    <section ref={ref} id={id} className="register" data-domain={domain} data-hero={hero || undefined} aria-label={title}>
       <div className="register-head">
         <div style={{ minWidth: 0 }}>
           <div className="register-title">
@@ -28,11 +31,10 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
           </div>
           {subtitle && <div className="t-body-s muted" style={{ marginTop: 3, maxWidth: 900 }}>{subtitle}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, position: 'relative' }}>
+        <div className="register-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
           {actions}
-          {/* Decoration only, and only in the hero — the CSS hides it everywhere else. */}
-          <span className="hero-motif" aria-hidden>{Array.from({ length: 8 }, (_, i) => <i key={i} />)}</span>
         </div>
+        <HeroGraphic tab={tab} />
       </div>
       <div className="barre" />
       {open && <div className="register-body">{mount ? children : <div className="travel-barre" />}</div>}

@@ -245,8 +245,8 @@ export function Retention({ scope }: { scope: Scope }) {
         subtitle={`${members.length.toLocaleString('en-IN')} members holding ${rows.length.toLocaleString('en-IN')} memberships live in ${scope.period.label}. Risk blends utilisation, recency, cancellations and attendance.`}>
         <KpiStrip scope={scope} table="lapsed" ids={['active_memberships', 'distinct_members', 'churn_rate', 'gross_revenue_retention', 'repeat_member_rate', 'member_ltv', 'high_risk_members', 'revenue_at_risk_30d']} />
         <div style={{ marginTop: 18 }}>
-          <div className="panel-head"><div className="t-heading-m">Where the base sits today</div><div style={{ flex: 1 }} /><span className="t-label-s faint">Width is share of memberships; the figure under each is the money in that state</span></div>
-          <LifecycleFlow states={lifecycle} />
+          <div className="panel-head"><div className="t-heading-m">Where the base sits today</div><div style={{ flex: 1 }} /><span className="t-label-s faint">Share of memberships by state, with value in each state</span></div>
+          <LifecycleFlow states={lifecycle} mode="minimal" />
         </div>
       </Register>
 

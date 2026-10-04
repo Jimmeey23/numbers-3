@@ -59,7 +59,7 @@ export function Classes({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="classes" scope={scope} placement="top" />
-      <Register title="Classes" subtitle={derived ? 'Session grain rebuilt from Checkins (Sessions sheet is private) — see Data health' : 'From the Sessions sheet'} domain="attendance">
+      <Register title="Classes" subtitle={derived ? 'Session grain rebuilt from Checkins (Sessions sheet is private) — see Data health' : 'See how session supply, occupied seats, cancellations, and revenue per class move together.'} domain="attendance">
         <KpiStrip scope={scope} table="sessions" ids={['sessions', 'seats', 'attendance', 'fill_rate', 'empty_sessions', 'rev_pas', 'revenue_per_session', 'late_cancel_rate']} />
       </Register>
       <Register title="Does adding classes dilute fill?" subtitle="Sessions per week as bars, fill rate as a line" domain="attendance">

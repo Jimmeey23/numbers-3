@@ -145,7 +145,7 @@ export function Acquisition({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="acquisition" scope={scope} placement="top" />
-      <Register title="Acquisition" index="① State" domain="growth"
+      <Register title="Acquisition" domain="growth"
         subtitle={matured
           ? `${fresh.length.toLocaleString('en-IN')} first visits with at least ${scope.ctx.matureDays} days of history, so return and conversion rates are settled. ${immature.toLocaleString('en-IN')} more recent joiners are held back.`
           : `All ${allFresh.length.toLocaleString('en-IN')} first visits in scope, including ${immature.toLocaleString('en-IN')} who joined too recently to have returned yet — rates will read low.`}

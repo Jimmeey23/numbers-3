@@ -175,7 +175,7 @@ function Workspace() {
   const Tab = COMPONENTS[tab];
   const domain = useMemo(() => TABS.find((t) => t.id === tab)?.domain ?? 'attendance', [tab]);
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--canvas)' }} data-domain={domain}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--canvas)' }} data-domain={domain} data-tab={tab}>
       <TitleBar />
       <FilterStrip />
       <TabRail />

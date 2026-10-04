@@ -81,7 +81,7 @@ export function Trainers({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="trainers" scope={scope} placement="top" />
-      <Register title="Trainers" subtitle="Draw premium separates who fills a room from who happens to teach at 7:30" domain="people">
+      <Register title="Trainers" subtitle="Compare instructor demand, class fill, and revenue across the times they teach." domain="people">
         <KpiStrip scope={scope} table="sessions" ids={['active_trainers', 'sessions', 'avg_class_size_incl', 'fill_rate', 'revenue_per_session', 'teaching_hours', 'draw_premium_spread', 'top3_revenue_concentration']} />
       </Register>
       <Register title="Popular vs profitable" subtitle="Draw premium against revenue per attendee; bubble = sessions" domain="people">

@@ -47,7 +47,7 @@ export function Leads({ scope }: { scope: Scope }) {
   return (
     <>
       <WidgetSection tab="leads" scope={scope} placement="top" />
-      <Register title="Leads" subtitle={load?.status === 'empty' ? 'The Leads tab holds only a header row. Everything below renders the moment rows exist.' : 'From the Leads sheet'} domain="people">
+      <Register title="Leads" subtitle={load?.status === 'empty' ? 'The Leads tab holds only a header row. Everything below renders the moment rows exist.' : 'Follow each enquiry from source and first response to conversion, with open opportunities that need attention.'} domain="people">
         <KpiStrip scope={scope} table="leads" ids={['leads', 'lead_conversion_rate', 'response_time_hours', 'untouched_leads', 'touches_to_convert', 'open_leads', 'pipeline_value', 'stale_leads']} />
         {empty && <div style={{ marginTop: 16 }}><EmptyState title="No leads to analyse yet" body={`${load?.error ?? 'The sheet returned no rows in this scope.'} Once the tab has rows with ID, Created At, Source Name, Stage Name, Status and follow-up dates, this tab shows the source → stage → outcome flow, win rate by touch count, and the response-time × win-rate heatmap.`} actions={<button className="btn btn-xs" onClick={() => useView.getState().setTab('health')}>Check source in Data health</button>} /></div>}
       </Register>

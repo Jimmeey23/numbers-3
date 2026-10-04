@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMeasure } from '../hooks';
 import { fmtCurrency, fmtPercent, formatValue } from '../../semantics/formats';
 import { useView } from '../../state/view';
-import { categorical } from '../../design/ramps';
+import { categorical, needsInvert } from '../../design/ramps';
 
 export interface Stage {
   id: string;
@@ -80,7 +80,7 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
               <rect x={LABEL - 16 - 54} y={midY + 16} width={54 * cumulative} height={3} rx={1.5} fill={categorical(theme, i)} />
 
               {/* the count, inside the band */}
-              <text x={cx} y={midY + 6} textAnchor="middle" className="t-num" fill="#fff"
+              <text x={cx} y={midY + 6} textAnchor="middle" className="t-num" fill={needsInvert(categorical(theme, i), theme) ? 'var(--heat-text-invert)' : 'var(--text-1)'}
                 style={{ fontSize: Math.min(19, Math.max(12, rowH * 0.34)), fontWeight: 700, letterSpacing: '-0.01em' }}>
                 {s.count.toLocaleString('en-IN')}
               </text>
@@ -115,20 +115,26 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
 }
 
 /** Horizontal lifecycle flow: each state sized by population, with the transitions between them. */
-export function LifecycleFlow({ states, height = 120 }: { states: { label: string; count: number; value: number; tone: 'pos' | 'warn' | 'neg' | 'info' }[]; height?: number }) {
+export function LifecycleFlow({ states, height = 120, mode = 'default' }: {
+  states: { label: string; count: number; value: number; tone: 'pos' | 'warn' | 'neg' | 'info' }[];
+  height?: number;
+  mode?: 'default' | 'minimal';
+}) {
   const total = states.reduce((a, s) => a + s.count, 0) || 1;
   const TONE = { pos: 'var(--pos)', warn: 'var(--warn)', neg: 'var(--neg)', info: 'var(--info)' };
   return (
-    <div style={{ display: 'flex', width: '100%', height, gap: 2 }}>
+    <div className={`lifecycle-flow ${mode === 'minimal' ? 'is-minimal' : ''}`} style={{ display: 'flex', width: '100%', height, gap: 2 }}>
       {states.map((s) => (
         <div key={s.label} title={`${s.label}: ${s.count.toLocaleString('en-IN')} (${fmtPercent(s.count / total)}) · ${fmtCurrency(s.value)}`}
-          style={{ flex: `${Math.max(0.04, s.count / total)} 1 0`, minWidth: 0, background: `color-mix(in oklch, ${TONE[s.tone]} 16%, var(--surface-1))`,
-            borderTop: `2px solid ${TONE[s.tone]}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+          className={`lifecycle-cell tone-${s.tone}`}
+          style={{ flex: `${Math.max(0.04, s.count / total)} 1 0`, minWidth: 0, ['--lc-tone' as string]: TONE[s.tone],
+            background: `color-mix(in oklch, ${TONE[s.tone]} 16%, var(--surface-1))`, borderTop: `2px solid ${TONE[s.tone]}`,
+            padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
           <div>
-            <div className="t-heading-s" style={{ color: TONE[s.tone], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
+            <div className="t-heading-s lifecycle-label" style={{ color: TONE[s.tone], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
             <div className="t-display-s tabular">{s.count.toLocaleString('en-IN')}</div>
           </div>
-          <div className="t-label-s muted" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="t-label-s muted lifecycle-meta" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fmtPercent(s.count / total)} · {fmtCurrency(s.value)}
           </div>
         </div>
