@@ -234,55 +234,58 @@
    GLOSS — luminous daylight. Cool white with saturated, confident accents.
    ════════════════════════════════════════════════════════════════════════════ */
 :root[data-theme="gloss"] {
-  --canvas: #F2F5FB;
-  --canvas-tint-1: rgba(23, 115, 232, .14);
-  --canvas-tint-2: rgba(9, 157, 131, .10);
-  --canvas-tint-3: rgba(215, 46, 129, .08);
+  /* GLOSS — white neumorphism. A soft grey ground so white surfaces can lift off it,
+     one blue doing all the accent work, and light grey carrying everything secondary. */
+  --canvas: #EBEFF5;
+  --canvas-tint-1: rgba(37, 99, 235, .10);
+  --canvas-tint-2: rgba(100, 116, 139, .08);
+  --canvas-tint-3: rgba(14, 165, 233, .07);
   --surface-1: #FFFFFF;
-  --surface-2: #F4F7FD;
-  --surface-3: #E8EFFA;
-  --surface-inset: #F0F4FB;
+  --surface-2: #F7F9FC;
+  --surface-3: #EDF1F7;
+  --surface-inset: #E7ECF3;
   --surface-raised: #FFFFFF;
   --surface-float: #FFFFFF;
-  --hairline: rgba(18, 38, 72, .10);
-  --hairline-strong: rgba(18, 38, 72, .26);
-  --rule: rgba(18, 38, 72, .10);
-  --overlay: rgba(14, 22, 40, .34);
+  --hairline: rgba(15, 23, 42, .07);
+  --hairline-strong: rgba(15, 23, 42, .16);
+  --rule: rgba(15, 23, 42, .07);
+  --overlay: rgba(15, 23, 42, .28);
 
-  --text-1: #0F1E38;
-  --text-2: #42587A;
-  --text-3: #6B7C97;
+  --text-1: #0F172A;
+  --text-2: #475569;
+  --text-3: #7C8A9E;
   --text-inverse: #FFFFFF;
 
-  --hue-attendance: #1773E8;
-  --hue-revenue: #D72E81;
-  --hue-growth: #099D83;
-  --hue-people: #754DE0;
-  --hue-risk: #D18010;
+  --hue-attendance: #2563EB;
+  --hue-revenue: #64748B;
+  --hue-growth: #0EA5E9;
+  --hue-people: #6366F1;
+  --hue-risk: #334155;
 
-  --ink-attendance: #0C55AE;
-  --ink-revenue: #A51C5D;
-  --ink-growth: #08745F;
-  --ink-people: #5632B1;
-  --ink-risk: #87520A;
-  --ink-neutral: #42587A;
+  --ink-attendance: #1D4ED8;
+  --ink-revenue: #475569;
+  --ink-growth: #0369A1;
+  --ink-people: #4338CA;
+  --ink-risk: #1E293B;
+  --ink-neutral: #475569;
 
-  --pos: #087D63; --neg: #C82C5B; --warn: #A66507; --info: #1773E8; --null: #93A5C0;
-  --focus: #1773E8; --glow: 0 0 22px;
+  --pos: #047857; --neg: #BE123C; --warn: #B45309; --info: #2563EB; --null: #A3AEC0;
+  --focus: #2563EB; --glow: 0 0 20px;
   --heat-text-invert: #FFFFFF; --on-hue: #FFFFFF;
 
-  --glass: rgba(255, 255, 255, .78);
-  --glass-strong: rgba(255, 255, 255, .92);
-  --glass-blur: saturate(180%) blur(20px);
-  --sheen: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, 0) 50%);
-  --ring: 0 0 0 1px rgba(18, 38, 72, .08);
+  --glass: rgba(255, 255, 255, .80);
+  --glass-strong: rgba(255, 255, 255, .94);
+  --glass-blur: saturate(140%) blur(18px);
+  --sheen: linear-gradient(180deg, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0) 55%);
+  --ring: 0 0 0 1px rgba(15, 23, 42, .06);
 
-  --shadow-1: 0 1px 2px rgba(18, 38, 72, .06);
-  --shadow-2: 0 4px 12px -4px rgba(18, 38, 72, .12), 0 1px 3px rgba(18, 38, 72, .05);
-  --shadow-3: 0 18px 40px -18px rgba(18, 38, 72, .22), 0 4px 12px -8px rgba(18, 38, 72, .12);
-  --shadow-4: 0 40px 90px -30px rgba(18, 38, 72, .3), 0 10px 26px -14px rgba(18, 38, 72, .16);
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, .05);
+  --shadow-2: 0 4px 12px -4px rgba(15, 23, 42, .10), 0 1px 3px rgba(15, 23, 42, .04);
+  --shadow-3: 0 16px 36px -18px rgba(15, 23, 42, .18), 0 4px 12px -8px rgba(15, 23, 42, .10);
+  --shadow-4: 0 36px 80px -30px rgba(15, 23, 42, .24), 0 10px 24px -14px rgba(15, 23, 42, .12);
   color-scheme: light;
 }
+
 
 /* ════════════════════════════════════════════════════════════════════════════
    LINEN — soft neutral ground, ink-black type. Minimal, not bare.
@@ -551,56 +554,50 @@
      --relief-press   the pressed/active state of a control
    `--relief-light` and `--relief-dark` are the two ends of the light source. */
 :root {
-  --relief-light: rgba(255, 255, 255, .055);
-  --relief-dark: rgba(0, 0, 0, .55);
-  --relief-up:
-    -1px -1px 2px 0 var(--relief-light),
-    0 2px 5px -1px var(--relief-dark),
-    0 1px 1px -1px rgba(0, 0, 0, .5);
-  --relief-up-lg:
-    -1.5px -1.5px 3px 0 var(--relief-light),
-    0 14px 32px -16px var(--relief-dark),
-    0 3px 10px -6px rgba(0, 0, 0, .55);
-  --relief-hover:
-    -1.5px -1.5px 3px 0 var(--relief-light),
-    0 10px 22px -10px var(--relief-dark),
-    0 2px 6px -3px rgba(0, 0, 0, .5);
-  --relief-in:
-    inset 2px 2px 5px -2px var(--relief-dark),
-    inset -1px -1px 2px 0 var(--relief-light);
-  --relief-in-soft:
-    inset 1px 1px 3px -1px var(--relief-dark),
-    inset -1px -1px 1px 0 var(--relief-light);
-  --relief-press:
-    inset 2px 2px 4px -1px var(--relief-dark),
-    inset -1px -1px 2px 0 var(--relief-light);
+  --relief-light: rgba(255, 255, 255, .045);
+  --relief-dark: rgba(0, 0, 0, .42);
+  --relief-up: 0 1px 2px -1px var(--relief-dark);
+  --relief-up-lg: 0 10px 28px -18px var(--relief-dark), 0 2px 6px -4px rgba(0, 0, 0, .35);
+  --relief-hover: 0 6px 16px -10px var(--relief-dark), 0 1px 3px -2px rgba(0, 0, 0, .4);
+  --relief-in: inset 1px 1px 3px -1px var(--relief-dark);
+  --relief-in-soft: inset 0 1px 2px -1px var(--relief-dark);
+  --relief-press: inset 1px 1px 3px -1px var(--relief-dark), inset -1px -1px 1px 0 var(--relief-light);
 }
 :root[data-mode="light"] {
-  /* On a light ground the highlight does the work and the shadow stays cool and
-     wide, otherwise the surface reads as dirty rather than raised. */
-  --relief-light: rgba(255, 255, 255, .95);
-  --relief-dark: color-mix(in oklab, var(--text-3) 34%, transparent);
+  /* Quiet on light grounds: a hard white highlight and a cool, shallow shadow. */
+  --relief-light: rgba(255, 255, 255, .9);
+  --relief-dark: color-mix(in oklab, var(--text-3) 26%, transparent);
+  --relief-up: 0 1px 2px -1px var(--relief-dark);
+  --relief-up-lg: 0 12px 28px -18px var(--relief-dark), 0 2px 6px -5px var(--relief-dark);
+  --relief-hover: 0 8px 18px -12px var(--relief-dark), 0 1px 3px -2px var(--relief-dark);
+  --relief-in: inset 1px 1px 3px -1px var(--relief-dark);
+  --relief-in-soft: inset 0 1px 2px -1px var(--relief-dark);
+  --relief-press: inset 1px 2px 4px -2px var(--relief-dark), inset -1px -1px 2px 0 var(--relief-light);
+}
+
+/* Gloss is the one theme that leans fully into soft relief: pure white surfaces on a grey
+   ground, a wide cool shadow and a hard white highlight. Everything else stays near-flat. */
+:root[data-theme="gloss"] {
+  --relief-light: #FFFFFF;
+  --relief-dark: rgba(148, 163, 184, .55);
   --relief-up:
-    -2px -2px 4px 0 var(--relief-light),
-    0 2px 6px -2px var(--relief-dark),
-    0 1px 2px -1px color-mix(in oklab, var(--text-3) 22%, transparent);
-  --relief-up-lg:
     -3px -3px 7px 0 var(--relief-light),
-    0 16px 34px -18px var(--relief-dark),
-    0 3px 10px -7px color-mix(in oklab, var(--text-3) 26%, transparent);
+    4px 5px 12px -4px var(--relief-dark);
+  --relief-up-lg:
+    -5px -5px 12px 0 var(--relief-light),
+    10px 14px 30px -12px var(--relief-dark);
   --relief-hover:
-    -3px -3px 6px 0 var(--relief-light),
-    0 12px 24px -12px var(--relief-dark),
-    0 2px 6px -3px color-mix(in oklab, var(--text-3) 24%, transparent);
+    -4px -4px 9px 0 var(--relief-light),
+    7px 9px 20px -8px var(--relief-dark);
   --relief-in:
-    inset 2px 2px 5px -2px var(--relief-dark),
-    inset -2px -2px 4px 0 var(--relief-light);
+    inset 3px 3px 7px -2px var(--relief-dark),
+    inset -3px -3px 6px 0 var(--relief-light);
   --relief-in-soft:
-    inset 1px 1px 3px -1px var(--relief-dark),
-    inset -1px -1px 2px 0 var(--relief-light);
+    inset 2px 2px 4px -1px rgba(148, 163, 184, .38),
+    inset -2px -2px 4px 0 #FFFFFF;
   --relief-press:
-    inset 2px 2px 5px -1px var(--relief-dark),
-    inset -2px -2px 3px 0 var(--relief-light);
+    inset 3px 3px 6px -1px var(--relief-dark),
+    inset -2px -2px 5px 0 var(--relief-light);
 }
 
 [data-domain="attendance"] { --hue: var(--hue-attendance); --hue-ink: var(--ink-attendance); --hue-next: var(--hue-people); }

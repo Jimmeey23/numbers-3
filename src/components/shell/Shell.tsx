@@ -4,7 +4,6 @@ import { useDockedPanel, useOverlay } from '../../state/overlays';
 import { Logo } from './Logo';
 import { Icon, TAB_ICONS } from './Icons';
 import { HeroGraphic } from '../HeroGraphic';
-import { useFooter } from '../../state/footer';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -289,48 +288,46 @@ export function PageHeader() {
   const tab = useView((s) => s.tab);
   const scope = useScope();
   const setFiltersOpen = useView((s) => s.setFiltersOpen);
-  const setPaletteOpen = useView((s) => s.setPaletteOpen);
   const meta = tabMeta(tab);
   const filters = useFilters((s) => s.filters);
-  const reveal = useFooter((s) => s.reveal);
-  const slots = useFooter((s) => s.slots);
   const studios = filters.locations.length
     ? filters.locations.map((l) => l.split(',')[0]).join(', ')
     : 'All studios';
-  const stats: { label: string; value: string; onClick?: () => void; title?: string }[] = [
-    { label: 'Period', value: scope ? scope.period.label : '—', onClick: () => setFiltersOpen(true), title: 'Edit the period (F)' },
-    { label: 'Rows in scope', value: scope ? scope.rowsInScope.toLocaleString('en-IN') : '—' },
-    { label: 'Compared with', value: filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—' },
-    { label: 'Studios', value: studios },
-  ];
+  /* The page opens the tab rather than announcing it: group, name, the line that says what the
+     view answers, and the four facts that qualify every number under it. No card, no frame —
+     it is the top of the page, not an object sitting on top of the page. */
   return (
-    <header className="page-hero" data-domain={meta.domain}>
-      <div className="page-hero-art" aria-hidden="true"><HeroGraphic tab={tab} /></div>
-      <div className="page-hero-main">
-        <div className="page-hero-eyebrow">
-          <span className="page-hero-group">{meta.group}</span>
-          <span className="page-hero-dot" aria-hidden="true" />
-          <span className="page-hero-key">{meta.key ? `Shortcut ${meta.key}` : 'Section'}</span>
+    <header className="page-head" data-domain={meta.domain}>
+      <div className="page-head-row">
+        <div className="page-head-main">
+          <div className="page-eyebrow">
+            <span className="page-eyebrow-rule" aria-hidden="true" />
+            {meta.group}
+            {meta.key && <span className="page-eyebrow-key">{meta.key}</span>}
+          </div>
+          <h1 className="page-title">{meta.label}</h1>
+          <p className="page-sub">{meta.blurb}</p>
         </div>
-        <h1 className="page-title">{meta.label}</h1>
-        <p className="page-sub">{meta.blurb}</p>
-        <div className="page-hero-actions">
-          <button className="btn btn-xs" onClick={() => setFiltersOpen(true)}>Adjust scope <span className="kbd">F</span></button>
-          <button className="btn btn-xs" onClick={() => setPaletteOpen(true)}>Jump to a metric <span className="kbd">⌘K</span></button>
-          <button className="btn btn-xs" onClick={() => { reveal('reference'); window.setTimeout(() => document.querySelector('.tab-footer')?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 60); }}>
-            Reference &amp; API{slots.length ? ` (${slots.length})` : ''}
-          </button>
+        <HeroGraphic tab={tab} />
+      </div>
+      <dl className="page-facts">
+        <div className="page-fact">
+          <dt>Period</dt>
+          <dd><button className="page-fact-edit" onClick={() => setFiltersOpen(true)} title="Edit the period (F)">{scope ? scope.period.label : '—'}</button></dd>
         </div>
-      </div>
-      <div className="page-hero-stats">
-        {stats.map((st) => (
-          st.onClick
-            ? <button key={st.label} className="page-stat is-button" onClick={st.onClick} title={st.title}>
-                <span>{st.label}</span><b>{st.value}</b>
-              </button>
-            : <div key={st.label} className="page-stat"><span>{st.label}</span><b title={st.value}>{st.value}</b></div>
-        ))}
-      </div>
+        <div className="page-fact">
+          <dt>Rows in scope</dt>
+          <dd className="tabular">{scope ? scope.rowsInScope.toLocaleString('en-IN') : '—'}</dd>
+        </div>
+        <div className="page-fact">
+          <dt>Compared with</dt>
+          <dd>{filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—'}</dd>
+        </div>
+        <div className="page-fact">
+          <dt>Studios</dt>
+          <dd title={studios}>{studios}</dd>
+        </div>
+      </dl>
     </header>
   );
 }

@@ -12,18 +12,17 @@ interface Props {
   count?: number; minSample?: number; table: TableName; domain: string; sampleLabel?: string;
 }
 
-type Side = 'both' | 'top' | 'bottom';
 const COUNTS = [5, 10, 20];
 
 /** Top and bottom lists on one shared scale.
  *
- *  The list is a control surface, not a printout: the metric, the depth, which end is shown and a
- *  name filter are all live, every row drills into the records behind it, and whatever is on
- *  screen can be exported in the state it is being read in. */
+ *  The list is a control surface, not a printout: the metric, the depth and a name filter are all
+ *  live, every row drills into the records behind it, and whatever is on screen can be exported in
+ *  the state it is being read in. Strongest and weakest always sit side by side — a ranking only
+ *  means something against its opposite end, so neither column can be dismissed. */
 export function RankingList({ title, nodes, compareNodes, metricOptions, ctx, count = 10, minSample, table, domain, sampleLabel = 'rows' }: Props) {
   const [mid, setMid] = useState(metricOptions[0]);
   const [n, setN] = useState(count);
-  const [side, setSide] = useState<Side>('both');
   const [q, setQ] = useState('');
   const def = metric(mid);
   const open = useDrill((s) => s.open);
@@ -50,8 +49,8 @@ export function RankingList({ title, nodes, compareNodes, metricOptions, ctx, co
   }, [compareNodes, mid, ctx, minN, def.higherIsBetter]);
 
   const max = Math.max(1e-9, ...sorted.map((x) => Math.abs(x.v)));
-  const flipA = useFlip<HTMLDivElement>(`${mid}${n}${side}${needle}`);
-  const flipB = useFlip<HTMLDivElement>(`${mid}${n}${side}${needle}b`);
+  const flipA = useFlip<HTMLDivElement>(`${mid}${n}${needle}`);
+  const flipB = useFlip<HTMLDivElement>(`${mid}${n}${needle}b`);
   const drill = (node: RollupNode) => open({ title: node.label, breadcrumb: [title, node.label], table, rows: node.rows, peerRows: nodes.flatMap((x) => x.rows), peers: nodes.map((x) => ({ label: x.label, rows: x.rows })), metricIds: metricOptions, domain });
 
   const payload = () => ({
@@ -100,11 +99,6 @@ export function RankingList({ title, nodes, compareNodes, metricOptions, ctx, co
           </select>
         </div>
         <div className="ranking-controls">
-          <div className="segment ranking-side" role="group" aria-label="Which end to show">
-            {([['both', 'Both'], ['top', 'Strongest'], ['bottom', 'Weakest']] as const).map(([id, label]) => (
-              <button key={id} className={side === id ? 'active' : ''} aria-pressed={side === id} onClick={() => setSide(id)}>{label}</button>
-            ))}
-          </div>
           <div className="segment ranking-count" role="group" aria-label="How many to show">
             {COUNTS.map((c) => (
               <button key={c} className={n === c ? 'active' : ''} aria-pressed={n === c} onClick={() => setN(c)}>{c}</button>
@@ -116,19 +110,15 @@ export function RankingList({ title, nodes, compareNodes, metricOptions, ctx, co
         </div>
       </div>
 
-      <div className={`ranking-body is-${side}`}>
-        {side !== 'bottom' && (
-          <div className="ranking-col">
-            <div className="ranking-col-head"><span className="ranking-col-mark is-top" aria-hidden="true" />Strongest{def.higherIsBetter ? '' : ' (lowest is best)'}</div>
-            {renderList(top, flipA, 'top')}
-          </div>
-        )}
-        {side !== 'top' && (
-          <div className="ranking-col">
-            <div className="ranking-col-head"><span className="ranking-col-mark is-bottom" aria-hidden="true" />Weakest</div>
-            {renderList(bottom, flipB, 'bottom')}
-          </div>
-        )}
+      <div className="ranking-body">
+        <div className="ranking-col">
+          <div className="ranking-col-head"><span className="ranking-col-mark is-top" aria-hidden="true" />Strongest{def.higherIsBetter ? '' : ' (lowest is best)'}</div>
+          {renderList(top, flipA, 'top')}
+        </div>
+        <div className="ranking-col">
+          <div className="ranking-col-head"><span className="ranking-col-mark is-bottom" aria-hidden="true" />Weakest</div>
+          {renderList(bottom, flipB, 'bottom')}
+        </div>
       </div>
 
       <div className="ranking-foot t-label-s faint">

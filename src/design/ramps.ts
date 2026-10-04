@@ -31,9 +31,9 @@ const SPECS: ThemeSpec[] = [
   { id: 'matte', label: 'Matte', blurb: 'Matte black, neon accents. Light comes only from the data.', dark: true,
     surface: '#0E0E0F', accents: ['#00E5FF', '#FF2E88', '#00FFA3', '#B87CFF', '#FFC400'],
     pos: '#00FFA3', neg: '#FF4D6A', warn: '#FFC400', text3: '#7F7F88', hairline: '#242427', nullc: '#4A4A52' },
-  { id: 'gloss', label: 'Gloss', blurb: 'Bright white with blue, pink, teal, violet and amber accents.', dark: false,
-    surface: '#FFFFFF', accents: ['#1773E8', '#D72E81', '#099D83', '#754DE0', '#D18010'],
-    pos: '#087D63', neg: '#C82C5B', warn: '#A66507', text3: '#607390', hairline: '#DCE6F5', nullc: '#91A5C1' },
+  { id: 'gloss', label: 'Gloss', blurb: 'White neumorphism: one blue, light grey, and nothing else.', dark: false,
+    surface: '#FFFFFF', accents: ['#2563EB', '#64748B', '#0EA5E9', '#6366F1', '#334155'],
+    pos: '#047857', neg: '#BE123C', warn: '#B45309', text3: '#64748B', hairline: '#E2E8F0', nullc: '#A3AEC0' },
   { id: 'carbon', label: 'Carbon', blurb: 'Graphite and warm, restrained accents. The quietest theme.', dark: true,
     surface: '#1C2023', accents: ['#3FBFA8', '#E8756B', '#9FC46A', '#8E9BF0', '#E8A33D'],
     pos: '#7FC77A', neg: '#E8756B', warn: '#E8A33D', text3: '#7E888F', hairline: '#32383D', nullc: '#59616A' },
@@ -115,7 +115,9 @@ function build(spec: ThemeSpec): Ramp {
        separability; a midpoint is a hue of its own at the same lightness, so it keeps the
        family's contrast while pulling the series apart. */
     categorical: spec.id === 'gloss'
-      ? [att, rev, gro, ris, peo, '#0799BF', '#A640BB', '#78A91E', '#DF594E', '#5064D1']
+      /* Blue-led and still separable: four blues at different lightness, three greys, and two
+         cool violets. Measured the same way as the generic construction below. */
+      ? [att, rev, gro, peo, ris, '#1E40AF', '#94A3B8', '#38BDF8', '#818CF8', '#475569']
       : [att, rev, gro, ris, peo,
         blend(att, peo, 0.5), blend(rev, ris, 0.5), blend(gro, att, 0.45), blend(ris, gro, 0.5), blend(peo, rev, 0.45)],
     format: { 'Barre 57': rev, Cycle: att, Strength: ris, Pilates: peo, Hosted: gro, Other: gro, Unknown: spec.nullc },
