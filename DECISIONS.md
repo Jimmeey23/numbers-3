@@ -232,6 +232,43 @@ Ordering inside tables is explicit rather than incidental: ordinal dimensions (r
 keep their natural sequence, and the "weakest slots" table sorts ascending by fill with a minimum of
 eight bookings, so a single empty one-off cannot head the list.
 
+## Round 5 — "Aperture": the surface rebuilt
+
+The whole visual layer was rebuilt rather than adjusted. Three things were wrong with the old one:
+the chrome competed with the data, the light theme's neumorphism aged badly at small sizes, and a
+horizontal strip of fourteen tabs gave no sense of where a tab sat in the business.
+
+**Tokens.** `src/design/tokens.css` is a new three-tier system: a raw palette, then semantic surfaces
+(`--surface-1/2/3`, `--surface-inset`, `--glass`), text (`--text-1/2/3`), lines (`--hairline`,
+`--hairline-strong`) and elevation (`--shadow-1/2/3`). Eight themes — matte, gloss, carbon, aurora,
+paper, contrast, linen, blueprint — each define the same contract, so no component knows which theme
+is on. The neumorphic recipes (`--neu-*`) are gone: depth is now a hairline plus a soft shadow plus a
+translucent surface, which survives both dark themes and 12px type.
+
+**Domain hue.** Every tab carries `data-domain`, which rebinds `--hue`, `--hue-ink`, `--hue-wash`,
+`--hue-edge` and `--hue-veil`. The accent is therefore a property of *where you are* — revenue tabs
+are warm, floor tabs cool — and no component hardcodes a colour.
+
+**Typography.** Archivo (variable, display) for numbers, labels and headings; Instrument Sans for
+prose. A single scale — `t-display-*`, `t-heading-*`, `t-body-*`, `t-label-*` — with tabular,
+width-narrowed figures for every measured value, so columns of numbers align on the decimal.
+
+**Navigation.** The tab strip became a persistent, collapsible side rail grouped into
+Pulse · Commercial · Floor · People · Quality (`TAB_GROUPS` in `src/state/view.ts`), with a line icon
+per tab, the keyboard shortcut shown on the right, a failed-sheet badge on Data health, and the row
+count in scope pinned to the foot. Collapse persists in `localStorage['floor.nav.collapsed']`. The old
+horizontal rail is retained for viewports under 1100px, where the side rail is hidden.
+
+**Page header.** Every tab now opens with the same block: its group as an eyebrow, the tab name, a
+one-line statement of what the view answers (`blurb` on each `TabMeta`), and four qualifiers —
+period, rows in scope, comparison basis and studios. Period is a button that opens the filter drawer.
+
+**Top bar.** Reduced to identity (tab name, period pill, rows in scope), a search field that opens the
+command palette, and three clusters: produce (Ask · Report · Export), configure (Compare · Views ·
+Density · Theme) and system (Settings · Refresh).
+
+Nothing about the numbers changed. No metric, aggregation or rule was touched in this pass.
+
 ## Not done / honest gaps
 
 - Visual screenshots could not be produced — there is no browser binary in this environment. The app is instead exercised by server-rendering all twelve tabs against the real sheets in five filter scenarios (`scripts/render-test.mts`), and the retention figures were cross-checked against an independent Python calculation over the raw CSV.

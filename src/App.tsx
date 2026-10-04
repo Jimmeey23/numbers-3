@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { TitleBar, TabRail, InsightRail, StatusBar, CommandPalette, SettingsPanel } from './components/shell/Shell';
+import { TitleBar, SideNav, TabRail, PageHeader, InsightRail, StatusBar, CommandPalette, SettingsPanel } from './components/shell/Shell';
 import { FilterStrip } from './components/shell/FilterDrawer';
 import { TooltipLayer } from './components/Tooltip/Tooltip';
 import { DrillPanel } from './components/DrillPanel/DrillPanel';
@@ -69,12 +69,24 @@ function useUrlSync() {
 function LoadingScreen() {
   const loads = useData((s) => s.loads);
   return (
-    <div style={{ padding: 24, display: 'grid', gap: 12, maxWidth: 720 }}>
-      <div className="t-heading-l">Loading the floor</div>
-      <div className="t-body-s muted">Reading ten tabs across six spreadsheets by title. Structure renders now; values animate in as each sheet lands.</div>
+    <div className="rise" style={{ padding: '60px 0', display: 'grid', gap: 18, maxWidth: 760 }}>
+      <div>
+        <span className="eyebrow">Initialising</span>
+        <div className="t-display-m" style={{ marginTop: 6 }}>Reading the floor</div>
+        <div className="t-body-m muted" style={{ marginTop: 8, maxWidth: '62ch' }}>
+          Ten tabs across six spreadsheets, resolved by title. The structure renders now; every value animates in as its sheet lands.
+        </div>
+      </div>
       <div className="travel-barre" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-        {loads.map((l) => <div key={l.key} className="t-label-m" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', border: '1px solid var(--hairline)' }}><span>{l.title}</span><span className={l.status === 'ok' ? 'pos' : l.status === 'error' ? 'neg' : l.status === 'derived' ? 'warn' : 'muted'}>{l.status === 'pending' ? 'reading' : l.status === 'ok' ? `${l.rows.toLocaleString('en-IN')} rows` : l.status === 'derived' ? 'derived' : l.status === 'unused' ? 'not used' : l.status}</span></div>)}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 8 }}>
+        {loads.map((l) => (
+          <div key={l.key} className="t-label-m" style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '10px 14px', border: '1px solid var(--hairline)', borderRadius: 'var(--r-m)', background: 'color-mix(in oklab, var(--surface-1) 70%, transparent)' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</span>
+            <span className={l.status === 'ok' ? 'pos' : l.status === 'error' ? 'neg' : l.status === 'derived' ? 'warn' : 'faint'}>
+              {l.status === 'pending' ? 'reading…' : l.status === 'ok' ? `${l.rows.toLocaleString('en-IN')} rows` : l.status === 'derived' ? 'derived' : l.status === 'unused' ? 'not used' : l.status}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -83,11 +95,14 @@ function LoadingScreen() {
 function ErrorScreen({ error }: { error: string }) {
   const load = useData((s) => s.load);
   return (
-    <div style={{ padding: 24, maxWidth: 640 }}>
-      <div className="t-heading-l">The data layer failed to initialise</div>
-      <p className="t-body-m muted">{error}</p>
-      <p className="t-body-s">Each sheet is read with <code>{SHEETS[0].title}</code>-style title resolution from docs.google.com. Check that this browser can reach Google, then retry.</p>
-      <button className="btn active" onClick={() => load(true)}>Retry</button>
+    <div className="rise" style={{ padding: '60px 0', maxWidth: 660, display: 'grid', gap: 14 }}>
+      <div>
+        <span className="eyebrow" style={{ color: 'var(--neg)' }}>Source failure</span>
+        <div className="t-display-m" style={{ marginTop: 6 }}>The data layer failed to initialise</div>
+      </div>
+      <p className="t-body-m muted" style={{ margin: 0 }}>{error}</p>
+      <p className="t-body-s muted" style={{ margin: 0 }}>Each sheet is read with <code>{SHEETS[0].title}</code>-style title resolution from docs.google.com. Check that this browser can reach Google, then retry.</p>
+      <div><button className="btn btn-primary" onClick={() => load(true)}>Retry now</button></div>
     </div>
   );
 }
@@ -175,24 +190,30 @@ function Workspace() {
   const Tab = COMPONENTS[tab];
   const domain = useMemo(() => TABS.find((t) => t.id === tab)?.domain ?? 'attendance', [tab]);
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--canvas)' }} data-domain={domain} data-tab={tab}>
-      <TitleBar />
-      <FilterStrip />
-      <TabRail />
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <main id="canvas" className={`canvas ${swapping ? 'dim fade-swap' : 'fade-swap'}`} aria-busy={swapping || status === 'loading'}>
-          {swapping && <div className="travel-barre" style={{ position: 'sticky', top: 0, zIndex: 5 }} />}
-          <BlockedBanner />
-          {status === 'error' && error ? <ErrorScreen error={error} /> : !scope ? <LoadingScreen /> : (
-            <Suspense fallback={<div style={{ padding: '24px 0' }}><div className="travel-barre" /></div>}>
-              <Tab key={tab} scope={scope} />
-            </Suspense>
-          )}
-          {scope && status !== 'error' && <TabEndpoint tab={tab} />}
-        </main>
-        <InsightRail />
+    <div className="app-shell" data-domain={domain} data-tab={tab}>
+      <SideNav />
+      <div className="app-body">
+        <TitleBar />
+        <FilterStrip />
+        <TabRail />
+        <div className="work-row">
+          <main id="canvas" className={`canvas ${swapping ? 'dim fade-swap' : 'fade-swap'}`} aria-busy={swapping || status === 'loading'}>
+            {swapping && <div className="travel-barre" style={{ position: 'sticky', top: 0, zIndex: 5 }} />}
+            <BlockedBanner />
+            {status === 'error' && error ? <ErrorScreen error={error} /> : !scope ? <LoadingScreen /> : (
+              <>
+                <PageHeader />
+                <Suspense fallback={<div style={{ padding: '24px 0' }}><div className="travel-barre" /></div>}>
+                  <Tab key={tab} scope={scope} />
+                </Suspense>
+              </>
+            )}
+            {scope && status !== 'error' && <TabEndpoint tab={tab} />}
+          </main>
+          <InsightRail />
+        </div>
+        <StatusBar />
       </div>
-      <StatusBar />
       <TooltipLayer />
       <TableSummaryEnhancer />
       <DrillPanel />

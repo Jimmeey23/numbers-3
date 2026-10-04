@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_THRESHOLDS, TABS, useView, type TabId } from '../../state/view';
+import { DEFAULT_THRESHOLDS, TAB_GROUPS, TABS, tabMeta, useView, type TabId } from '../../state/view';
 import { useDockedPanel, useOverlay } from '../../state/overlays';
 import { Logo } from './Logo';
+import { Icon, TAB_ICONS } from './Icons';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -21,70 +22,188 @@ import { AI_EVENT, clearAIKey, generateAISignals, readAIConfig, readOpenAIKey, s
 import { clearSavedReports, listSavedReports } from '../../report/store';
 import { RAMPS, THEMES, type Theme } from '../../design/ramps';
 
+/* ════════════════════════════════════════════════════════════════════════════
+   SHELL — the chrome around the canvas.
+
+     SideNav     persistent, grouped, icon-led navigation
+     TopBar      identity of the current view, search, and global actions
+     PageHeader  the title block every tab opens with
+     InsightRail signals for whatever is on screen
+     StatusBar   provenance: rows, period, which sheets answered
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Side navigation ─────────────────────────────────────────────────────── */
+export function SideNav() {
+  const tab = useView((s) => s.tab);
+  const setTab = useView((s) => s.setTab);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('floor.nav.collapsed') === '1'; } catch { return false; }
+  });
+  const scope = useScope();
+  const loads = useData((s) => s.loads);
+  const failed = loads.filter((l) => l.status === 'error' || l.status === 'empty').length;
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [tab]);
+  const toggle = () => setCollapsed((c) => {
+    try { localStorage.setItem('floor.nav.collapsed', c ? '0' : '1'); } catch { /* private mode */ }
+    return !c;
+  });
+  const domain = tabMeta(tab).domain;
+  return (
+    <nav ref={ref} aria-label="Sections" data-domain={domain} className={`sidenav ${collapsed ? 'is-collapsed' : ''}`}>
+      <div className="sidenav-brand">
+        <button type="button" className="brand-home" title="Go to Overview"
+          onClick={() => { setTab('overview'); document.getElementById('canvas')?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          aria-label="Atlas home, open Overview">
+          <Logo size={collapsed ? 30 : 34} />
+          <span style={{ minWidth: 0 }}>
+            <span className="brand-mark">ATLAS</span>
+            <span className="brand-sub">Physique 57 India</span>
+          </span>
+        </button>
+      </div>
+
+      <div className="sidenav-scroll" role="tablist" aria-orientation="vertical">
+        {TAB_GROUPS.map((group) => {
+          const items = TABS.filter((t) => t.group === group);
+          if (!items.length) return null;
+          return (
+            <div key={group} className="nav-group">
+              <div className="nav-group-label">{group}</div>
+              {items.map((t) => (
+                <button key={t.id} role="tab" data-tab={t.id} data-domain={t.domain}
+                  aria-selected={tab === t.id} aria-label={t.label}
+                  className={`nav-item ${tab === t.id ? 'is-active' : ''}`}
+                  title={collapsed ? t.label : `${t.label}${t.key ? ` — press ${t.key}` : ''}`}
+                  onClick={() => setTab(t.id)}>
+                  <span className="nav-item-icon">{TAB_ICONS[t.id]}</span>
+                  <span className="nav-item-label">{t.label}</span>
+                  {t.id === 'health' && failed > 0
+                    ? <span className="nav-item-badge">{failed}</span>
+                    : t.key && <span className="nav-item-key">{t.key}</span>}
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="sidenav-foot">
+        {scope && (
+          <div className="nav-scope t-label-s">
+            <span className="faint">In scope</span>
+            <b>{scope.rowsInScope.toLocaleString('en-IN')} rows</b>
+            <span className="faint">{scope.period.label}</span>
+          </div>
+        )}
+        <button className="nav-collapse" onClick={toggle} title="Collapse navigation"
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}>
+          <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : 'none' }}>{Icon.collapse}</span>
+          {!collapsed && <span>Collapse</span>}
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+/** Retained for narrow viewports, where the side rail is hidden. */
+export function TabRail() {
+  const tab = useView((s) => s.tab);
+  const setTab = useView((s) => s.setTab);
+  return (
+    <div role="tablist" data-domain={tabMeta(tab).domain} className="tabrail">
+      {TABS.map((t) => (
+        <button key={t.id} role="tab" data-tab={t.id} aria-selected={tab === t.id} data-domain={t.domain}
+          className={`tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
 export function TitleBar() {
   const { theme, setTheme, density, setDensity, comparison, toggleComparison, setPaletteOpen, setSettingsOpen, savedViews, saveView, deleteView, tab, setTab } = useView();
-  const load = useData((s) => s.load); const status = useData((s) => s.status);
-  const ds = useData((s) => s.dataset);
-  const filters = useFilters((s) => s.filters); const replace = useFilters((s) => s.replace);
+  const load = useData((s) => s.load);
+  const status = useData((s) => s.status);
+  const scope = useScope();
+  const filters = useFilters((s) => s.filters);
+  const replace = useFilters((s) => s.replace);
   const [views, setViews] = useState(false);
-  const locations = useMemo(() => {
-    if (!ds) return [] as string[];
-    const m = new Map<string, number>();
-    for (const r of ds.sessions) if (r.location_short) m.set(r.location_short, (m.get(r.location_short) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k);
-  }, [ds]);
+  const meta = tabMeta(tab);
   return (
-    <header className="titlebar">
-      <div className="brand">
-        <button type="button" className="brand-home" onClick={() => { setTab('overview'); document.getElementById('canvas')?.scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label="Atlas home, open Overview" title="Go to Overview">
-          <Logo />
-          <span className="brand-mark">ATLAS</span>
-        </button>
-        <span className="brand-rule" aria-hidden="true" />
-        <span className="t-label-m muted titlebar-sub">Physique 57 India</span>
+    <header className="topbar">
+      <div className="topbar-heading">
+        <div className="topbar-title">
+          <span>{meta.label}</span>
+          {scope && <span className="status-pill" style={{ color: 'var(--hue-ink)', borderColor: 'var(--hue-edge)' }}>{scope.period.label}</span>}
+        </div>
+        <div className="topbar-sub">
+          {scope
+            ? `${scope.rowsInScope.toLocaleString('en-IN')} rows in scope${filters.compare === 'none' ? '' : ` · compared with ${scope.period.prevLabel}`}`
+            : 'Reading sources…'}
+        </div>
       </div>
-      <nav className="t-label-s faint titlebar-locations" aria-label="Locations in scope">
-        {locations.map((l) => <span key={l}>{l}</span>)}
-      </nav>
-      <div className="titlebar-spacer" />
+
+      <div className="topbar-spacer" />
+
+      <button className="topbar-search" onClick={() => setPaletteOpen(true)} title="Search anything">
+        {Icon.search}
+        <span>Search metrics, trainers, members…</span>
+        <span className="kbd">⌘K</span>
+      </button>
+
       <div className="tb-group">
-        <button className="btn btn-xs" aria-pressed={comparison} onClick={toggleComparison} title="Show the comparison value under every figure (C)">Compare</button>
+        <button className="btn btn-xs" onClick={() => useView.getState().setAskOpen(true)} title="Ask a question about this data (A)">
+          {Icon.ask}<span className="desktop-only">Ask</span>
+        </button>
+        <button className="btn btn-xs" onClick={() => useView.getState().setReportOpen(true)} title="Generate the monthly report (R)">
+          {Icon.report}<span className="desktop-only">Report</span>
+        </button>
+        <TabExport />
+      </div>
+
+      <div className="tb-group">
+        <button className="btn btn-xs" aria-pressed={comparison} onClick={toggleComparison} title="Show the comparison value under every figure (C)">
+          {Icon.compare}<span className="desktop-only">Compare</span>
+        </button>
         <div style={{ position: 'relative' }}>
-          <button className="btn btn-xs" onClick={() => setViews((v) => !v)} aria-expanded={views}>Views</button>
+          <button className="btn btn-xs" onClick={() => setViews((v) => !v)} aria-expanded={views} title="Saved views">
+            {Icon.views}<span className="desktop-only">Views</span>
+          </button>
           {views && (
             <>
               <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setViews(false)} />
-              <div className="surface chrome menu" style={{ width: 268 }}>
+              <div className="menu" style={{ width: 274, zIndex: 61 }}>
                 <div className="menu-label">Saved views</div>
                 {savedViews.map((v) => (
                   <div key={v.id} className="menu-row">
                     <button className="t-label-m menu-item" onClick={() => { replace(v.filters); setTab(v.tab); setDensity(v.density); if (v.comparison !== comparison) toggleComparison(); setViews(false); }}>
-                      {v.name}<span className="faint"> · {TABS.find((t) => t.id === v.tab)?.label}</span>
+                      {v.name}<span className="faint"> · {tabMeta(v.tab).label}</span>
                     </button>
                     {!v.preset && <button className="btn-ghost t-label-s" onClick={() => deleteView(v.id)} aria-label={`Delete ${v.name}`}>×</button>}
                   </div>
                 ))}
-                <button className="btn btn-xs" style={{ margin: '6px 4px 2px', width: 'calc(100% - 8px)' }}
+                <button className="btn btn-xs" style={{ margin: '8px 4px 2px', width: 'calc(100% - 8px)' }}
                   onClick={() => { const name = prompt('Name this view'); if (name) saveView({ id: `v-${Date.now()}`, name, tab, filters, density, comparison, createdAt: Date.now() }); setViews(false); }}>Save current view</button>
               </div>
             </>
           )}
         </div>
-      </div>
-      <div className="tb-group">
-        <select className="input t-label-m tb-select" value={density} onChange={(e) => setDensity(e.target.value as typeof density)} aria-label="Row density (D)">
+        <select className="input t-label-m tb-select desktop-only" value={density} onChange={(e) => setDensity(e.target.value as typeof density)} aria-label="Row density (D)">
           <option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="dense">Dense</option>
         </select>
         <ThemeMenu theme={theme} setTheme={setTheme} />
       </div>
+
       <div className="tb-group">
-        <button className="btn btn-xs" onClick={() => useView.getState().setAskOpen(true)} title="Ask a question about this data (A)">Ask <span className="kbd">A</span></button>
-        <button className="btn btn-xs" onClick={() => setPaletteOpen(true)} title="Search anything">Search <span className="kbd">⌘K</span></button>
-        <button className="btn btn-xs" onClick={() => useView.getState().setReportOpen(true)} title="Generate the monthly report (R)">Report <span className="kbd">R</span></button>
-        <button className="btn btn-xs" onClick={() => setSettingsOpen(true)} title="Rate card and insight thresholds">Settings</button>
-        <TabExport />
-        <button className="btn btn-xs" onClick={async () => { await clearCache(); load(true); }} disabled={status === 'loading'} title="Re-read every sheet from Google. Sheets are otherwise served from the local cache and are never refetched on their own.">
-          {status === 'loading' ? 'Refreshing…' : '↻ Refresh'}
+        <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Settings — rate card, thresholds, appearance" aria-label="Settings">{Icon.settings}</button>
+        <button className="icon-button" onClick={async () => { await clearCache(); load(true); }} disabled={status === 'loading'}
+          title="Re-read every sheet from Google. Sheets are otherwise served from the local cache." aria-label="Refresh sources">
+          <span style={{ display: 'inline-flex', animation: status === 'loading' ? 'hgSpin 1.1s linear infinite' : undefined }}>{Icon.refresh}</span>
         </button>
       </div>
     </header>
@@ -115,43 +234,28 @@ function TabExport() {
     return { name: `Atlas · ${ep.title}`, columns: ['Section', 'Item', 'Value', 'Formatted', 'Detail', 'Extra', ...metricCols.map((m) => m)].slice(0, 6 + metricCols.length),
       rows, scopeLine: scopeLine(scope), meta: { tab, generated: new Date().toISOString() } };
   };
-  return <ExportMenu payload={payload} label="Export tab" />;
+  return <ExportMenu payload={payload} label="Export" />;
 }
 
-export function TabRail() {
-  const tab = useView((s) => s.tab); const setTab = useView((s) => s.setTab);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [tab]);
-  const domain = TABS.find((t) => t.id === tab)?.domain ?? 'attendance';
-  return (
-    <div ref={ref} role="tablist" data-domain={domain} className="tabrail">
-      {TABS.map((t) => (
-        <button key={t.id} role="tab" data-tab={t.id} aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-          className={`tab ${tab === t.id ? 'is-active' : ''}`} data-domain={t.domain} title={`${t.label} — press ${t.key}`}>
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* Theme menu. Six themes rather than a light/dark pair, so a toggle no longer says what the next
-   press does — the list names each one and says what it is for. T still cycles. */
+/* Theme menu. Eight palettes rather than a light/dark pair, so a toggle no longer has to say
+   what the next press does — the list names each one and shows its palette. T still cycles. */
 function ThemeMenu({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
   const [open, setOpen] = useState(false);
   useOverlay(open, useCallback(() => setOpen(false), []));
   const current = THEMES.find((t) => t.id === theme) ?? THEMES[0];
   return (
     <div style={{ position: 'relative' }}>
-      <button className="btn btn-xs" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}
-        title="Theme (T cycles)">{current.dark ? '◐' : '◑'} {current.label}</button>
+      <button className="btn btn-xs" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} title="Theme (T cycles)">
+        <span className="theme-swatches" aria-hidden style={{ paddingTop: 0 }}>
+          {SWATCHES[current.id].slice(1, 4).map((c, i) => <i key={i} style={{ background: c, width: 6, height: 12 }} />)}
+        </span>
+        <span className="desktop-only">{current.label}</span>
+      </button>
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 60 }} onClick={() => setOpen(false)} />
           <div className="menu theme-menu" role="menu" style={{ right: 0, zIndex: 61 }}>
+            <div className="menu-label">Palette</div>
             {THEMES.map((t) => (
               <button key={t.id} role="menuitemradio" aria-checked={t.id === theme} className="theme-item"
                 onClick={() => { setTheme(t.id); setOpen(false); }}>
@@ -159,7 +263,7 @@ function ThemeMenu({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => 
                   {SWATCHES[t.id].map((c, i) => <i key={i} style={{ background: c }} />)}
                 </span>
                 <span className="theme-item-text">
-                  <b>{t.label}{t.id === theme ? ' ·' : ''}</b>
+                  <b>{t.label}</b>
                   <span className="t-label-s faint">{t.blurb}</span>
                 </span>
               </button>
@@ -175,6 +279,48 @@ function ThemeMenu({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => 
 const SWATCHES: Record<Theme, string[]> = Object.fromEntries(THEMES.map((t) => [t.id,
   [RAMPS[t.id].surface, ...['attendance', 'revenue', 'growth', 'people', 'risk'].map((d) => RAMPS[t.id].domain[d])]])) as Record<Theme, string[]>;
 
+/* ── Page header ─────────────────────────────────────────────────────────── */
+/** The title block every tab opens with: where you are, what this view answers, and the
+    three facts that qualify every number below it. */
+export function PageHeader() {
+  const tab = useView((s) => s.tab);
+  const scope = useScope();
+  const setFiltersOpen = useView((s) => s.setFiltersOpen);
+  const meta = tabMeta(tab);
+  const filters = useFilters((s) => s.filters);
+  const locations = filters.locations.length ? `${filters.locations.length} selected` : 'All studios';
+  return (
+    <header className="page-head" data-domain={meta.domain}>
+      <div className="page-head-main">
+        <span className="eyebrow">{meta.group}</span>
+        <h1 className="page-title">
+          <span>{meta.label}</span>
+        </h1>
+        <p className="page-sub">{meta.blurb}</p>
+      </div>
+      <div className="page-meta">
+        <button className="page-stat" onClick={() => setFiltersOpen(true)} title="Edit the period (F)" style={{ textAlign: 'left', cursor: 'pointer' }}>
+          <span>Period</span>
+          <b>{scope ? scope.period.label : '—'}</b>
+        </button>
+        <div className="page-stat">
+          <span>Rows in scope</span>
+          <b>{scope ? scope.rowsInScope.toLocaleString('en-IN') : '—'}</b>
+        </div>
+        <div className="page-stat">
+          <span>Compared with</span>
+          <b>{filters.compare === 'none' ? 'Off' : scope ? scope.period.prevLabel : '—'}</b>
+        </div>
+        <div className="page-stat">
+          <span>Studios</span>
+          <b>{locations}</b>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ── Insight rail ────────────────────────────────────────────────────────── */
 export function InsightRail() {
   const { railOpen, toggleRail, thresholds, dismissed, tab, setSettingsOpen, announce } = useView();
   const scope = useScope();
@@ -203,7 +349,9 @@ export function InsightRail() {
   return (
     <aside aria-label="Insights" className={`insight-rail ${railOpen ? 'is-open' : 'is-closed'}`}>
       <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : 'Expand insights'}>
-        <span className="insight-rail-chevron" aria-hidden="true">{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Insights <span className="insight-rail-count">{forTab.length + custom.length}</span></span> : <span className="insight-rail-vertical">Insights</span>}
+        {railOpen
+          ? <><span>Signals <span className="insight-rail-count">{forTab.length + custom.length}</span></span><span className="insight-rail-chevron" aria-hidden="true">›</span></>
+          : <><span className="insight-rail-chevron" aria-hidden="true">‹</span><span className="insight-rail-vertical">Signals</span></>}
       </button>
       {railOpen && (
         <div className="insight-rail-content">
@@ -253,6 +401,7 @@ const cacheAgeTitle = (loads: SheetLoad[]): string => {
     + (stale ? ' This copy is more than fifteen minutes old.' : '');
 };
 
+/* ── Status bar ──────────────────────────────────────────────────────────── */
 export function StatusBar() {
   const loads = useData((s) => s.loads); const ds = useData((s) => s.dataset); const scope = useScope();
   const announcement = useView((s) => s.announcement); const setTab = useView((s) => s.setTab);
@@ -283,11 +432,13 @@ export function StatusBar() {
   );
 }
 
+/* ── Command palette ─────────────────────────────────────────────────────── */
 export function CommandPalette() {
   const open = useView((s) => s.paletteOpen); const setOpen = useView((s) => s.setPaletteOpen);
   useOverlay(open, useCallback(() => setOpen(false), [setOpen])); const setTab = useView((s) => s.setTab);
   const ds = useData((s) => s.dataset); const addTransient = useFilters((s) => s.addTransient); const drill = useDrill((s) => s.open);
   const [q, setQ] = useState(''); const [i, setI] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
   const items = useMemo(() => {
     if (!ds) return [] as { label: string; kind: string; run: () => void }[];
     const out: { label: string; kind: string; run: () => void }[] = [];
@@ -303,15 +454,39 @@ export function CommandPalette() {
     for (const [n, rows] of members) out.push({ label: n, kind: 'Member', run: () => drill({ title: n, breadcrumb: ['Members', n], table: 'newc', rows, metricIds: ['avg_ltv', 'visits_post_trial' in rows[0] ? 'avg_visits_post_trial' : 'avg_ltv', 'conversion_rate', 'retention_rate'], domain: 'growth' }) });
     return out;
   }, [ds, setTab, addTransient, drill]);
-  const shown = useMemo(() => { const s = q.toLowerCase().trim(); return (s ? items.filter((it) => it.label.toLowerCase().includes(s)) : items.slice(0, 12)).slice(0, 40); }, [items, q]);
+  const shown = useMemo(() => { const s = q.toLowerCase().trim(); return (s ? items.filter((it) => it.label.toLowerCase().includes(s)) : items.slice(0, 14)).slice(0, 40); }, [items, q]);
   useEffect(() => { setI(0); }, [q]);
+  useEffect(() => { listRef.current?.querySelector<HTMLElement>('.palette-item.is-active')?.scrollIntoView({ block: 'nearest' }); }, [i]);
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'var(--overlay)', display: 'flex', justifyContent: 'center', paddingTop: '12vh' }} onClick={() => setOpen(false)}>
-      <div className="surface chrome" style={{ width: 560, height: 'fit-content', maxHeight: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Command palette">
-        <input autoFocus className="input t-body-m" style={{ height: 44, border: 0, borderBottom: '1px solid var(--hairline)', borderRadius: 0, background: 'transparent' }} placeholder="Jump to a tab, metric, trainer, member, slot or class" value={q} onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'ArrowDown') setI((x) => Math.min(shown.length - 1, x + 1)); if (e.key === 'ArrowUp') setI((x) => Math.max(0, x - 1)); if (e.key === 'Enter' && shown[i]) { shown[i].run(); setOpen(false); } if (e.key === 'Escape') setOpen(false); }} />
-        <div style={{ overflow: 'auto' }}>{shown.map((it, j) => <button key={`${it.kind}${it.label}`} onClick={() => { it.run(); setOpen(false); }} className="t-body-s" style={{ display: 'flex', width: '100%', padding: '8px 14px', gap: 10, background: j === i ? 'var(--surface-3)' : 'transparent', textAlign: 'left' }}><span className="t-label-s muted" style={{ width: 60 }}>{it.kind}</span>{it.label}</button>)}</div>
+    <div className="palette-scrim" onClick={() => setOpen(false)}>
+      <div className="palette" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Command palette">
+        <div className="palette-input">
+          {Icon.search}
+          <input autoFocus placeholder="Jump to a tab, metric, trainer, member, slot or class" value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setI((x) => Math.min(shown.length - 1, x + 1)); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setI((x) => Math.max(0, x - 1)); }
+              if (e.key === 'Enter' && shown[i]) { shown[i].run(); setOpen(false); }
+              if (e.key === 'Escape') setOpen(false);
+            }} />
+          <span className="kbd">Esc</span>
+        </div>
+        <div className="palette-list" ref={listRef}>
+          {shown.map((it, j) => (
+            <button key={`${it.kind}${it.label}`} onMouseEnter={() => setI(j)} onClick={() => { it.run(); setOpen(false); }}
+              className={`palette-item ${j === i ? 'is-active' : ''}`}>
+              <span className="palette-kind">{it.kind}</span>
+              <span className="t-body-s" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
+            </button>
+          ))}
+          {!shown.length && <div className="t-body-s faint" style={{ padding: '18px 14px' }}>Nothing matches “{q}”.</div>}
+        </div>
+        <div className="palette-foot">
+          <span><span className="kbd">↑</span> <span className="kbd">↓</span> navigate</span>
+          <span><span className="kbd">↵</span> open</span>
+          <span style={{ marginLeft: 'auto' }}>{shown.length} of {items.length}</span>
+        </div>
       </div>
     </div>
   );

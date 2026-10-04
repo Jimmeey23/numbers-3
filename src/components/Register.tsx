@@ -8,7 +8,8 @@ interface Props {
   collapsed?: boolean; lazy?: boolean; id?: string; suspect?: string | null; index?: string; note?: string; hero?: boolean;
 }
 
-/** A horizontal register: index, title, actions, barre, content. Lazily mounts on scroll-into-view when `lazy`. */
+/** A register: a horizontal module of the page — index, title, subtitle, actions, body.
+    Mounts lazily on scroll into view when `lazy`, so a long tab stays responsive. */
 export function Register({ title, subtitle, domain, actions, children, collapsed = false, lazy = false, id, suspect, index, note, hero = false }: Props) {
   const [open, setOpen] = useState(!collapsed);
   const { ref, inView } = useInView<HTMLElement>();
@@ -20,23 +21,22 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
         <div style={{ minWidth: 0 }}>
           <div className="register-title">
             {collapsed && (
-              <button className="btn-ghost" style={{ display: 'inline-flex', width: 18, height: 18, alignItems: 'center', justifyContent: 'center', marginRight: 2 }}
+              <button className="icon-button" style={{ width: 24, height: 24, fontSize: 11 }}
                 onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? `Collapse ${title}` : `Expand ${title}`}>
                 <span className={`caret ${open ? 'open' : ''}`}>▸</span>
               </button>
             )}
             {index && <span className="register-index">{index}</span>}
-            <h2 className="t-heading-l" style={{ margin: 0 }}>{title}{suspect && <span className="warn-mark" title={suspect}>⚠</span>}</h2>
-            {note && <span className="t-label-s pill" style={{ padding: '1px 8px', background: 'var(--hue-wash)', color: 'var(--hue)' }}>{note}</span>}
+            <h2 className="t-heading-l" style={{ margin: 0 }}>
+              {title}{suspect && <span className="warn-mark" title={suspect}>⚠</span>}
+            </h2>
+            {note && <span className="status-pill" style={{ color: 'var(--hue-ink)', borderColor: 'var(--hue-edge)' }}>{note}</span>}
           </div>
-          {subtitle && <div className="t-body-s muted" style={{ marginTop: 3, maxWidth: 900 }}>{subtitle}</div>}
+          {subtitle && <div className="t-body-s muted" style={{ marginTop: 5, maxWidth: '92ch' }}>{subtitle}</div>}
         </div>
-        <div className="register-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-          {actions}
-        </div>
+        <div className="register-actions">{actions}</div>
         <HeroGraphic tab={tab} />
       </div>
-      <div className="barre" />
       {open && <div className="register-body">{mount ? children : <div className="travel-barre" />}</div>}
     </section>
   );
@@ -44,10 +44,19 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
 
 export function EmptyState({ title, body, actions }: { title: string; body?: string; actions?: ReactNode }) {
   return (
-    <div className="inset" style={{ padding: '30px 24px', textAlign: 'center', border: '1px dashed var(--hairline-strong)', borderRadius: 'var(--r-m)' }}>
+    <div style={{
+      padding: '40px 28px', textAlign: 'center',
+      border: '1px dashed var(--hairline-strong)', borderRadius: 'var(--r-xl)',
+      background: 'color-mix(in oklab, var(--surface-inset) 55%, transparent)',
+    }}>
+      <div aria-hidden="true" style={{
+        width: 38, height: 38, margin: '0 auto 12px', borderRadius: '999px',
+        display: 'grid', placeItems: 'center',
+        background: 'var(--hue-wash)', color: 'var(--hue-ink)', fontSize: 17,
+      }}>◇</div>
       <div className="t-heading-m">{title}</div>
-      {body && <div className="t-body-s muted" style={{ marginTop: 6, maxWidth: 560, marginInline: 'auto' }}>{body}</div>}
-      {actions && <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 14, flexWrap: 'wrap' }}>{actions}</div>}
+      {body && <div className="t-body-s muted" style={{ marginTop: 7, maxWidth: 580, marginInline: 'auto' }}>{body}</div>}
+      {actions && <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>{actions}</div>}
     </div>
   );
 }
@@ -59,7 +68,7 @@ export function DataPanel({ title, subtitle, actions, children, maxHeight = 380 
       <div className="panel-head">
         <div style={{ minWidth: 0 }}>
           <div className="t-heading-m">{title}</div>
-          {subtitle && <div className="t-label-s muted" style={{ marginTop: 2 }}>{subtitle}</div>}
+          {subtitle && <div className="t-label-s muted" style={{ marginTop: 3 }}>{subtitle}</div>}
         </div>
         <div style={{ flex: 1 }} />
         {actions}

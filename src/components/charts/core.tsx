@@ -93,7 +93,7 @@ export function ChartModule({ title, subtitle, children, table, actions, height,
           onClick={() => { const svg = wrap.current?.querySelector('svg'); if (svg) svgToPng(svg, `${name.replace(/\s+/g, '-').toLowerCase()}.png`); }}>PNG</button>
         <ExportMenu payload={payload} />
       </div>
-      {mode === 'chart' ? children : (
+      {mode === 'chart' ? <div className="chart-canvas">{children}</div> : (
         <div className="table-scroll" style={{ maxHeight: height ?? 340 }}>
           <table className="tbl">
             <thead><tr>{view.columns.map((c, i) => (
@@ -140,7 +140,7 @@ export function XYChart({ categories, series, height = 260, fmtLeft = 'integer',
   const tip = useTooltip(() => {
     if (hover === null) return null;
     const rows = [...active].map((s) => ({ s, v: s.values[hover] })).sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
-    return <div><div className="t-label-s muted">{categories[hover]}</div>{rows.map(({ s, v }) => <div key={s.id} className="tt-row t-body-s" style={{ marginTop: 3 }}><span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><i style={{ width: 8, height: 8, background: s.color, display: 'inline-block' }} />{s.label}</span><b className="tabular">{formatValue(s.fmt ?? (s.axis === 'right' ? fmtRight : fmtLeft), v)}</b></div>)}<div className="t-label-s faint" style={{ marginTop: 6 }}>{onClick ? 'Click to filter' : ''}</div></div>;
+    return <div><div className="t-label-s muted">{categories[hover]}</div>{rows.map(({ s, v }) => <div key={s.id} className="tt-row t-body-s" style={{ marginTop: 3 }}><span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><i style={{ width: 8, height: 8, background: s.color, display: 'inline-block', borderRadius: 999 }} />{s.label}</span><b className="tabular">{formatValue(s.fmt ?? (s.axis === 'right' ? fmtRight : fmtLeft), v)}</b></div>)}<div className="t-label-s faint" style={{ marginTop: 6 }}>{onClick ? 'Click to filter' : ''}</div></div>;
   }, [hover, active.length]);
   const stackOffsets = useMemo(() => { const acc = new Array(n).fill(0); return bars.map((s) => s.values.map((v, i) => { const y0 = acc[i]; acc[i] += v ?? 0; return y0; })); }, [bars, n]);
   return (
@@ -148,17 +148,17 @@ export function XYChart({ categories, series, height = 260, fmtLeft = 'integer',
       <svg width={W} height={H} role="img" aria-label={title ?? 'Chart'} {...tip}
         onMouseMove={(e) => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const x = e.clientX - r.left; const i = useBarX ? Math.floor((x - PAD.l) / (iw / Math.max(1, n))) : Math.round(((x - PAD.l) / iw) * (n - 1)); setHover(i >= 0 && i < n ? i : null); tip.onMouseMove(e); }}
         onMouseLeave={() => { setHover(null); tip.onMouseLeave(); }} onClick={() => { if (hover !== null && onClick) onClick(hover); }} style={{ cursor: onClick ? 'pointer' : 'default', display: 'block' }}>
-        {ticksL.map((t) => <g key={`l${t}`}><line x1={PAD.l} x2={W - PAD.r} y1={yL(t)} y2={yL(t)} stroke="var(--hairline)" /><text x={PAD.l - 6} y={yL(t) + 3} textAnchor="end" className="t-heading-xs" fill="var(--text-3)">{formatValue(fmtLeft, t)}</text></g>)}
+        {ticksL.map((t) => <g key={`l${t}`}><line x1={PAD.l} x2={W - PAD.r} y1={yL(t)} y2={yL(t)} stroke="var(--hairline)" strokeDasharray={t === 0 ? undefined : '2 4'} /><text x={PAD.l - 6} y={yL(t) + 3} textAnchor="end" className="t-heading-xs" fill="var(--text-3)">{formatValue(fmtLeft, t)}</text></g>)}
         {hasRight && ticksR.map((t) => <text key={`r${t}`} x={W - PAD.r + 6} y={yR(t) + 3} className="t-heading-xs" fill="var(--text-3)">{formatValue(fmtRight, t)}</text>)}
         {categories.map((c, i) => (i % every === 0 ? <text key={c} x={useBarX ? xb(i) : xs(i)} y={H - 8} textAnchor="middle" className="t-heading-xs" fill="var(--text-3)">{c}</text> : null))}
-        {bars.map((s, si) => s.values.map((v, i) => { if (v === null) return null; const gw = stacked ? bandW : bandW / bars.length; const x0 = stacked ? xb(i) - bandW / 2 : xb(i) - bandW / 2 + si * gw; const y0 = stacked ? yL(stackOffsets[si][i] + v) : yL(v); const h = (stacked ? yL(stackOffsets[si][i]) : yL(0)) - y0; return <rect key={`${s.id}${i}`} x={x0} y={y0} width={gw - 1} height={Math.max(0, h)} fill={s.color} opacity={hover === null || hover === i ? (s.ghost ? 0.3 : 0.9) : 0.35} style={{ transformOrigin: `${x0}px ${yL(0)}px`, animation: `growY var(--m-data) var(--ease-data) ${i * 28}ms both` }} />; }))}
+        {bars.map((s, si) => s.values.map((v, i) => { if (v === null) return null; const gw = stacked ? bandW : bandW / bars.length; const x0 = stacked ? xb(i) - bandW / 2 : xb(i) - bandW / 2 + si * gw; const y0 = stacked ? yL(stackOffsets[si][i] + v) : yL(v); const h = (stacked ? yL(stackOffsets[si][i]) : yL(0)) - y0; return <rect key={`${s.id}${i}`} x={x0} y={y0} width={gw - 1} height={Math.max(0, h)} rx={Math.min(4, (gw - 1) / 2.6)} fill={s.color} opacity={hover === null || hover === i ? (s.ghost ? 0.3 : 0.9) : 0.35} style={{ transformOrigin: `${x0}px ${yL(0)}px`, animation: `growY var(--m-data) var(--ease-data) ${i * 28}ms both` }} />; }))}
         {active.filter((s) => s.kind === 'area').map((s, si) => { const d = linePath(s, useBarX); if (!d) return null; const last = s.values.length - 1; const area = `${d} L${(useBarX ? xb(last) : xs(last)).toFixed(1)},${yL(0)} L${(useBarX ? xb(0) : xs(0)).toFixed(1)},${yL(0)} Z`; return <g key={s.id}><path d={area} fill={s.color} opacity={0.14} /><Path d={d} color={s.color} delay={si * 28} ghost={s.ghost} /></g>; })}
         {active.filter((s) => !s.kind || s.kind === 'line').map((s, si) => { const d = linePath(s, useBarX); return d ? <Path key={s.id} d={d} color={s.color} delay={si * 28} ghost={s.ghost} dash={s.ghost ? '4 3' : undefined} /> : null; })}
         {hover !== null && <line x1={useBarX ? xb(hover) : xs(hover)} x2={useBarX ? xb(hover) : xs(hover)} y1={PAD.t} y2={PAD.t + ih} stroke="var(--text-3)" strokeDasharray="2 3" />}
         {hover !== null && active.filter((s) => s.kind !== 'bar').map((s) => { const v = s.values[hover]; return v === null ? null : <circle key={s.id} cx={useBarX ? xb(hover) : xs(hover)} cy={y(s, v)} r={3.5} fill={s.color} stroke="var(--surface-1)" strokeWidth={1.5} />; })}
       </svg>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
-        {series.map((s) => <button key={s.id} className="t-label-m" aria-pressed={!off.has(s.id)} onClick={() => setOff((o) => { const x = new Set(o); if (x.has(s.id)) x.delete(s.id); else x.add(s.id); return x; })} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', opacity: off.has(s.id) ? 0.4 : 1, transition: 'opacity 150ms' }}><i style={{ width: 10, height: s.kind === 'bar' ? 10 : 2, background: s.color, display: 'inline-block' }} />{s.label}</button>)}
+        {series.map((s) => <button key={s.id} className="t-label-m" aria-pressed={!off.has(s.id)} onClick={() => setOff((o) => { const x = new Set(o); if (x.has(s.id)) x.delete(s.id); else x.add(s.id); return x; })} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', opacity: off.has(s.id) ? 0.4 : 1, transition: 'opacity 150ms' }}><i style={{ width: 10, height: s.kind === 'bar' ? 10 : 3, background: s.color, display: 'inline-block', borderRadius: 999 }} />{s.label}</button>)}
       </div>
       <style>{`@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}`}</style>
     </div>
@@ -175,9 +175,9 @@ export function HBars({ items, fmt = 'integer', height = 22, diverge = false, on
         return (
           <div key={it.label + i} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={() => onClick?.(i)} onKeyDown={(e) => { if (onClick && e.key === 'Enter') onClick(i); }} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 90px', alignItems: 'center', gap: 8, height, cursor: onClick ? 'pointer' : 'default' }}>
             <span className="t-body-s" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.label}>{it.label}{it.sub && <span className="faint t-label-s"> {it.sub}</span>}</span>
-            <div style={{ position: 'relative', height: height - 8, background: 'var(--surface-inset)' }}>
+            <div style={{ position: 'relative', height: height - 8, background: 'var(--surface-inset)', borderRadius: 999, overflow: 'hidden' }}>
               {diverge && <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'var(--hairline-strong)' }} />}
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: diverge ? (v >= 0 ? '50%' : `${50 - w / 2}%`) : 0, width: diverge ? `${w / 2}%` : `${w}%`, background: it.color ?? (v < 0 ? negColor : color), transformOrigin: v >= 0 || !diverge ? 'left' : 'right', animation: `growX var(--m-data) var(--ease-data) ${Math.min(i, 10) * 28}ms both` }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: diverge ? (v >= 0 ? '50%' : `${50 - w / 2}%`) : 0, width: diverge ? `${w / 2}%` : `${w}%`, background: it.color ?? (v < 0 ? negColor : color), borderRadius: 999, transformOrigin: v >= 0 || !diverge ? 'left' : 'right', animation: `growX var(--m-data) var(--ease-data) ${Math.min(i, 10) * 28}ms both` }} />
             </div>
             <span className="t-num" style={{ textAlign: 'right' }}>{formatValue(fmt, it.value)}</span>
           </div>

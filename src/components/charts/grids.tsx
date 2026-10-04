@@ -75,7 +75,7 @@ export function ScheduleGrid({ slots, onClick, center = 0.5 }: { slots: SlotCard
             {days.map((d) => {
               const here = (byDay.get(d) ?? []).filter((s) => +s.time.slice(0, 2) === h).sort((a, b) => a.time.localeCompare(b.time));
               return (
-                <div key={d} style={{ height: rowH, background: 'var(--surface-inset)', display: 'flex', gap: 2, padding: 2, overflow: 'hidden' }}>
+                <div key={d} style={{ height: rowH, background: 'var(--surface-inset)', borderRadius: 'var(--r-s)', display: 'flex', gap: 2, padding: 2, overflow: 'hidden' }}>
                   {here.map((s) => <SlotCardView key={s.key} s={s} theme={theme} span={span} center={center} maxCap={maxCap} onClick={onClick} />)}
                 </div>
               );

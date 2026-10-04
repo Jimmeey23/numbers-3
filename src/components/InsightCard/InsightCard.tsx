@@ -16,9 +16,9 @@ export function InsightCard({ insight, compact = false }: { insight: Insight; co
   const addTransient = useFilters((f) => f.addTransient);
   const go = () => { setTab(insight.tab); for (const t of insight.linkFilters) addTransient(t); announce(`Opened ${insight.tab} filtered to ${insight.entity}`); };
   return (
-    <article className="surface chrome" style={{ padding: compact ? '10px 12px' : '12px 14px', borderLeft: `2px solid ${s.color}` }}>
+    <article className={`insight-card ${compact ? 'is-compact' : ''}`} style={{ ['--tone' as string]: s.color, ['--tone-wash' as string]: s.wash }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="t-label-s pill" style={{ background: s.wash, color: s.color, padding: '1px 8px' }}>{s.label}</span>
+        <span className="insight-sev">{s.label}</span>
         {insight.impactINR > 0 && (
           <span className="t-label-s muted tabular" title={insight.basis === 'at-risk' ? 'Revenue currently at risk of being lost' : insight.basis === 'sunk' ? 'Money already collected but not yet delivered against' : insight.basis === 'upside' ? 'Estimated additional revenue if acted on' : 'Estimated impact'}>
             {fmtCurrency(insight.impactINR)}{insight.basis ? <span className="faint"> {insight.basis === 'at-risk' ? 'at risk' : insight.basis === 'sunk' ? 'unused' : 'upside'}</span> : null}
@@ -28,10 +28,10 @@ export function InsightCard({ insight, compact = false }: { insight: Insight; co
         <div style={{ flex: 1 }} />
         {!compact && <button className="btn-ghost t-label-s" aria-label="Dismiss for 30 days" onClick={() => dismiss(insight.key)}>×</button>}
       </div>
-      <div className="t-heading-s" style={{ marginTop: 6 }}>{insight.title}</div>
-      <p className="t-body-s muted" style={{ margin: '4px 0 0' }}>{insight.body}</p>
-      <p className="t-body-s" style={{ margin: '4px 0 0' }}>{insight.action}</p>
-      {!compact && <button className="btn btn-xs" style={{ marginTop: 8 }} onClick={go}>Show me</button>}
+      <div className="t-heading-s" style={{ marginTop: 7 }}>{insight.title}</div>
+      <p className="t-body-s muted" style={{ margin: '5px 0 0' }}>{insight.body}</p>
+      <p className="t-body-s insight-action" style={{ margin: '6px 0 0' }}>{insight.action}</p>
+      {!compact && <button className="btn btn-xs" style={{ marginTop: 10 }} onClick={go}>Show me →</button>}
     </article>
   );
 }

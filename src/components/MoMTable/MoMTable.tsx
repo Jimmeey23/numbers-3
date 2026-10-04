@@ -88,7 +88,7 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
         <button className="btn btn-xs" aria-pressed={seasonality} onClick={() => setSeasonality((s) => !s)}>Seasonality</button>
         <button className="btn btn-xs" onClick={exportCsv}>Export CSV</button>
       </div>
-      <div className="table-scroll" style={{ overflow: 'auto', border: '1px solid var(--hairline)', maxHeight: 520 }}
+      <div className="table-scroll" style={{ overflow: 'auto', maxHeight: 520 }}
         data-summary={`${title} places each registered metric on a row and the latest calendar months across columns, newest first. Absolute, month-on-month and indexed views transform the same underlying monthly rollups.`}
         data-calculation="Absolute values use the metric registry formula. MoM % is (current − previous) ÷ |previous| and stays blank when the previous value is zero or missing. Index = 100 divides each month by the first non-zero month. Heat is normalized within each row; rates are recomputed from monthly numerators and denominators.">
         <table className="tbl" style={{ minWidth: 200 + months.length * 72 }}>

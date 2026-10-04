@@ -97,10 +97,10 @@ export function DrillPanel() {
   const open = useDrill.getState().open;
   return (
     <>
-      <div onClick={close} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 60, opacity: 0.5 }} aria-hidden="true" />
-      <aside className="slide-in" data-domain={t.domain} role="dialog" aria-label={`Details for ${t.title}`} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(960px, 92vw)', maxWidth: '100vw', background: 'var(--surface-1)', borderLeft: '1px solid var(--hairline-strong)', zIndex: 61, overflow: 'auto', boxShadow: 'var(--elev-4)' }}>
+      <div onClick={close} className="drill-scrim" aria-hidden="true" />
+      <aside className="drill-panel slide-in" data-domain={t.domain} role="dialog" aria-label={`Details for ${t.title}`}>
         <div className="barre barre-glow" style={{ position: 'sticky', top: 0, zIndex: 2 }} />
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: '22px 26px 34px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <button className="btn btn-xs" disabled={index <= 0} onClick={back} aria-label="Back">‹</button>
             <button className="btn btn-xs" disabled={index >= stack.length - 1} onClick={forward} aria-label="Forward">›</button>
@@ -124,7 +124,7 @@ export function DrillPanel() {
           {composition.length > 0 && (
             <div style={{ marginTop: 18 }}>
               <div className="t-heading-m" style={{ marginBottom: 6 }}>Composition</div>
-              <div style={{ display: 'flex', height: 14, background: 'var(--surface-inset)' }}>{composition.map(([k, v], i) => <div key={k} title={`${k}: ${v}`} style={{ width: `${(v / t.rows.length) * 100}%`, background: formatColor(theme, k) !== formatColor(theme, 'Unknown') ? formatColor(theme, k) : `color-mix(in oklch, var(--hue) ${100 - i * 15}%, var(--surface-1))` }} />)}</div>
+              <div style={{ display: 'flex', height: 14, background: 'var(--surface-inset)', borderRadius: 999, overflow: 'hidden' }}>{composition.map(([k, v], i) => <div key={k} title={`${k}: ${v}`} style={{ width: `${(v / t.rows.length) * 100}%`, background: formatColor(theme, k) !== formatColor(theme, 'Unknown') ? formatColor(theme, k) : `color-mix(in oklch, var(--hue) ${100 - i * 15}%, var(--surface-1))` }} />)}</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>{composition.map(([k, v]) => <span key={k} className="t-label-s muted">{k} {((v / t.rows.length) * 100).toFixed(0)}%</span>)}</div>
             </div>
           )}

@@ -69,19 +69,36 @@ export const useView = create<ViewState>((set) => ({
   announce: (announcement) => set({ announcement }),
 }));
 
-export const TABS: { id: TabId; label: string; domain: string; key: string }[] = [
-  { id: 'overview', label: 'Overview', domain: 'attendance', key: '1' },
-  { id: 'sales', label: 'Sales', domain: 'revenue', key: '2' },
-  { id: 'leads', label: 'Leads', domain: 'people', key: '3' },
-  { id: 'acquisition', label: 'Acquisition', domain: 'growth', key: '4' },
-  { id: 'retention', label: 'Retention', domain: 'risk', key: '5' },
-  { id: 'classes', label: 'Classes', domain: 'attendance', key: '6' },
-  { id: 'slots', label: 'Slots', domain: 'attendance', key: '7' },
-  { id: 'bookings', label: 'Bookings', domain: 'attendance', key: '8' },
-  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '9' },
-  { id: 'trainers', label: 'Trainers', domain: 'people', key: '0' },
-  { id: 'payroll', label: 'Payroll', domain: 'people', key: '-' },
-  { id: 'late-cancellations', label: 'Late cancellations', domain: 'risk', key: '' },
-  { id: 'format-comparison', label: 'Format comparison', domain: 'growth', key: '' },
-  { id: 'health', label: 'Data health', domain: 'neutral', key: '=' },
+/** Navigation groups, in the order an operator works through the day. */
+export type TabGroup = 'Pulse' | 'Commercial' | 'Floor' | 'People' | 'Quality';
+
+export interface TabMeta {
+  id: TabId;
+  label: string;
+  domain: string;
+  key: string;
+  /** Navigation group this tab belongs to. */
+  group: TabGroup;
+  /** One line of orientation, shown in the page header and the command palette. */
+  blurb: string;
+}
+
+export const TABS: TabMeta[] = [
+  { id: 'overview', label: 'Overview', domain: 'attendance', key: '1', group: 'Pulse', blurb: 'The whole business in one screen — revenue, attendance, acquisition and retention, with what moved and why.' },
+  { id: 'sales', label: 'Sales', domain: 'revenue', key: '2', group: 'Commercial', blurb: 'Revenue, average value, discounting and product mix across every payment line in scope.' },
+  { id: 'leads', label: 'Leads', domain: 'people', key: '3', group: 'Commercial', blurb: 'Enquiry volume, response speed, follow-up discipline and the pipeline each source actually produces.' },
+  { id: 'acquisition', label: 'Acquisition', domain: 'growth', key: '4', group: 'Commercial', blurb: 'First visits, trial conversion, second-visit return and the lifetime value of each cohort.' },
+  { id: 'retention', label: 'Retention', domain: 'risk', key: '5', group: 'Commercial', blurb: 'Membership health: utilisation, dormancy, expiry concentration, churn and revenue at risk.' },
+  { id: 'classes', label: 'Classes', domain: 'attendance', key: '6', group: 'Floor', blurb: 'Every class occurrence — capacity, fill, attendance and the revenue attributed to it.' },
+  { id: 'slots', label: 'Slots', domain: 'attendance', key: '7', group: 'Floor', blurb: 'The recurring timetable judged as a schedule: which slots earn their place and which do not.' },
+  { id: 'bookings', label: 'Bookings', domain: 'attendance', key: '8', group: 'Floor', blurb: 'Booking lifecycle, lead time, waitlist pressure, cancellation and no-show behaviour.' },
+  { id: 'attendance', label: 'Attendance', domain: 'attendance', key: '9', group: 'Floor', blurb: 'Reconciled check-in grain — who came, how often, and how that visit pattern is trending.' },
+  { id: 'trainers', label: 'Trainers', domain: 'people', key: '0', group: 'People', blurb: 'Trainer performance across fill, retention, conversion and commercial contribution.' },
+  { id: 'payroll', label: 'Payroll', domain: 'people', key: '-', group: 'People', blurb: 'Sessions taught, customers served, cost per session and contribution per trainer month.' },
+  { id: 'late-cancellations', label: 'Late cancellations', domain: 'risk', key: '', group: 'Quality', blurb: 'Late cancellation and no-show clusters by member, class, slot and trainer.' },
+  { id: 'format-comparison', label: 'Format comparison', domain: 'growth', key: '', group: 'Quality', blurb: 'Formats compared like for like on demand, fill, retention and revenue per seat-hour.' },
+  { id: 'health', label: 'Data health', domain: 'neutral', key: '=', group: 'Quality', blurb: 'Source reconciliation, coverage, duplicates and anything that would make a number untrustworthy.' },
 ];
+
+export const TAB_GROUPS: TabGroup[] = ['Pulse', 'Commercial', 'Floor', 'People', 'Quality'];
+export const tabMeta = (id: TabId): TabMeta => TABS.find((t) => t.id === id) ?? TABS[0];

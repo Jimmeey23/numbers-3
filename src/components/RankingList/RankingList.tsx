@@ -40,7 +40,7 @@ export function RankingList({ title, nodes, compareNodes, metricOptions, ctx, co
           <div key={x.n.id} data-key={x.n.id} role="button" tabIndex={0} onClick={() => drill(x.n)} onKeyDown={(e) => { if (e.key === 'Enter') drill(x.n); }}
             style={{ display: 'grid', gridTemplateColumns: '22px 1fr 36px 90px', gap: 8, alignItems: 'center', height: 26, cursor: 'pointer', padding: '0 4px' }} className="rank-row">
             <span className={`medal ${kind === 'top' && i < 3 ? 'top' : ''}`}>{overall}</span>
-            <div style={{ position: 'relative', height: 16, background: 'var(--surface-inset)' }}>
+            <div style={{ position: 'relative', height: 16, background: 'var(--surface-inset)', borderRadius: 999, overflow: 'hidden' }}>
               <div style={{ position: 'absolute', inset: 0, width: `${(Math.abs(x.v) / max) * 100}%`, background: kind === 'top' ? 'var(--hue)' : 'var(--neg)', opacity: 0.35, transformOrigin: 'left', animation: `growX var(--m-data) var(--ease-data) ${Math.min(i, 10) * 28}ms both` }} />
               <span className="t-label-m" style={{ position: 'absolute', left: 6, top: 0, lineHeight: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '95%' }} title={x.n.label}>{x.n.label} <span className="faint">{x.n.rows.length} {sampleLabel}</span></span>
             </div>

@@ -1,16 +1,97 @@
-/* Two families. Archivo (variable wght+wdth) for numbers and headings; Instrument Sans for chrome. */
-.t-display-xl{font-family:var(--font-display);font-size:56px;line-height:52px;font-weight:700;font-variation-settings:"wdth" 112;letter-spacing:-.025em;}
-.t-display-l{font-family:var(--font-display);font-size:40px;line-height:40px;font-weight:650;font-variation-settings:"wdth" 105;letter-spacing:-.02em;}
-.t-display-m{font-family:var(--font-display);font-size:30px;line-height:32px;font-weight:600;font-variation-settings:"wdth" 100;letter-spacing:-.015em;}
-.t-display-s{font-family:var(--font-display);font-size:22px;line-height:26px;font-weight:600;font-variation-settings:"wdth" 95;letter-spacing:-.01em;}
-.t-heading-l{font-family:var(--font-display);font-size:18px;line-height:24px;font-weight:600;font-variation-settings:"wdth" 92;}
-.t-heading-m{font-family:var(--font-display);font-size:15px;line-height:20px;font-weight:600;font-variation-settings:"wdth" 88;}
-.t-heading-s{font-family:var(--font-display);font-size:13px;line-height:18px;font-weight:600;font-variation-settings:"wdth" 80;letter-spacing:.005em;}
-.t-heading-xs{font-family:var(--font-display);font-size:11px;line-height:14px;font-weight:650;font-variation-settings:"wdth" 75;letter-spacing:.02em;}
-.t-body-m{font-family:var(--font-ui);font-size:14px;line-height:21px;font-weight:400;}
-.t-body-s{font-family:var(--font-ui);font-size:13px;line-height:19px;font-weight:400;}
-.t-label-m{font-family:var(--font-ui);font-size:12px;line-height:16px;font-weight:500;}
-.t-label-s{font-family:var(--font-ui);font-size:11px;line-height:14px;font-weight:500;}
-.t-num{font-family:var(--font-display);font-size:var(--num-size);line-height:var(--num-lh);font-weight:500;font-variation-settings:"wdth" var(--num-wdth);font-variant-numeric:tabular-nums lining-nums;}
-.t-num-dense{font-family:var(--font-display);font-size:12px;line-height:16px;font-weight:500;font-variation-settings:"wdth" 80;font-variant-numeric:tabular-nums lining-nums;}
-.tabular{font-variant-numeric:tabular-nums lining-nums;}
+/* ════════════════════════════════════════════════════════════════════════════
+   ATLAS — TYPE SYSTEM  ·  v2
+   Archivo (variable wght + wdth) sets figures and headings; Instrument Sans
+   carries prose and chrome. Numerals are always tabular and lining so columns
+   align and a value never jumps width as it animates.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Display: the figures a room reads from across the floor ──────────────── */
+.t-display-xl {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 4.2vw, 62px);
+  line-height: .96;
+  font-weight: 760;
+  font-variation-settings: "wdth" 108;
+  letter-spacing: -.032em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.t-display-l {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 2.8vw, 42px);
+  line-height: 1.02;
+  font-weight: 700;
+  font-variation-settings: "wdth" 102;
+  letter-spacing: -.028em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.t-display-m {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.08;
+  font-weight: 660;
+  font-variation-settings: "wdth" 98;
+  letter-spacing: -.022em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.t-display-s {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.16;
+  font-weight: 640;
+  font-variation-settings: "wdth" 94;
+  letter-spacing: -.016em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────────── */
+.t-heading-l {
+  font-family: var(--font-display);
+  font-size: 19px; line-height: 25px; font-weight: 640;
+  font-variation-settings: "wdth" 92; letter-spacing: -.012em;
+}
+.t-heading-m {
+  font-family: var(--font-display);
+  font-size: 15px; line-height: 21px; font-weight: 640;
+  font-variation-settings: "wdth" 90; letter-spacing: -.006em;
+}
+.t-heading-s {
+  font-family: var(--font-display);
+  font-size: 13px; line-height: 18px; font-weight: 640;
+  font-variation-settings: "wdth" 84; letter-spacing: .002em;
+}
+.t-heading-xs {
+  font-family: var(--font-display);
+  font-size: 10.5px; line-height: 14px; font-weight: 700;
+  font-variation-settings: "wdth" 78; letter-spacing: .085em; text-transform: uppercase;
+}
+
+/* ── Prose and chrome ─────────────────────────────────────────────────────── */
+.t-body-m { font-family: var(--font-ui); font-size: 14px; line-height: 22px; font-weight: 400; letter-spacing: -.002em; }
+.t-body-s { font-family: var(--font-ui); font-size: 12.5px; line-height: 19px; font-weight: 400; letter-spacing: 0; }
+.t-label-m { font-family: var(--font-ui); font-size: 12px; line-height: 16px; font-weight: 520; }
+.t-label-s { font-family: var(--font-ui); font-size: 11px; line-height: 15px; font-weight: 520; letter-spacing: .004em; }
+
+/* ── Numerals ─────────────────────────────────────────────────────────────── */
+.t-num {
+  font-family: var(--font-display);
+  font-size: var(--num-size); line-height: var(--num-lh); font-weight: 540;
+  font-variation-settings: "wdth" var(--num-wdth);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "ss01";
+}
+.t-num-dense {
+  font-family: var(--font-display);
+  font-size: 12px; line-height: 16px; font-weight: 540;
+  font-variation-settings: "wdth" 80;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ── Eyebrow / micro-label, used above every section and panel title ──────── */
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 10px; line-height: 14px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--hue-ink);
+}

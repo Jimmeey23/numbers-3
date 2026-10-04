@@ -10,7 +10,8 @@ g.document = { documentElement: { getAttribute: (k: string) => (k === 'data-them
 g.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '34' });
 g.history = { replaceState() {} };
-g.navigator = { clipboard: { writeText() {} } };
+/* Node 21+ exposes a read-only `navigator`, so it has to be redefined rather than assigned. */
+Object.defineProperty(g, 'navigator', { value: { clipboard: { writeText() {} } }, configurable: true, writable: true });
 
 const { loadDataset } = await import('../src/data/ingest.ts');
 const { SHEETS } = await import('../src/data/sheets.config.ts');

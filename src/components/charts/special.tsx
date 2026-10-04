@@ -59,7 +59,7 @@ export function Funnel({ stages, onClick }: { stages: { label: string; count: nu
         return (
           <div key={s.label} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 240px', gap: 12, alignItems: 'center' }}>
             <div className="t-heading-s">{s.label}</div>
-            <div style={{ position: 'relative', height: 30, background: 'var(--surface-inset)' }} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={() => onClick?.(i)} onKeyDown={(e) => { if (e.key === 'Enter') onClick?.(i); }}>
+            <div style={{ position: 'relative', height: 30, background: 'var(--surface-inset)', borderRadius: 'var(--r-s)', overflow: 'hidden' }} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={() => onClick?.(i)} onKeyDown={(e) => { if (e.key === 'Enter') onClick?.(i); }}>
               <div style={{ position: 'absolute', inset: 0, width: `${(s.count / max) * 100}%`, background: 'var(--hue)', opacity: 0.85, transformOrigin: 'left', animation: `growX var(--m-data) var(--ease-data) ${i * 80}ms both` }} />
               <span className="t-num" style={{ position: 'absolute', left: 8, top: 6, color: 'var(--text-1)', mixBlendMode: 'difference' }}>{s.count.toLocaleString('en-IN')}</span>
             </div>
