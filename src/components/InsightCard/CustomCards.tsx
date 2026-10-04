@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import { addCard, readCards, removeCard, updateCard, type AgentCard } from '../../api/agent';
 import { fmtCurrency } from '../../semantics/formats';
 import { useView, type TabId } from '../../state/view';
@@ -27,6 +28,7 @@ export function CustomCardView({ card }: { card: AgentCard }) {
   const s = SEV[card.severity];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(card);
+  useOverlay(editing, useCallback(() => setEditing(false), []));
   useEffect(() => setDraft(card), [card]);
   if (editing) {
     return (
@@ -68,7 +70,7 @@ export function CustomCardView({ card }: { card: AgentCard }) {
   );
 }
 
-/** Composer: write a signal by hand, optionally anchored to a metric. Persists locally. */
+/** Composer: write an insight by hand, optionally anchored to a metric. Persists locally. */
 export function CardComposer({ tab }: { tab: TabId }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -77,18 +79,19 @@ export function CardComposer({ tab }: { tab: TabId }) {
   const [severity, setSeverity] = useState<AgentCard['severity']>('attention');
   const [impact, setImpact] = useState('');
   const [metricId, setMetricId] = useState('');
+  useOverlay(open, useCallback(() => setOpen(false), []));
   const announce = useView((s) => s.announce);
   const submit = () => {
     if (!title.trim()) return;
     addCard({ tab, title: title.trim(), body: body.trim() || undefined, action: action.trim() || undefined, severity,
       impactINR: impact ? +impact : undefined, metricId: metricId || undefined, source: 'manual' });
     setTitle(''); setBody(''); setAction(''); setImpact(''); setMetricId(''); setOpen(false);
-    announce('Signal saved to this tab');
+    announce('Insight saved to this tab');
   };
-  if (!open) return <button className="btn btn-xs" style={{ width: '100%' }} onClick={() => setOpen(true)}>+ Add a signal</button>;
+  if (!open) return <button className="btn btn-xs" style={{ width: '100%' }} onClick={() => setOpen(true)}>+ Add an insight</button>;
   return (
     <div className="surface" style={{ padding: 12, display: 'grid', gap: 7 }}>
-      <div className="t-heading-s">New signal on this tab</div>
+      <div className="t-heading-s">New insight on this tab</div>
       <input autoFocus className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What did you notice?" aria-label="Title"
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }} />
       <textarea className="input" style={{ height: 56, padding: 8, resize: 'vertical' }} value={body} onChange={(e) => setBody(e.target.value)} placeholder="The evidence — numbers, dates, who it affects" aria-label="Body" />
@@ -104,7 +107,7 @@ export function CardComposer({ tab }: { tab: TabId }) {
         {METRIC_LIST.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
       </select>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-xs" onClick={submit} disabled={!title.trim()}>Save signal</button>
+        <button className="btn btn-primary btn-xs" onClick={submit} disabled={!title.trim()}>Save insight</button>
         <button className="btn btn-xs" onClick={() => setOpen(false)}>Cancel</button>
         <div style={{ flex: 1 }} />
         <span className="t-label-s faint">Persists on this device</span>

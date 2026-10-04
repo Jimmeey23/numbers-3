@@ -195,7 +195,7 @@ GET /api/v1/report?format=json&preset=last_week&location=Kenkere%20House
           <div className="panel">
             <div className="t-heading-m" style={{ marginBottom: 8 }}>In-page live API</div>
             <pre className="api-code">{`await floor.describe()                      // the full catalogue
-await floor.get('retention')                // KPIs, groups, signals for a tab
+await floor.get('retention')                // KPIs, groups, insights for a tab
 await floor.get('classes', { groupBy: 'daypart', limit: 10 })
 await floor.query({ tab: 'bookings',
   metrics: ['visits','v_no_show_rate','v_lead_time'],
@@ -208,7 +208,7 @@ floor.push({ tab: 'retention', severity: 'critical',
 floor.setFilters({ preset: 'month', locations: ['Kenkere House'] })
 floor.export('sales', 'markdown')`}</pre>
             <div className="t-label-s faint" style={{ marginTop: 8 }}>
-              Cards pushed by an agent appear in the Signal rail on that tab, marked "From an agent", and persist across reloads.
+              Cards pushed by an agent appear in the Insight rail on that tab, marked "From an agent", and persist across reloads.
               The API is rebuilt on every filter change, so it always reflects what is on screen.
             </div>
           </div>

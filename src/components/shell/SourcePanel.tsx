@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import type { SheetLoad } from '../../data/types';
 import { configFor, parseSpreadsheetId, readOverrides, testSource, writeOverride, type SourceOverride } from '../../data/sources';
 import { sheetUiUrl } from '../../data/sheets.config';
@@ -14,6 +15,7 @@ export function SourceFixer({ load }: { load: SheetLoad }) {
   const [title, setTitle] = useState(existing?.title ?? cfg.title);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  useOverlay(open, useCallback(() => setOpen(false), []));
 
   const build = (): SourceOverride | null => {
     const v = value.trim();

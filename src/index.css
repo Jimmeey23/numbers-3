@@ -277,10 +277,15 @@ select.input{padding-right:22px;cursor:pointer;}
 /* ── KPI strip ───────────────────────────────────────────────────────────
    Every tab shows the same eight cards, so the strip is built for eight across and the card is
    sized to stay readable at that width rather than to fill a half-empty row. */
-.kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-2);}
-/* Eight cards, in one row where they fit and two where they do not. The track floor is the point
-   below which a card stops being readable, so the grid wraps instead of crushing. */
-@media (min-width:1180px){.kpi-strip{grid-template-columns:repeat(auto-fit,minmax(clamp(150px,calc((100% - 7 * var(--sp-2)) / var(--kpi-cols,8)),420px),1fr));}}
+.kpi-strip{display:grid;grid-template-columns:repeat(var(--kpi-cols,8),minmax(0,1fr));gap:var(--sp-2);}
+/* One row, always. The strip never wraps: eight cards across means eight equal tracks, and the
+   card shrinks into them rather than dropping its tail onto a second line. `minmax(0,1fr)` is what
+   lets a track go below its content width; everything inside the card is clamped or ellipsised so
+   it stays readable down to the breakpoint. */
+@media (min-width:1180px){.kpi-strip{grid-template-columns:repeat(var(--kpi-cols,8),minmax(0,1fr));gap:clamp(5px,0.55vw,10px);}}
+/* At eight across the card is ~1/8 of the canvas, so the chrome gives way before the figure does. */
+.kpi-strip[style*="--kpi-cols:8"] .kpi-card,.kpi-strip[style*="--kpi-cols: 8"] .kpi-card{padding-inline:8px;}
+.kpi-strip[style*="--kpi-cols:8"] .kpi-card-prev,.kpi-strip[style*="--kpi-cols: 8"] .kpi-card-prev{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 .kpi-card{container-type:inline-size;--kpi-h:112px;--kpi-spark:22px;
   min-height:var(--kpi-h);padding:9px 11px 0;display:flex;flex-direction:column;position:relative;min-width:0;
@@ -312,8 +317,8 @@ select.input{padding-right:22px;cursor:pointer;}
 .kpi-card-value>span:first-child{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
   /* A rupee total is long. The figure scales with the card rather than being truncated — an
      ellipsised "₹59,54,1…" is worse than a smaller number that can actually be read. */
-  font-size:clamp(15px, 11.5cqw, 22px);line-height:1.18;}
-.kpi-card--hero .kpi-card-value>span:first-child{font-size:clamp(17px, 13cqw, 30px);}
+  font-size:clamp(13px, 11.5cqw, 22px);line-height:1.18;}
+.kpi-card--hero .kpi-card-value>span:first-child{font-size:clamp(14px, 13cqw, 30px);}
 .kpi-card--hero .kpi-card-value{margin-top:5px;}
 
 .kpi-card-delta{display:inline-flex;gap:2px;align-items:center;flex-shrink:0;
@@ -347,7 +352,7 @@ select.input{padding-right:22px;cursor:pointer;}
 /* Below the grid breakpoint the strip scrolls; the card keeps a readable floor width. */
 
 @media (min-width:2100px){.two-up{gap:var(--sp-10);}}
-@media (max-width:1179px){.kpi-strip{display:flex;overflow-x:auto;padding-bottom:4px;}.kpi-strip>*{min-width:190px;flex:1 0 190px;}}
+@media (max-width:1179px){.kpi-strip{display:flex;overflow-x:auto;padding-bottom:4px;}.kpi-strip>*{min-width:158px;flex:1 0 158px;}}
 .two-up{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-8);align-items:start;}
 @media (max-width:1280px){.two-up{grid-template-columns:1fr;}}
 .panel{border:var(--border-1);border-radius:var(--r-m);background:var(--surface-1);padding:16px 18px;box-shadow:var(--neu-card);}
@@ -742,7 +747,7 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
 :root[data-theme="matte"] .panel,:root[data-theme="matte"] .surface{border-color:var(--hairline);}
 .panel{padding:21px 23px;}
 .panel-head{margin-bottom:16px;}
-.kpi-strip{gap:12px;}
+.kpi-strip{gap:clamp(6px,0.6vw,12px);}
 .kpi-card{--kpi-h:134px;--kpi-spark:27px;padding:15px 16px 0;overflow:hidden;}
 .kpi-card--hero{--kpi-h:150px;--kpi-spark:34px;padding:18px 19px 0;}
 .kpi-card--inline{min-height:auto;padding:12px 14px;}
@@ -776,3 +781,18 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
   .panel{padding:17px;}
   .kpi-card{--kpi-h:124px;}
 }
+
+/* ── The tab's agent endpoint ──────────────────────────────────────────────
+   Printed at the foot of every tab. Quiet by default — it is reference, not a control — but the
+   URL itself stays selectable and never wraps into illegibility. */
+.tab-endpoint{margin-top:var(--sp-8);padding:13px 15px 14px;border:1px dashed var(--hairline-strong);
+  border-radius:var(--r-m);background:var(--surface-1);display:grid;gap:9px;}
+.tab-endpoint-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.tab-endpoint-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.tab-endpoint-url{flex:1 1 320px;min-width:0;padding:6px 9px;border-radius:var(--r-xs);
+  background:var(--surface-2);border:1px solid var(--hairline);color:var(--text-2);
+  font-family:var(--font-mono,ui-monospace,monospace);font-size:11.5px;line-height:17px;
+  overflow-x:auto;white-space:nowrap;user-select:all;}
+.tab-endpoint-note{margin:0;line-height:17px;}
+.tab-endpoint-note code{padding:0 3px;border-radius:3px;background:var(--surface-2);
+  font-family:var(--font-mono,ui-monospace,monospace);font-size:10.5px;}

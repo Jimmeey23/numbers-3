@@ -3,12 +3,12 @@
  * The app is a static single file, so there is no server to host REST routes. Instead every tab
  * exposes its data through one addressable namespace, published on `window.floor`, which an AI
  * agent (or a browser extension, or a Playwright script) can call to read exactly what the
- * operator is looking at and to push insights back into the Signal rail in real time.
+ * operator is looking at and to push insights back into the Insight rail in real time.
  *
  *   await floor.describe()                    → the endpoint catalogue, self-documenting
  *   await floor.get('retention')              → KPIs, groupings, tables and insights for a tab
  *   await floor.query({ tab, groupBy, metrics })→ arbitrary rollup against the live scope
- *   floor.push({ tab, title, body, ... })     → add a signal card to a tab (persists)
+ *   floor.push({ tab, title, body, ... })     → add an insight card to a tab (persists)
  *   floor.setFilters({ ... }) / floor.scope() → drive or read the global filter state
  *
  * Every response carries the scope it was computed under, so an agent can never quote a number
@@ -217,7 +217,7 @@ export function buildAgentApi(scope: Scope, thresholds: Thresholds, setFilters: 
         'query({tab|table, metrics, groupBy[], limit, sortBy, trend})': 'Arbitrary rollup over the live scope. Up to four grouping levels.',
         'insights(tab?)': 'All fired insights with rupee impact, netted by basis.',
         'metrics()': 'The whole metric registry with formulas and source columns.',
-        'push({tab,title,body,action,severity,impactINR})': 'Add a card to a tab\'s Signal rail. Persists across reloads. Returns the card id.',
+        'push({tab,title,body,action,severity,impactINR})': 'Add a card to a tab\'s Insight rail. Persists across reloads. Returns the card id.',
         'dismiss(id)': 'Remove a pushed card.',
         'listPushed()': 'Cards currently pushed.',
         'setFilters({locations,preset,...})': 'Drive the global filter state; returns the new scope.',
@@ -233,7 +233,11 @@ export function buildAgentApi(scope: Scope, thresholds: Thresholds, setFilters: 
         note: 'metrics must share one grain; groupBy must be a key the grain carries. Call metrics() and describe() for the vocabulary.',
         example: { tab: 'classes', kind: 'column', metrics: ['v_fill_rate'], groupBy: 'daypart', title: 'Fill by time of day', placement: 'top' },
       },
-      tabs: ENDPOINTS.map((e) => ({ tab: e.tab, title: e.title, description: e.description, headline: e.headline, groupBy: e.groupBy, metricCount: e.metrics.length })),
+      urlEndpoints: {
+        note: 'Each tab also has one addressable URL returning its raw rows and consolidated view as a single JSON document. The app is static, so the page renders the response — a caller that runs JavaScript gets JSON; a plain curl gets the HTML shell.',
+        pattern: '?api=<tab>&include=all|raw|consolidated&limit=1000|all&groupBy=<key>',
+      },
+      tabs: ENDPOINTS.map((e) => ({ tab: e.tab, title: e.title, description: e.description, headline: e.headline, groupBy: e.groupBy, metricCount: e.metrics.length, url: `?api=${e.tab}&include=all&limit=1000&format=json` })),
     }),
     scope: () => scopeSummary(scope),
     get: getTab,
@@ -297,7 +301,7 @@ export function buildAgentApi(scope: Scope, thresholds: Thresholds, setFilters: 
           const delta = c?.value == null ? '' : ` (${c.value >= 0 ? '+' : '−'}${Math.abs(c.value * 100).toFixed(1)}${c.kind === 'pp' ? 'pp' : '%'} vs ${scope.period.prevLabel})`;
           return `- **${h.label}**: ${h.formatted}${delta}`;
         }),
-        '', '## Signals', ...d.insights.map((i) => `- ${i.title} — ${i.action}`)].join('\n');
+        '', '## Insights', ...d.insights.map((i) => `- ${i.title} — ${i.action}`)].join('\n');
     },
   };
 }

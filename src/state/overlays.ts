@@ -21,6 +21,25 @@ export function closeAllOverlays(): number {
 
 export const anyOverlayOpen = () => open.size > 0;
 
+/* Docked panels are not modals: the insight rail is a standing preference, toggled with S, and
+   collapsing it on every Escape would fight that toggle. They register here instead, as a second
+   tier — Escape reaches them only once nothing modal is left open, so one press still ends with
+   nothing covering the page. */
+const docked = new Map<symbol, Closer>();
+export function closeDockedPanels(): number {
+  const n = docked.size;
+  for (const close of [...docked.values()]) { try { close(); } catch { /* one panel must not block the rest */ } }
+  return n;
+}
+export function useDockedPanel(isOpen: boolean, close: Closer) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const key = Symbol('docked');
+    docked.set(key, close);
+    return () => { docked.delete(key); };
+  }, [isOpen, close]);
+}
+
 /**
  * Register `close` for as long as `isOpen` is true.
  * The overlay keeps owning its own state; this only makes Escape reach it.
@@ -44,7 +63,8 @@ export function useEscapeClosesEverything() {
       const el = document.activeElement as HTMLElement | null;
       const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (typing && (el as HTMLInputElement).value) return;
-      if (closeAllOverlays() > 0) { e.preventDefault(); e.stopPropagation(); }
+      const closed = closeAllOverlays() || closeDockedPanels();
+      if (closed > 0) { e.preventDefault(); e.stopPropagation(); }
     };
     document.addEventListener('keydown', onKey, true);   // capture, so it runs before local handlers
     return () => document.removeEventListener('keydown', onKey, true);

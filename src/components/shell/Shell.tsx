@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_THRESHOLDS, TABS, useView, type TabId } from '../../state/view';
-import { useOverlay } from '../../state/overlays';
+import { useDockedPanel, useOverlay } from '../../state/overlays';
 import { Logo } from './Logo';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
@@ -90,7 +90,7 @@ export function TitleBar() {
   );
 }
 
-/** Exports everything the active tab is showing — KPIs, the grouped breakdown and its signals. */
+/** Exports everything the active tab is showing — KPIs, the grouped breakdown and its insights. */
 function TabExport() {
   const tab = useView((s) => s.tab);
   const thresholds = useView((s) => s.thresholds);
@@ -109,7 +109,7 @@ function TabExport() {
     const rows: (string | number | null)[][] = [
       ...d.headline.map((h) => ['KPI', h.label, h.value, h.formatted, '', '']),
       ...d.groups.map((g) => [ep.groupBy[0], g.label, g.rows, '', ...metricCols.map((m) => g.values[m] ?? null)].slice(0, 6 + metricCols.length)),
-      ...d.insights.map((i) => ['Signal', i.title, Math.round(i.impactINR), i.severity, i.action, '']),
+      ...d.insights.map((i) => ['Insight', i.title, Math.round(i.impactINR), i.severity, i.action, '']),
     ];
     return { name: `Atlas · ${ep.title}`, columns: ['Section', 'Item', 'Value', 'Formatted', 'Detail', 'Extra', ...metricCols.map((m) => m)].slice(0, 6 + metricCols.length),
       rows, scopeLine: scopeLine(scope), meta: { tab, generated: new Date().toISOString() } };
@@ -138,9 +138,10 @@ export function TabRail() {
   );
 }
 
-export function SignalRail() {
+export function InsightRail() {
   const { railOpen, toggleRail, thresholds, dismissed, tab, setSettingsOpen, announce } = useView();
   const scope = useScope();
+  useDockedPanel(railOpen, useCallback(() => useView.getState().toggleRail(), []));
   const [aiBusy, setAiBusy] = useState(false); const [aiError, setAiError] = useState('');
   const insights = useMemo(() => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key)) : []), [scope, thresholds, dismissed]);
   const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 12);
@@ -149,7 +150,7 @@ export function SignalRail() {
   const counts = { critical: forTab.filter((i) => i.severity === 'critical').length, attention: forTab.filter((i) => i.severity === 'attention').length, opportunity: forTab.filter((i) => i.severity === 'opportunity').length };
   const generateAI = async () => {
     if (!scope || aiBusy) return;
-    if (!readOpenAIKey()) { setSettingsOpen(true); announce('Add an OpenAI API key to generate AI signals'); return; }
+    if (!readOpenAIKey()) { setSettingsOpen(true); announce('Add an OpenAI API key to generate AI insights'); return; }
     setAiBusy(true); setAiError('');
     try {
       const api = buildAgentApi(scope, thresholds, () => undefined);
@@ -158,14 +159,14 @@ export function SignalRail() {
       const source = `openai:${result.fingerprint}`;
       const existing = readCards().filter((c) => c.tab === tab && c.source === source);
       if (!existing.length) for (const s of result.signals) addCard({ tab, title: s.title, body: s.body, action: s.action, severity: s.severity, impactINR: s.impactINR, entity: s.entity, metricId: s.metricId, source });
-      announce(result.cached || existing.length ? 'Reused saved AI signals for this data scope' : `Saved ${result.signals.length} AI signals to this tab`);
-    } catch (e) { setAiError(e instanceof Error ? e.message : 'AI signal generation failed.'); }
+      announce(result.cached || existing.length ? 'Reused saved AI insights for this data scope' : `Saved ${result.signals.length} AI insights to this tab`);
+    } catch (e) { setAiError(e instanceof Error ? e.message : 'AI insight generation failed.'); }
     finally { setAiBusy(false); }
   };
   return (
-    <aside aria-label="Signal rail" style={{ width: railOpen ? 320 : 44, flexShrink: 0, borderLeft: '1px solid var(--hairline)', background: 'var(--surface-1)', transition: 'width var(--m-base) var(--ease-out)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <button onClick={toggleRail} aria-expanded={railOpen} className="t-heading-s" style={{ height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--hairline)', whiteSpace: 'nowrap' }} title="Signal rail (S)">
-        <span>{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Signals <span className="muted">{forTab.length + custom.length}</span></span> : <span style={{ writingMode: 'vertical-rl', display: 'flex', gap: 6, alignItems: 'center' }}>{forTab.length + custom.length}<i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--neg)', opacity: counts.critical ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--warn)', opacity: counts.attention ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--pos)', opacity: counts.opportunity ? 1 : 0.2 }} /></span>}
+    <aside aria-label="Insight rail" style={{ width: railOpen ? 320 : 44, flexShrink: 0, borderLeft: '1px solid var(--hairline)', background: 'var(--surface-1)', transition: 'width var(--m-base) var(--ease-out)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <button onClick={toggleRail} aria-expanded={railOpen} className="t-heading-s" style={{ height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--hairline)', whiteSpace: 'nowrap' }} title="Insight rail (S)">
+        <span>{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Insights <span className="muted">{forTab.length + custom.length}</span></span> : <span style={{ writingMode: 'vertical-rl', display: 'flex', gap: 6, alignItems: 'center' }}>{forTab.length + custom.length}<i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--neg)', opacity: counts.critical ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--warn)', opacity: counts.attention ? 1 : 0.2 }} /><i style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--pos)', opacity: counts.opportunity ? 1 : 0.2 }} /></span>}
       </button>
       {railOpen && (
         <div style={{ padding: 12, overflow: 'auto', display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -181,7 +182,7 @@ export function SignalRail() {
             </div>
           )}
           <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
-          <div className="t-label-s faint">AI signals are fingerprinted, saved on this device, and reused while the displayed data and scope stay the same.</div>
+          <div className="t-label-s faint">AI insights are fingerprinted, saved on this device, and reused while the displayed data and scope stay the same.</div>
           {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}
@@ -301,9 +302,9 @@ export function SettingsPanel() {
   return (
     <div className="settings-backdrop" onClick={() => setSettingsOpen(false)}>
       <div className="settings-panel slide-in" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Settings">
-        <div className="settings-head"><div><span className="eyebrow">Workspace controls</span><h2>Settings</h2><p>AI, analytical assumptions, signal policy, appearance, data and local storage.</p></div><button className="btn btn-xs" onClick={() => setSettingsOpen(false)}>Close</button></div>
+        <div className="settings-head"><div><span className="eyebrow">Workspace controls</span><h2>Settings</h2><p>AI, analytical assumptions, insight policy, appearance, data and local storage.</p></div><button className="btn btn-xs" onClick={() => setSettingsOpen(false)}>Close</button></div>
 
-        <section className="settings-section" id="ai-settings"><div className="settings-section-head"><div><h3>AI intelligence</h3><p>Use your own OpenAI key for smarter reports and saved signals. The key goes directly from this browser to the configured endpoint.</p></div><span className={`status-pill ${readOpenAIKey() ? 'pos' : 'warn'}`}>{readOpenAIKey() ? 'Configured' : 'Not configured'}</span></div>
+        <section className="settings-section" id="ai-settings"><div className="settings-section-head"><div><h3>AI intelligence</h3><p>Use your own OpenAI key for smarter reports and saved insights. The key goes directly from this browser to the configured endpoint.</p></div><span className={`status-pill ${readOpenAIKey() ? 'pos' : 'warn'}`}>{readOpenAIKey() ? 'Configured' : 'Not configured'}</span></div>
           <label className="settings-field"><span>OpenAI API key<small>Stored only for this browser session unless “remember” is enabled.</small></span><div className="settings-inline"><input className="input" type={showKey ? 'text' : 'password'} autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-…" /><button className="btn btn-xs" onClick={() => setShowKey((x) => !x)}>{showKey ? 'Hide' : 'Show'}</button></div></label>
           <label className="settings-field"><span>Model<small>A smaller model is quicker; a larger reasoning model may give deeper interpretation.</small></span><select className="input" value={ai.model} onChange={(e) => setAi({ ...ai, model: e.target.value })}><option value="gpt-4.1-mini">gpt-4.1-mini</option><option value="gpt-4.1">gpt-4.1</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5">gpt-5</option></select></label>
           <label className="settings-field"><span>API base URL<small>Leave unchanged for OpenAI; compatible gateways may use another HTTPS endpoint.</small></span><input className="input" value={ai.baseUrl} onChange={(e) => setAi({ ...ai, baseUrl: e.target.value })} /></label>
@@ -312,11 +313,11 @@ export function SettingsPanel() {
           <div className="privacy-note"><b>Privacy:</b> only compact, scoped aggregates and report evidence are sent for AI generation—not the API key and not the full raw source sheets. Evidence can include entity labels or member names already present in a report worklist. Deterministic reports work without AI.</div>
         </section>
 
-        <section className="settings-section"><div className="settings-section-head"><div><h3>Economics & report assumptions</h3><p>Changes recompute cards, tables, signals and custom reports immediately.</p></div></div>
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Economics & report assumptions</h3><p>Changes recompute cards, tables, insights and custom reports immediately.</p></div></div>
           <label className="settings-field"><span>Assumed trainer rate per session<small>Used where the payroll source has no directly observed session cost.</small></span><div><div className="t-display-s tabular">₹{ratePerSession.toLocaleString('en-IN')}</div><input type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} /></div></label>
         </section>
 
-        <section className="settings-section"><div className="settings-section-head"><div><h3>Signal thresholds</h3><p>Fine-tune when deterministic alerts fire. Percent inputs are percentage points.</p></div></div>
+        <section className="settings-section"><div className="settings-section-head"><div><h3>Insight thresholds</h3><p>Fine-tune when deterministic alerts fire. Percent inputs are percentage points.</p></div></div>
           <div className="threshold-grid">{T.map((t) => <label key={t.k}><span>{t.label}<small>{t.help}</small></span><div className="number-suffix"><input className="input" type="number" step={t.pct ? 1 : 1} value={t.pct ? Number((thresholds[t.k] * 100).toFixed(1)) : thresholds[t.k]} onChange={(e) => setThresholds({ [t.k]: t.pct ? +e.target.value / 100 : +e.target.value })} />{t.pct && <i>%</i>}</div></label>)}</div>
           <button className="btn btn-xs" onClick={() => setThresholds({ ...DEFAULT_THRESHOLDS })}>Restore recommended thresholds</button>
         </section>
@@ -329,7 +330,7 @@ export function SettingsPanel() {
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Data & local storage</h3><p>{loads.filter((x) => x.status === 'ok').length} sources loaded · {loads.filter((x) => x.status === 'error').length} unavailable · {reportCount} saved report {reportCount === 1 ? 'copy' : 'copies'}.</p></div></div>
           <div className="settings-actions"><button className="btn" disabled={status === 'loading'} onClick={async () => { await clearCache(); load(true); }}>{status === 'loading' ? 'Refreshing…' : 'Clear source cache & refresh'}</button><button className="btn" disabled={!reportCount} onClick={async () => { if (confirm('Delete all saved report copies from this browser?')) { await clearSavedReports(); setReportCount(0); } }}>Delete saved reports</button></div>
-          <div className="privacy-note">Raw source cache, saved views, AI signal cache and saved reports stay in this browser. Download report HTML or JSON before clearing browser storage if you need an external copy.</div>
+          <div className="privacy-note">Raw source cache, saved views, AI insight cache and saved reports stay in this browser. Download report HTML or JSON before clearing browser storage if you need an external copy.</div>
         </section>
       </div>
     </div>

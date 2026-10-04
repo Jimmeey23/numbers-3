@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOverlay } from '../../state/overlays';
 import type { Scope } from '../../state/data';
 import { useView, type TabId } from '../../state/view';
 import { METRIC_LIST, metric } from '../../semantics/metrics';
@@ -27,6 +28,7 @@ export function WidgetSection({ tab, scope, placement = 'bottom' }: { tab: TabId
   const widgets = useWidgets(tab, placement);
   const [editing, setEditing] = useState<WidgetSpec | null>(null);
   const [building, setBuilding] = useState(false);
+  useOverlay(building, useCallback(() => { setBuilding(false); setEditing(null); }, []));
   if (!widgets.length && placement === 'top') return null;
   return (
     <Register title={placement === 'top' ? 'Pinned' : 'Your widgets'} domain="neutral"

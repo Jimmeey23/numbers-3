@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { TitleBar, TabRail, SignalRail, StatusBar, CommandPalette, SettingsPanel } from './components/shell/Shell';
+import { TitleBar, TabRail, InsightRail, StatusBar, CommandPalette, SettingsPanel } from './components/shell/Shell';
 import { FilterStrip } from './components/shell/FilterDrawer';
 import { TooltipLayer } from './components/Tooltip/Tooltip';
 import { DrillPanel } from './components/DrillPanel/DrillPanel';
@@ -9,6 +9,8 @@ import { encodeFilters, useFilters } from './state/filters';
 import { TABS, useView, type TabId } from './state/view';
 import { useDrill } from './state/drill';
 import { SHEETS } from './data/sheets.config';
+import { TabEndpoint } from './components/shell/TabEndpoint';
+import { buildTabPayload, readApiRequest } from './api/endpoint';
 import { buildAgentApi } from './api/agent';
 import { AskDock, AskPanel } from './components/Ask/AskPanel';
 import { ReportDialog } from './components/Report/ReportDialog';
@@ -111,7 +113,35 @@ function BlockedBanner() {
   );
 }
 
+/* API mode. `?api=<tab>` turns the page into that tab's endpoint: the shell never mounts, the data
+   loads exactly as it would for a person, and the document body is the JSON response. */
+function ApiResponse({ request }: { request: NonNullable<ReturnType<typeof readApiRequest>> }) {
+  const { status, error, load } = useData();
+  const scope = useScope();
+  const thresholds = useView((s) => s.thresholds);
+  const setFilters = useFilters((s) => s.set);
+  useEffect(() => { load(isHardRefresh()); }, [load]);
+  const body = useMemo(() => {
+    if (status === 'error') return JSON.stringify({ endpoint: request.tab, error: error ?? 'Load failed' }, null, 2);
+    if (!scope) return JSON.stringify({ endpoint: request.tab, status: 'loading', note: 'Poll until status is "ok".' }, null, 2);
+    const api = buildAgentApi(scope, thresholds, (patch) => setFilters(patch as never));
+    return JSON.stringify({ status: 'ok', ...buildTabPayload(api, scope, request) }, null, 2);
+  }, [status, error, scope, thresholds, setFilters, request]);
+  useEffect(() => {
+    document.title = `Atlas API · ${request.tab}`;
+    /* Published for a driver that would rather read a value than scrape the DOM. */
+    (window as unknown as Record<string, unknown>).atlasApiResponse = body;
+  }, [body, request.tab]);
+  return <pre id="atlas-api" data-status={scope ? 'ok' : status} style={{ margin: 0, padding: 16, whiteSpace: 'pre-wrap', wordBreak: 'break-word', font: '12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace' }}>{body}</pre>;
+}
+
 export default function App() {
+  const apiRequest = useMemo(() => readApiRequest(), []);
+  if (apiRequest) return <ApiResponse request={apiRequest} />;
+  return <Workspace />;
+}
+
+function Workspace() {
   const { status, error, load } = useData();
   const scope = useScope();
   const tab = useView((s) => s.tab);
@@ -157,8 +187,9 @@ export default function App() {
               <Tab key={tab} scope={scope} />
             </Suspense>
           )}
+          {scope && status !== 'error' && <TabEndpoint tab={tab} />}
         </main>
-        <SignalRail />
+        <InsightRail />
       </div>
       <StatusBar />
       <TooltipLayer />

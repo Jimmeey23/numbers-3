@@ -68,6 +68,6 @@ for (const [name, filters] of scenarios) {
 }
 // shell components
 const shell = await import('../src/components/shell/Shell.tsx');
-for (const [n, C] of Object.entries({ TitleBar: shell.TitleBar, TabRail: shell.TabRail, SignalRail: shell.SignalRail, StatusBar: shell.StatusBar })) { try { renderToString(React.createElement(C as any)); console.log(`   ${n} ok`); } catch (e) { failures++; console.log(`   ${n} FAIL ${(e as Error).message}`); } }
+for (const [n, C] of Object.entries({ TitleBar: shell.TitleBar, TabRail: shell.TabRail, InsightRail: shell.InsightRail, StatusBar: shell.StatusBar })) { try { renderToString(React.createElement(C as any)); console.log(`   ${n} ok`); } catch (e) { failures++; console.log(`   ${n} FAIL ${(e as Error).message}`); } }
 console.log(failures ? `\n${failures} FAILURES` : '\nALL TABS RENDERED');
 process.exit(failures ? 1 : 0);

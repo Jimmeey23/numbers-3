@@ -221,7 +221,7 @@ function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 
           <div style={{ flex: 1 }} />
           {r.provenance && <button className="btn btn-xs" onClick={() => setShowWork((v) => !v)}>{showWork ? 'Hide' : 'Show'} working</button>}
           {r.tab && <button className="btn btn-xs" onClick={() => onGo(r.tab as 'overview')}>Open tab</button>}
-          <button className="btn btn-xs" onClick={() => onPin(r)} title="Keep the sentence as a signal card">Pin note</button>
+          <button className="btn btn-xs" onClick={() => onPin(r)} title="Keep the sentence as an insight card">Pin note</button>
           {r.metricId && !r.buildSpec && (
             <button className="btn btn-xs" title="Turn this answer into a permanent widget" onClick={() => setTweaking((v) => !v)}>
               {tweaking ? 'Close builder' : 'Build widget'}

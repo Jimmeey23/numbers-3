@@ -209,9 +209,9 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
     const totals = summariseImpact(ins);
     const top = ins.slice(0, 5);
     return { ...base, intent,
-      answer: top.length ? `${ins.length} signals are firing. The largest is: ${top[0].title}.` : 'Nothing is firing for this scope.',
+      answer: top.length ? `${ins.length} insights are firing. The largest is: ${top[0].title}.` : 'Nothing is firing for this scope.',
       detail: totals.length ? totals.map((t) => `${t.basis === 'at-risk' ? 'Revenue at risk' : t.basis === 'sunk' ? 'Paid but unused' : 'Upside'} ${formatValue('currency', t.net)} across ${t.entities} members, after removing ${t.overlapping} duplicate claims.`).join(' ') : undefined,
-      table: top.length ? { columns: ['Severity', 'Signal', 'Impact', 'Action'], rows: top.map((i) => [i.severity, i.title, formatValue('currency', i.impactINR), i.action]) } : undefined,
+      table: top.length ? { columns: ['Severity', 'Insight', 'Impact', 'Action'], rows: top.map((i) => [i.severity, i.title, formatValue('currency', i.impactINR), i.action]) } : undefined,
       suggestions: ['What should I do about dormant members?', 'Show churn by membership type', 'Worst slots by fill rate'] };
   }
 
