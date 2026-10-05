@@ -15,10 +15,11 @@ import { clearCache } from '../../data/ingest';
 import { CACHE_STALE_AFTER_MS } from '../../data/sheets.config';
 import type { SheetLoad } from '../../data/types';
 import { ExportMenu } from '../ExportMenu';
-import { addCard, buildAgentApi, ENDPOINTS, readCards } from '../../api/agent';
+import { buildAgentApi, ENDPOINTS } from '../../api/agent';
 import { scopeLine } from '../../api/export';
 import { useScope as useScopeForExport } from '../../state/data';
-import { AI_EVENT, clearAIKey, generateAISignals, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
+import { AI_EVENT, clearAIKey, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
+import { useAI } from '../../state/ai';
 import { clearSavedReports, listSavedReports } from '../../report/store';
 import { RAMPS, THEMES, type Theme } from '../../design/ramps';
 
@@ -174,29 +175,19 @@ const SWATCHES: Record<Theme, string[]> = Object.fromEntries(THEMES.map((t) => [
   [RAMPS[t.id].surface, ...['attendance', 'revenue', 'growth', 'people', 'risk'].map((d) => RAMPS[t.id].domain[d])]])) as Record<Theme, string[]>;
 
 export function InsightRail() {
-  const { railOpen, toggleRail, thresholds, dismissed, tab, announce } = useView();
+  const { railOpen, toggleRail, thresholds, dismissed, tab } = useView();
   const scope = useScope();
   useDockedPanel(railOpen, useCallback(() => useView.getState().toggleRail(), []));
-  const [aiBusy, setAiBusy] = useState(false); const [aiError, setAiError] = useState('');
+  const generate = useAI((s) => s.generate);
+  const aiBusy = useAI((s) => s.busyTab === tab);
+  const aiError = useAI((s) => s.error);
+  const intel = useAI((s) => s.byTab[tab]);
   const insights = useMemo(() => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key)) : []), [scope, thresholds, dismissed]);
   const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 12);
   const impact = useMemo(() => summariseImpact(forTab), [forTab]);
   const custom = useCustomCards(tab);
   const counts = { critical: forTab.filter((i) => i.severity === 'critical').length, attention: forTab.filter((i) => i.severity === 'attention').length, opportunity: forTab.filter((i) => i.severity === 'opportunity').length };
-  const generateAI = async () => {
-    if (!scope || aiBusy) return;
-    setAiBusy(true); setAiError('');
-    try {
-      const api = buildAgentApi(scope, thresholds, () => undefined);
-      const snapshot = api.get(tab, { limit: 30 });
-      const result = await generateAISignals(tab, snapshot, scope.period.end.slice(0, 7), scope.filters.locations);
-      const source = `openai:${result.fingerprint}`;
-      const existing = readCards().filter((c) => c.tab === tab && c.source === source);
-      if (!existing.length) for (const s of result.signals) addCard({ tab, title: s.title, body: s.body, action: s.action, severity: s.severity, impactINR: s.impactINR, entity: s.entity, metricId: s.metricId, source });
-      announce(result.cached || existing.length ? 'Reused saved AI insights for this data scope' : `Saved ${result.signals.length} AI insights to this tab`);
-    } catch (e) { setAiError(e instanceof Error ? e.message : 'AI insight generation failed.'); }
-    finally { setAiBusy(false); }
-  };
+  const generateAI = () => { if (scope) generate(tab, scope, thresholds); };
   return (
     <aside aria-label="Insights" className={`insight-rail ${railOpen ? 'is-open' : 'is-closed'}`}>
       <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : 'Expand insights'}>
@@ -221,8 +212,18 @@ export function InsightRail() {
               ))}
             </div>
           )}
-          <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
-          <div className="t-label-s faint">AI insights are reused for the same data scope. Sign in under Settings to sync them across sessions.</div>
+          <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : intel ? 'Regenerate with AI' : 'Generate with AI'}</button>
+          <div className="t-label-s faint">One press fills the briefing above the canvas, the KPI notes, every table read, the recommendations and these signals. Results are reused for the same data scope.</div>
+          {intel && (
+            <div className="rail-ai-brief">
+              <b>✦ {intel.headline || 'AI briefing'}</b>
+              <p>{intel.executiveSummary}</p>
+              {intel.recommendations.slice(0, 3).map((r, i) => (
+                <div key={i} className="rail-ai-reco"><span>{r.priority === 'now' ? 'Do now' : r.priority === 'this-week' ? 'This week' : 'This month'}</span>{r.title}</div>
+              ))}
+              <button className="btn btn-xs" onClick={() => document.getElementById('canvas')?.scrollTo({ top: 0, behavior: 'smooth' })}>Open full briefing</button>
+            </div>
+          )}
           {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}

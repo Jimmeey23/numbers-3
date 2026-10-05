@@ -19,6 +19,7 @@ import { AskDock, AskPanel } from './components/Ask/AskPanel';
 import { ReportDialog } from './components/Report/ReportDialog';
 import { ask as askQuestion } from './api/ask';
 import { TableSummaryEnhancer } from './components/TableSummaryEnhancer';
+import { AIBriefing } from './components/AI/AIBriefing';
 
 const LAZY: Record<TabId, () => Promise<{ default: ComponentType<{ scope: Scope }> }>> = {
   overview: () => import('./tabs/Overview').then((m) => ({ default: m.Overview })),
@@ -187,6 +188,7 @@ function Workspace() {
           <BlockedBanner />
           {status === 'error' && error ? <ErrorScreen error={error} /> : !scope ? <LoadingScreen /> : (
             <TabExtras key={tab} tab={tab} scope={scope}>
+              <AIBriefing tab={tab} />
               <Suspense fallback={<div style={{ padding: '24px 0' }}><div className="travel-barre" /></div>}>
                 <Tab scope={scope} />
               </Suspense>

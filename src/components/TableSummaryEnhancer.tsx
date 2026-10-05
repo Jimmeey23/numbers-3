@@ -1,4 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useAI } from '../state/ai';
+import { useView } from '../state/view';
+import type { AITableNote } from '../ai/intelligence';
+
+/** Loose title match so an AI note written as "By trainer" still finds the "Trainer" table. */
+function matchNote(notes: AITableNote[], title: string): AITableNote | undefined {
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  const target = norm(title);
+  if (!target.length) return undefined;
+  let best: { note: AITableNote; score: number } | null = null;
+  for (const note of notes) {
+    const words = norm(note.title ?? '');
+    if (!words.length) continue;
+    const overlap = words.filter((w) => target.includes(w)).length / Math.max(words.length, target.length);
+    if (overlap >= 0.34 && (!best || overlap > best.score)) best = { note, score: overlap };
+  }
+  return best?.note;
+}
 
 /**
  * Adds one closed, plain-language explanation to every table in the application — including
@@ -9,6 +27,12 @@ import { useEffect } from 'react';
  * Components can provide richer copy with data-summary / data-calculation on `.table-scroll`.
  */
 export function TableSummaryEnhancer() {
+  const tab = useView((s) => s.tab);
+  const notes = useAI((s) => s.byTab[tab]?.tableNotes) ?? [];
+  const notesRef = useRef<AITableNote[]>(notes);
+  const bump = useRef<(() => void) | null>(null);
+  notesRef.current = notes;
+  useEffect(() => { bump.current?.(); }, [notes]);
   useEffect(() => {
     let scheduled = false;
     const explain = (frame: HTMLElement) => {
@@ -58,8 +82,15 @@ export function TableSummaryEnhancer() {
 
       const meta = details.querySelector<HTMLElement>('.table-summary-meta');
       const copy = details.querySelector<HTMLElement>('.table-summary-copy');
-      const metaText = `${visibleRows.toLocaleString('en-IN')} rows · ${heads.length.toLocaleString('en-IN')} columns · collapsed`;
-      const copyHtml = `<p>${escapeHtml(plain)}</p><div class="table-summary-method"><b>How it is calculated</b><span>${escapeHtml(methods)}</span></div>`;
+      const note = matchNote(notesRef.current, `${title} ${heads.slice(0, 3).join(' ')}`);
+      const aiHtml = note
+        ? `<div class="table-summary-ai"><b>\u2726 AI read</b><span>${escapeHtml(note.summary)}</span>`
+          + (note.standouts?.length ? `<span class="table-summary-ai-chips">${note.standouts.map((x) => `<i>${escapeHtml(x)}</i>`).join('')}</span>` : '')
+          + (note.recommendation ? `<span class="table-summary-ai-action">\u2192 ${escapeHtml(note.recommendation)}</span>` : '')
+          + '</div>'
+        : '';
+      const metaText = `${visibleRows.toLocaleString('en-IN')} rows · ${heads.length.toLocaleString('en-IN')} columns${note ? ' · ✦ AI read' : ''} · collapsed`;
+      const copyHtml = `${aiHtml}<p>${escapeHtml(plain)}</p><div class="table-summary-method"><b>How it is calculated</b><span>${escapeHtml(methods)}</span></div>`;
       if (meta && meta.textContent !== metaText) meta.textContent = metaText;
       if (copy && copy.innerHTML !== copyHtml) copy.innerHTML = copyHtml;
     };
@@ -77,6 +108,7 @@ export function TableSummaryEnhancer() {
       scheduled = true;
       window.requestAnimationFrame(refresh);
     };
+    bump.current = schedule;
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     schedule();

@@ -144,7 +144,7 @@ export async function readAIFromCloud<T>(fingerprint: string): Promise<T | null>
   return (data?.content as T) ?? null;
 }
 
-export async function saveAIToCloud(fingerprint: string, kind: 'signals' | 'report', tab: string | null, scopeMonth: string, locations: string[], content: unknown) {
+export async function saveAIToCloud(fingerprint: string, kind: 'signals' | 'report' | 'intelligence', tab: string | null, scopeMonth: string, locations: string[], content: unknown) {
   if (!cloud || !user) return;
   const { error } = await cloud.from('atlas_ai_cache').upsert({ user_id: user.id, fingerprint, kind, tab, scope_month: scopeMonth, locations, content });
   if (error) console.warn('Atlas AI cache could not be saved:', error.message);

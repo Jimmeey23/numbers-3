@@ -46,7 +46,7 @@ const stable = (v: unknown): string => {
   if (v && typeof v === 'object') return `{${Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => `${JSON.stringify(k)}:${stable(x)}`).join(',')}}`;
   return JSON.stringify(v);
 };
-const digest = async (value: unknown) => {
+export const digest = async (value: unknown) => {
   const text = stable(value); const bytes = new TextEncoder().encode(text);
   if (globalThis.crypto?.subtle) { const hash = await crypto.subtle.digest('SHA-256', bytes); return [...new Uint8Array(hash)].map((x) => x.toString(16).padStart(2, '0')).join(''); }
   let h = 2166136261; for (const b of bytes) { h ^= b; h = Math.imul(h, 16777619); } return `fallback-${(h >>> 0).toString(16)}-${bytes.length}`;
@@ -67,7 +67,7 @@ function compactReport(model: ReportModel) {
   };
 }
 
-async function openAIJson<T>(system: string, input: unknown): Promise<T> {
+export async function openAIJson<T>(system: string, input: unknown): Promise<T> {
   const config = readAIConfig(); const key = readOpenAIKey();
   if (!key) throw new Error('Add an OpenAI API key in Settings → AI intelligence first.');
   const base = config.baseUrl.replace(/\/$/, '');

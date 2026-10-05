@@ -8,6 +8,7 @@ import { ExportMenu } from '../ExportMenu';
 import { WidgetBuilder } from '../Widgets/WidgetSection';
 import { addWidget, type WidgetSpec } from '../../api/widgets';
 import { scopeLine } from '../../api/export';
+import { useAI } from '../../state/ai';
 
 export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult }
 
@@ -53,6 +54,10 @@ export function AskPanel() {
   const thresholds = useView((s) => s.thresholds);
   const setTab = useView((s) => s.setTab);
   const scope = useScope();
+  const tab = useView((s) => s.tab);
+  const intel = useAI((s) => s.byTab[tab]);
+  const aiBusy = useAI((s) => s.busyTab !== null);
+  const generate = useAI((s) => s.generate);
   // History is loaded once and persisted on every change, so the thread survives reloads.
   const [turns, setTurns] = useState<Turn[]>(readTurns);
   const [draft, setDraft] = useState('');
@@ -63,6 +68,12 @@ export function AskPanel() {
   useEffect(() => { writeTurns(turns); }, [turns]);
   useEffect(() => { if (open) { inputRef.current?.focus(); bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight }); } }, [open, turns.length]);
   useOverlay(open, useCallback(() => setOpen(false), [setOpen]));
+  // The briefing can hand a question straight to the input.
+  useEffect(() => {
+    const h = (e: Event) => { const q = (e as CustomEvent<string>).detail; if (q) { setDraft(q); window.setTimeout(() => inputRef.current?.focus(), 60); } };
+    window.addEventListener('floor:ask-prefill', h);
+    return () => window.removeEventListener('floor:ask-prefill', h);
+  }, []);
 
   const myQuestions = useMemo(() => turns.filter((t) => t.role === 'you').map((t) => t.text), [turns]);
 
@@ -139,6 +150,25 @@ export function AskPanel() {
           ))}
         </div>
 
+        {intel?.questions.length ? (
+          <div className="ask-suggest ask-suggest-ai">
+            <span className="ask-suggest-label">✦ AI follow-ups</span>
+            {intel.questions.slice(0, 4).map((q) => <button key={q} className="btn btn-xs" onClick={() => send(q)}>{q}</button>)}
+          </div>
+        ) : (
+          <div className="ask-suggest ask-suggest-ai">
+            <span className="ask-suggest-label">✦ AI</span>
+            <button className="btn btn-xs" disabled={aiBusy || !scope} onClick={() => scope && generate(tab, scope, thresholds)}>
+              {aiBusy ? 'Analysing…' : 'Generate AI briefing & follow-up questions for this tab'}
+            </button>
+          </div>
+        )}
+        {intel?.keyTakeaways.length ? (
+          <div className="ask-ai-context">
+            <b>✦ What AI already found on {tab}</b>
+            <ul>{intel.keyTakeaways.slice(0, 3).map((t, i) => <li key={i}>{t}</li>)}</ul>
+          </div>
+        ) : null}
         <div className="ask-suggest">
           {suggestions.map((s) => <button key={s} className="btn btn-xs" onClick={() => send(s)}>{s}</button>)}
         </div>

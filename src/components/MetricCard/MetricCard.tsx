@@ -5,6 +5,8 @@ import { fmtDelta, fmtN, formatValue, isNil } from '../../semantics/formats';
 import { useCountUp, usePathDraw } from '../hooks';
 import { useTooltip } from '../Tooltip/Tooltip';
 import { extent } from '../../semantics/stats';
+import { useAI } from '../../state/ai';
+import { useView } from '../../state/view';
 
 export interface MetricCardProps {
   metricId: string; value: number | null; prev?: number | null; spark?: (number | null)[]; n?: number; suspect?: string | null; coverage?: number | null; contributing?: number;
@@ -36,6 +38,10 @@ export function Sparkline({ data, width, height, color, area = true, delay = 0, 
 
 export function MetricCard(p: MetricCardProps) {
   const def = metric(p.metricId);
+  /* AI commentary, when a generation exists for this tab, is attached to the metric it is
+     about rather than being left in a drawer the operator has to go and open. */
+  const tab = useView((s) => s.tab);
+  const aiNote = useAI((s) => s.byTab[tab]?.kpiNotes.find((n) => n.metricId === p.metricId));
   const variant = p.variant ?? 'standard';
   const delay = (p.index ?? 0) * 28;
   const v = useCountUp(p.value, delay);
@@ -122,6 +128,11 @@ export function MetricCard(p: MetricCardProps) {
             {p.rank && <span>#{p.rank.pos} of {p.rank.of}</span>}
             {isNil(p.value) && !p.loading && <span className="hue">Widen date range</span>}
           </div>
+          {aiNote && variant !== 'comparison' && (
+            <div className={`kpi-ai-note v-${aiNote.verdict ?? 'neutral'}`} title={aiNote.driver ? `Driver: ${aiNote.driver}` : 'AI commentary on this metric'}>
+              <span aria-hidden>✦</span><span>{aiNote.note}{aiNote.driver ? ` · ${aiNote.driver}` : ''}</span>
+            </div>
+          )}
           {p.loading && <div className="travel-barre" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} />}
         </>
       ) : (
@@ -143,6 +154,7 @@ export function MetricCard(p: MetricCardProps) {
           <div className="t-label-s faint" style={{ marginTop: 3 }}>Aggregation: {def.aggregation}{def.aggregation === 'weighted' ? ' — recomputed from its numerator and denominator, never an average of rates' : ''}</div>
           {partial && <div className="t-label-s warn" style={{ marginTop: 6 }}>⚠ {coverageText}</div>}
           {p.suspect && <div className="t-label-s warn" style={{ marginTop: 4 }}>⚠ {p.suspect}</div>}
+          {aiNote && <div className="kpi-popout-ai"><b>✦ AI read</b><span>{aiNote.note}</span>{aiNote.driver && <span className="faint">Driver: {aiNote.driver}</span>}</div>}
         </div>
       )}
     </div>
