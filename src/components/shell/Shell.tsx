@@ -182,6 +182,7 @@ export function InsightRail() {
   const aiBusy = useAI((s) => s.busyTab === tab);
   const aiError = useAI((s) => s.error);
   const intel = useAI((s) => s.byTab[tab]);
+  const quant = useAI((s) => s.quantByTab[tab]);
   const insights = useMemo(() => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key)) : []), [scope, thresholds, dismissed]);
   const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 12);
   const impact = useMemo(() => summariseImpact(forTab), [forTab]);
@@ -210,6 +211,14 @@ export function InsightRail() {
                   {b.overlapping > 0 && <span className="t-label-s faint" title={`Gross ${fmtCurrency(b.gross)} before removing ${b.overlapping} duplicated members`}>net of overlap · {b.entities.toLocaleString('en-IN')} members</span>}
                 </div>
               ))}
+            </div>
+          )}
+          {quant && (quant.anomalies.length > 0 || quant.metrics.some((m) => m.pace || m.streak)) && (
+            <div className="rail-radar">
+              <b>∿ Statistical radar · no key needed</b>
+              {quant.anomalies.slice(0, 2).map((a) => <div key={a.metricId}>{a.verdict === 'bad' ? '⚠' : '✓'} {a.note}</div>)}
+              {quant.metrics.filter((m) => m.pace).slice(0, 1).map((m) => <div key={m.metricId}>◴ {m.pace!.note}</div>)}
+              {quant.metrics.filter((m) => m.streak && m.streak.months >= 3).slice(0, 1).map((m) => <div key={m.metricId}>↗ {m.label}: {m.streak!.months} months {m.streak!.direction}</div>)}
             </div>
           )}
           <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : intel ? 'Regenerate with AI' : 'Generate with AI'}</button>

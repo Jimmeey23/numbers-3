@@ -20,6 +20,7 @@ import { ReportDialog } from './components/Report/ReportDialog';
 import { ask as askQuestion } from './api/ask';
 import { TableSummaryEnhancer } from './components/TableSummaryEnhancer';
 import { AIBriefing } from './components/AI/AIBriefing';
+import { useAI } from './state/ai';
 
 const LAZY: Record<TabId, () => Promise<{ default: ComponentType<{ scope: Scope }> }>> = {
   overview: () => import('./tabs/Overview').then((m) => ({ default: m.Overview })),
@@ -167,6 +168,9 @@ function Workspace() {
   /* Cached sheets are reused on every ordinary page load. Only a hard refresh goes back to the
      network on its own; everything else waits for the Reload button. */
   useEffect(() => { load(isHardRefresh()); }, [load]);
+  /* The deterministic pack is cheap, local and needed by the KPI cards and the radar, so it is
+     recomputed on every scope or tab change rather than waiting for anyone to press Generate. */
+  useEffect(() => { if (scope) useAI.getState().computeQuant(tab, scope); }, [scope, tab]);
   useEscapeClosesEverything();   // one Escape closes every open overlay, whatever has focus
   useEffect(() => { const h = () => { const hash = window.location.hash.replace(/^#\/?/, '').split('?')[0] as TabId; if (TABS.some((t) => t.id === hash)) useView.getState().setTab(hash); }; window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h); }, []);
   // 90ms crossfade on scope change, no layout shift

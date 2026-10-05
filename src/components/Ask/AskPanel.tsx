@@ -9,8 +9,13 @@ import { WidgetBuilder } from '../Widgets/WidgetSection';
 import { addWidget, type WidgetSpec } from '../../api/widgets';
 import { scopeLine } from '../../api/export';
 import { useAI } from '../../state/ai';
+import { askAI, type AIAnswer } from '../../ai/intelligence';
+import { readOpenAIKey } from '../../ai/client';
+import { applyAIAction } from '../../ai/actions';
+import { buildAgentApi } from '../../api/agent';
+import { compactQuant, buildQuantPack } from '../../ai/analytics';
 
-export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult }
+export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult; ai?: AIAnswer; aiState?: 'pending' | 'error'; aiError?: string }
 
 const KEY = 'floor.conversation.v1';
 const readTurns = (): Turn[] => { try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; } };
@@ -94,10 +99,35 @@ export function AskPanel() {
         scope: scope.period.label, suggestions: ['Revenue by location', 'Visits this month', 'What can you answer?'],
       };
     }
+    const id = `f${now}`;
     setTurns((t) => [...t,
       { id: `u${now}`, role: 'you', text: q, at: now },
-      { id: `f${now}`, role: 'floor', text: result.answer, at: now + 1, result }]);
+      { id, role: 'floor', text: result.answer, at: now + 1, result }]);
     setDraft(''); setHistIdx(-1);
+    // The registry answers anything it can compute exactly. When it cannot, and a key exists,
+    // the model gets the same scoped aggregates rather than the bare question.
+    if ((result.unresolved || result.confidence === 'guess') && readOpenAIKey()) escalate(id, q);
+  };
+
+  /** Hand one question to the model, grounded in the current tab snapshot and quant pack. */
+  const escalate = async (turnId: string, question: string) => {
+    if (!scope) return;
+    setTurns((t) => t.map((x) => (x.id === turnId ? { ...x, aiState: 'pending', aiError: undefined } : x)));
+    try {
+      const api = buildAgentApi(scope, thresholds, () => undefined);
+      const quant = useAI.getState().quantByTab[tab] ?? buildQuantPack(scope, tab);
+      const context = {
+        tab, scopeLabel: scope.period.label,
+        snapshot: api.get(tab, { limit: 20 }),
+        quant: compactQuant(quant),
+        deterministicAttempt: turns.find((x) => x.id === turnId)?.result ?? null,
+        tabBriefing: useAI.getState().byTab[tab]?.executiveSummary ?? null,
+      };
+      const ai = await askAI(question, context);
+      setTurns((t) => t.map((x) => (x.id === turnId ? { ...x, ai, aiState: undefined } : x)));
+    } catch (e) {
+      setTurns((t) => t.map((x) => (x.id === turnId ? { ...x, aiState: 'error', aiError: e instanceof Error ? e.message : 'AI answer failed.' } : x)));
+    }
   };
 
   if (!open) return null;
@@ -143,7 +173,7 @@ export function AskPanel() {
           )}
           {turns.map((t) => (t.role === 'you'
             ? <div key={t.id} className="ask-turn you"><div className="ask-bubble">{t.text}</div></div>
-            : <AnswerBubble key={t.id} turn={t} onGo={(tab) => { setTab(tab); setOpen(false); }} onBuilt={(tab) => { setTab(tab); setOpen(false); }} onPin={(r) => {
+            : <AnswerBubble key={t.id} turn={t} onAskAI={() => escalate(t.id, turns.find((x) => x.at === t.at - 1)?.text ?? t.text)} onGo={(tab) => { setTab(tab); setOpen(false); }} onBuilt={(tab) => { setTab(tab); setOpen(false); }} onPin={(r) => {
                 addCard({ tab: r.tab ?? 'overview', title: r.answer, body: r.detail, severity: 'context', source: 'manual',
                   action: r.provenance ? `${r.provenance.formula} · ${r.provenance.sources.join(', ')}` : undefined });
               }} />
@@ -194,13 +224,38 @@ export function AskPanel() {
   );
 }
 
-function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 'overview') => void; onPin: (r: AskResult) => void; onBuilt: (tab: 'overview') => void }) {
+function AnswerBubble({ turn, onGo, onPin, onBuilt, onAskAI }: { turn: Turn; onGo: (tab: 'overview') => void; onPin: (r: AskResult) => void; onBuilt: (tab: 'overview') => void; onAskAI: () => void }) {
   const r = turn.result;
   const [showWork, setShowWork] = useState(false);
   const [tweaking, setTweaking] = useState(false);
   const [built, setBuilt] = useState<string | null>(null);
   const announce = useView((s) => s.announce);
-  if (!r) return <div className="ask-turn floor"><div className="ask-bubble">{turn.text}</div></div>;
+  const aiBlock = (
+    <>
+      {turn.aiState === 'pending' && <div className="ask-ai-answer is-pending"><b>✦ Asking the model…</b><div className="travel-barre" /></div>}
+      {turn.aiState === 'error' && <div className="signal-ai-error">{turn.aiError}</div>}
+      {turn.ai && (
+        <div className="ask-ai-answer">
+          <b>✦ AI analysis</b>
+          <p>{turn.ai.answer}</p>
+          {turn.ai.reasoning && <p className="faint">{turn.ai.reasoning}</p>}
+          {turn.ai.evidence.length > 0 && <ul className="ask-ai-evidence">{turn.ai.evidence.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+          {turn.ai.caveats.length > 0 && <small className="warn">{turn.ai.caveats.join(' · ')}</small>}
+          {turn.ai.actions.length > 0 && (
+            <div className="ai-action-row">
+              {turn.ai.actions.map((a, i) => <button key={i} className="ai-action" onClick={() => announce(applyAIAction(a))}>↳ {a.label}</button>)}
+            </div>
+          )}
+          {turn.ai.followUps.length > 0 && (
+            <div className="ai-chips">{turn.ai.followUps.map((q, i) => (
+              <button key={i} className="ai-chip is-button" onClick={() => window.dispatchEvent(new CustomEvent('floor:ask-prefill', { detail: q }))}>{q}</button>))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+  if (!r) return <div className="ask-turn floor"><div className="ask-bubble">{turn.text}{aiBlock}</div></div>;
   return (
     <div className="ask-turn floor">
       <div className="ask-bubble">
@@ -208,6 +263,10 @@ function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 
         {r.confidence === 'guess' && !r.unresolved && <span className="status-pill warn" style={{ marginBottom: 6, display: 'inline-flex' }}>Best guess</span>}
         <div className="t-body-m">{r.answer}</div>
         {r.detail && <p className="t-body-s muted" style={{ margin: '6px 0 0' }}>{r.detail}</p>}
+        {!turn.ai && turn.aiState !== 'pending' && (
+          <button className="ask-ai-cta" onClick={onAskAI} title="Send this question, the tab snapshot and the computed statistics to the model">✦ Go deeper with AI</button>
+        )}
+        {aiBlock}
 
         {r.table && (
           <div className="table-scroll ask-table">

@@ -42,6 +42,19 @@ export function MetricCard(p: MetricCardProps) {
      about rather than being left in a drawer the operator has to go and open. */
   const tab = useView((s) => s.tab);
   const aiNote = useAI((s) => s.byTab[tab]?.kpiNotes.find((n) => n.metricId === p.metricId));
+  /* With no generation yet — or no API key at all — the locally computed pack still has
+     something true to say about this metric, so the card is never silent. */
+  const quantNote = useAI((s) => {
+    if (aiNote) return null;
+    const m = s.quantByTab[tab]?.metrics.find((x) => x.metricId === p.metricId);
+    if (!m) return null;
+    if (m.anomaly) return { verdict: m.anomaly.verdict === 'good' ? 'good' : 'bad', note: `${m.anomaly.direction === 'spike' ? 'Spike' : 'Slump'} · ${Math.abs(m.anomaly.z).toFixed(1)}σ from its own median`, driver: undefined as string | undefined };
+    if (m.pace) return { verdict: 'neutral', note: `Pacing to ${m.pace.formatted} by month end`, driver: undefined as string | undefined };
+    if (m.streak && m.streak.months >= 3) return { verdict: (m.streak.direction === 'up') === m.higherIsBetter ? 'good' : 'watch', note: `${m.streak.months} months ${m.streak.direction} in a row`, driver: undefined as string | undefined };
+    if (m.forecast && m.trend && m.trend.direction !== 'flat') return { verdict: (m.trend.direction === 'rising') === m.higherIsBetter ? 'good' : 'watch', note: `${m.trend.direction} trend · next month near ${m.forecast.formatted}`, driver: undefined as string | undefined };
+    return null;
+  });
+  const note = aiNote ?? quantNote;
   const variant = p.variant ?? 'standard';
   const delay = (p.index ?? 0) * 28;
   const v = useCountUp(p.value, delay);
@@ -128,9 +141,9 @@ export function MetricCard(p: MetricCardProps) {
             {p.rank && <span>#{p.rank.pos} of {p.rank.of}</span>}
             {isNil(p.value) && !p.loading && <span className="hue">Widen date range</span>}
           </div>
-          {aiNote && variant !== 'comparison' && (
-            <div className={`kpi-ai-note v-${aiNote.verdict ?? 'neutral'}`} title={aiNote.driver ? `Driver: ${aiNote.driver}` : 'AI commentary on this metric'}>
-              <span aria-hidden>✦</span><span>{aiNote.note}{aiNote.driver ? ` · ${aiNote.driver}` : ''}</span>
+          {note && variant !== 'comparison' && (
+            <div className={`kpi-ai-note v-${note.verdict ?? 'neutral'}`} title={note.driver ? `Driver: ${note.driver}` : aiNote ? 'AI commentary on this metric' : 'Computed locally from this metric\u2019s own history'}>
+              <span aria-hidden>{aiNote ? '✦' : '∿'}</span><span>{note.note}{note.driver ? ` · ${note.driver}` : ''}</span>
             </div>
           )}
           {p.loading && <div className="travel-barre" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} />}
@@ -154,7 +167,7 @@ export function MetricCard(p: MetricCardProps) {
           <div className="t-label-s faint" style={{ marginTop: 3 }}>Aggregation: {def.aggregation}{def.aggregation === 'weighted' ? ' — recomputed from its numerator and denominator, never an average of rates' : ''}</div>
           {partial && <div className="t-label-s warn" style={{ marginTop: 6 }}>⚠ {coverageText}</div>}
           {p.suspect && <div className="t-label-s warn" style={{ marginTop: 4 }}>⚠ {p.suspect}</div>}
-          {aiNote && <div className="kpi-popout-ai"><b>✦ AI read</b><span>{aiNote.note}</span>{aiNote.driver && <span className="faint">Driver: {aiNote.driver}</span>}</div>}
+          {note && <div className="kpi-popout-ai"><b>{aiNote ? '✦ AI read' : '∿ Statistical read'}</b><span>{note.note}</span>{note.driver && <span className="faint">Driver: {note.driver}</span>}</div>}
         </div>
       )}
     </div>
