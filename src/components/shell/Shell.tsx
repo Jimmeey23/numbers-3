@@ -15,10 +15,13 @@ import { clearCache } from '../../data/ingest';
 import { CACHE_STALE_AFTER_MS } from '../../data/sheets.config';
 import type { SheetLoad } from '../../data/types';
 import { ExportMenu } from '../ExportMenu';
-import { addCard, buildAgentApi, ENDPOINTS, readCards } from '../../api/agent';
+import { buildAgentApi, ENDPOINTS } from '../../api/agent';
 import { scopeLine } from '../../api/export';
 import { useScope as useScopeForExport } from '../../state/data';
-import { AI_EVENT, clearAIKey, generateAISignals, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
+import { AI_EVENT, clearAIKey, readAIConfig, readOpenAIKey, saveAISettings, type AIConfig } from '../../ai/client';
+import { runAIBriefing } from '../../ai/run';
+import { clearBriefingCache } from '../../ai/briefing';
+import { useAI } from '../../state/ai';
 import { clearSavedReports, listSavedReports } from '../../report/store';
 import { RAMPS, THEMES, type Theme } from '../../design/ramps';
 
@@ -174,29 +177,22 @@ const SWATCHES: Record<Theme, string[]> = Object.fromEntries(THEMES.map((t) => [
   [RAMPS[t.id].surface, ...['attendance', 'revenue', 'growth', 'people', 'risk'].map((d) => RAMPS[t.id].domain[d])]])) as Record<Theme, string[]>;
 
 export function InsightRail() {
-  const { railOpen, toggleRail, thresholds, dismissed, tab, announce } = useView();
+  const { railOpen, toggleRail, thresholds, dismissed, tab } = useView();
   const scope = useScope();
   useDockedPanel(railOpen, useCallback(() => useView.getState().toggleRail(), []));
-  const [aiBusy, setAiBusy] = useState(false); const [aiError, setAiError] = useState('');
+  const aiBusy = useAI((s) => Boolean(s.busy[tab]));
+  const aiError = useAI((s) => s.error[tab] ?? '');
+  const briefing = useAI((s) => s.briefings[tab]);
+  const briefingDismissed = useAI((s) => Boolean(s.dismissed[tab]));
+  const setBriefingDismissed = useAI((s) => s.setDismissed);
   const insights = useMemo(() => (scope ? runRules(scope, thresholds).filter((i) => !isDismissed(dismissed, i.key)) : []), [scope, thresholds, dismissed]);
   const forTab = insights.filter((i) => tab === 'overview' || i.tab === tab).slice(0, 12);
   const impact = useMemo(() => summariseImpact(forTab), [forTab]);
   const custom = useCustomCards(tab);
   const counts = { critical: forTab.filter((i) => i.severity === 'critical').length, attention: forTab.filter((i) => i.severity === 'attention').length, opportunity: forTab.filter((i) => i.severity === 'opportunity').length };
-  const generateAI = async () => {
-    if (!scope || aiBusy) return;
-    setAiBusy(true); setAiError('');
-    try {
-      const api = buildAgentApi(scope, thresholds, () => undefined);
-      const snapshot = api.get(tab, { limit: 30 });
-      const result = await generateAISignals(tab, snapshot, scope.period.end.slice(0, 7), scope.filters.locations);
-      const source = `openai:${result.fingerprint}`;
-      const existing = readCards().filter((c) => c.tab === tab && c.source === source);
-      if (!existing.length) for (const s of result.signals) addCard({ tab, title: s.title, body: s.body, action: s.action, severity: s.severity, impactINR: s.impactINR, entity: s.entity, metricId: s.metricId, source });
-      announce(result.cached || existing.length ? 'Reused saved AI insights for this data scope' : `Saved ${result.signals.length} AI insights to this tab`);
-    } catch (e) { setAiError(e instanceof Error ? e.message : 'AI insight generation failed.'); }
-    finally { setAiBusy(false); }
-  };
+  /* Once a briefing exists the button reads "Regenerate", so it must actually go back to the
+     model rather than handing back the cached copy it is offering to replace. */
+  const generateAI = () => { if (scope) void runAIBriefing(tab, scope, thresholds, Boolean(briefing)); };
   return (
     <aside aria-label="Insights" className={`insight-rail ${railOpen ? 'is-open' : 'is-closed'}`}>
       <button onClick={toggleRail} aria-expanded={railOpen} className="insight-rail-toggle" title="Toggle insights (S)" aria-label={railOpen ? 'Collapse insights' : 'Expand insights'}>
@@ -221,8 +217,17 @@ export function InsightRail() {
               ))}
             </div>
           )}
-          <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
-          <div className="t-label-s faint">AI insights are reused for the same data scope. Sign in under Settings to sync them across sessions.</div>
+          <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Reading this tab…' : briefing ? 'Regenerate with AI' : 'Generate with AI'}</button>
+          <div className="t-label-s faint">One run writes the briefing band above the tab, a note on each notable KPI and section, ranked recommendations, risks, an outlook, follow-up questions for Ask, and the cards below. Reused for the same data scope — sign in under Settings to sync them across sessions.</div>
+          {briefing && (
+            <div className="rail-ai-summary">
+              <div className="t-label-s muted">✦ AI briefing · {briefing.recommendations.length} recommendations · {briefing.risks.length} risks</div>
+              <div className="t-body-s">{briefing.headline}</div>
+              {briefingDismissed
+                ? <button className="btn btn-xs" onClick={() => setBriefingDismissed(tab, false)}>Show the briefing band</button>
+                : <button className="btn btn-xs" onClick={() => document.querySelector('.ai-band')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Read the full briefing</button>}
+            </div>
+          )}
           {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}
@@ -371,7 +376,7 @@ export function SettingsPanel() {
         </section>
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Data & local storage</h3><p>{loads.filter((x) => x.status === 'ok').length} sources loaded · {loads.filter((x) => x.status === 'error').length} unavailable · {reportCount} saved report {reportCount === 1 ? 'copy' : 'copies'}.</p></div></div>
-          <div className="settings-actions"><button className="btn" disabled={status === 'loading'} onClick={async () => { await clearCache(); load(true); }}>{status === 'loading' ? 'Refreshing…' : 'Clear source cache & refresh'}</button><button className="btn" disabled={!reportCount} onClick={async () => { if (confirm('Delete all saved report copies from this browser?')) { await clearSavedReports(); setReportCount(0); } }}>Delete saved reports</button></div>
+          <div className="settings-actions"><button className="btn" disabled={status === 'loading'} onClick={async () => { await clearCache(); load(true); }}>{status === 'loading' ? 'Refreshing…' : 'Clear source cache & refresh'}</button><button className="btn" disabled={!reportCount} onClick={async () => { if (confirm('Delete all saved report copies from this browser?')) { await clearSavedReports(); setReportCount(0); } }}>Delete saved reports</button><button className="btn" onClick={() => { if (confirm('Delete every saved AI briefing from this browser? They will be regenerated — and recharged — the next time you press Generate with AI.')) { clearBriefingCache(); useAI.setState({ briefings: {}, scopeKey: {} }); } }} title="Briefings are cached per tab and data scope so the same run is never paid for twice. Any cloud copies remain.">Delete saved AI briefings</button></div>
           <div className="privacy-note">Raw source CSV remains in this browser. Saved views, widgets, chat, AI insights and reports sync to your account when signed in.</div>
         </section>
       </div>

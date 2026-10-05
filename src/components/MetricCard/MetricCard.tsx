@@ -5,6 +5,8 @@ import { fmtDelta, fmtN, formatValue, isNil } from '../../semantics/formats';
 import { useCountUp, usePathDraw } from '../hooks';
 import { useTooltip } from '../Tooltip/Tooltip';
 import { extent } from '../../semantics/stats';
+import { useMetricNote } from '../../state/ai';
+import { useView } from '../../state/view';
 
 export interface MetricCardProps {
   metricId: string; value: number | null; prev?: number | null; spark?: (number | null)[]; n?: number; suspect?: string | null; coverage?: number | null; contributing?: number;
@@ -47,6 +49,10 @@ export function MetricCard(p: MetricCardProps) {
   const partial = p.coverage !== null && p.coverage !== undefined && p.coverage < 0.9 && (p.n ?? 0) > 0;
   const coverageText = partial ? `on ${((p.coverage ?? 0) * 100).toFixed(0)}% of rows` : null;
   const [info, setInfo] = useState(false);
+  /* An AI run comments on the metrics it found notable; the comment belongs on the card, not
+     in a drawer the operator has to go and open. */
+  const aiTab = useView((s) => s.tab);
+  const aiNote = useMetricNote(aiTab, p.metricId);
   const tip = useTooltip(() => (
     <div>
       <div className="t-heading-s">{def.label}</div>
@@ -55,8 +61,9 @@ export function MetricCard(p: MetricCardProps) {
       <div className="t-label-s faint" style={{ marginTop: 4 }}>Sources: {def.sources.join(', ')}</div>
       {partial && <div className="t-label-s warn" style={{ marginTop: 6 }}>⚠ {coverageNote(def, { value: p.value ?? null, n: p.n ?? 0, contributing: p.contributing ?? 0, coverage: p.coverage ?? null, suspect: null })}</div>}
       {p.suspect && <div className="t-label-s warn" style={{ marginTop: 4 }}>⚠ {p.suspect}</div>}
+      {aiNote && <div className="t-label-s" style={{ marginTop: 6 }}>✦ {aiNote.note}{aiNote.driver ? ` — ${aiNote.driver}` : ''}</div>}
     </div>
-  ), [def.id, p.suspect, p.coverage, p.contributing]);
+  ), [def.id, p.suspect, p.coverage, p.contributing, aiNote]);
   /* Height, padding and type scale live in CSS (.kpi-card) so the whole strip resizes together
      and a card reads the same on every tab. Eight across is the standard row, so the card is
      sized to stay legible at that width rather than to fill a half-empty strip. */
@@ -114,6 +121,7 @@ export function MetricCard(p: MetricCardProps) {
           <div className="kpi-card-spark">
             {p.spark && p.spark.length > 1 ? <Sparkline data={p.spark} width={variant === 'hero' ? 220 : 170} height={variant === 'hero' ? 30 : 22} color={color} delay={delay} /> : null}
           </div>
+          {aiNote && <div className={`kpi-ai-note verdict-${aiNote.verdict}`} title={aiNote.driver ? `${aiNote.note} — ${aiNote.driver}` : aiNote.note}><span aria-hidden="true">✦</span>{aiNote.note}</div>}
           <div className={`kpi-card-rule ${p.alert ? 'pulse-once' : ''}`} style={{ background: barreColor, boxShadow: p.active ? `var(--glow) color-mix(in srgb, ${color} 45%, transparent)` : undefined }} />
           <div className="kpi-card-foot">
             <span className="kpi-card-foot-text">
@@ -143,6 +151,7 @@ export function MetricCard(p: MetricCardProps) {
           <div className="t-label-s faint" style={{ marginTop: 3 }}>Aggregation: {def.aggregation}{def.aggregation === 'weighted' ? ' — recomputed from its numerator and denominator, never an average of rates' : ''}</div>
           {partial && <div className="t-label-s warn" style={{ marginTop: 6 }}>⚠ {coverageText}</div>}
           {p.suspect && <div className="t-label-s warn" style={{ marginTop: 4 }}>⚠ {p.suspect}</div>}
+          {aiNote && <div className="kpi-popout-ai t-body-s"><b>✦ AI note</b> {aiNote.note}{aiNote.driver ? ` Driver: ${aiNote.driver}.` : ''}</div>}
         </div>
       )}
     </div>

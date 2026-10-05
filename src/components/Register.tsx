@@ -3,6 +3,7 @@ import { useInView } from './hooks';
 import { useView } from '../state/view';
 import { HeroGraphic } from './HeroGraphic';
 import { TabExtrasContext } from './TabExtrasContext';
+import { useAI, useSectionNote } from '../state/ai';
 
 interface Props {
   title: string; subtitle?: string; domain?: string; actions?: ReactNode; children: ReactNode;
@@ -15,6 +16,11 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
   const { ref, inView } = useInView<HTMLElement>();
   const tab = useView((s) => s.tab);
   const extras = useContext(TabExtrasContext);
+  /* Sections announce themselves so a run can be asked about the headings actually on screen,
+     and so the note that comes back can be matched to the right one. */
+  const registerSection = useAI((s) => s.registerSection);
+  const aiNote = useSectionNote(tab, title);
+  useEffect(() => registerSection(tab, title), [registerSection, tab, title]);
   const moveToFooter = collapsed && !!extras && !footerContent;
   useEffect(() => {
     if (!moveToFooter || !extras) return;
@@ -38,6 +44,7 @@ export function Register({ title, subtitle, domain, actions, children, collapsed
             {note && <span className="t-label-s pill" style={{ padding: '1px 8px', background: 'var(--hue-wash)', color: 'var(--hue)' }}>{note}</span>}
           </div>
           {subtitle && <div className="t-body-s muted" style={{ marginTop: 3, maxWidth: 900 }}>{subtitle}</div>}
+          {aiNote && <div className="register-ai-note t-body-s"><span aria-hidden="true">✦</span>{aiNote}</div>}
         </div>
         <div className="register-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
           {actions}

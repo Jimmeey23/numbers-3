@@ -8,6 +8,10 @@ import { ExportMenu } from '../ExportMenu';
 import { WidgetBuilder } from '../Widgets/WidgetSection';
 import { addWidget, type WidgetSpec } from '../../api/widgets';
 import { scopeLine } from '../../api/export';
+import { onAskQuestion } from './askBus';
+import { useAI } from '../../state/ai';
+
+const EMPTY: string[] = [];
 
 export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult }
 
@@ -65,6 +69,13 @@ export function AskPanel() {
   useOverlay(open, useCallback(() => setOpen(false), [setOpen]));
 
   const myQuestions = useMemo(() => turns.filter((t) => t.role === 'you').map((t) => t.text), [turns]);
+  /* Follow-ups the last AI run raised for this tab are better openers than the generic set. */
+  const tabId = useView((s) => s.tab);
+  const aiQuestions = useAI((s) => s.briefings[tabId]?.questions ?? EMPTY);
+
+  // A question handed over from the briefing band arrives here; the panel owns the thread.
+  const sendRef = useRef<(t: string) => void>(() => undefined);
+  useEffect(() => onAskQuestion((q) => { setOpen(true); sendRef.current(q); }), [setOpen]);
 
   const send = (text: string) => {
     const q = text.trim();
@@ -88,11 +99,12 @@ export function AskPanel() {
       { id: `f${now}`, role: 'floor', text: result.answer, at: now + 1, result }]);
     setDraft(''); setHistIdx(-1);
   };
+  sendRef.current = send;
 
   if (!open) return null;
   const suggestions = turns.length
     ? (turns[turns.length - 1].result?.suggestions ?? defaultSuggestions()).slice(0, 4)
-    : defaultSuggestions();
+    : [...aiQuestions, ...defaultSuggestions()].slice(0, 5);
 
   return (
     <>

@@ -19,6 +19,7 @@ import { AskDock, AskPanel } from './components/Ask/AskPanel';
 import { ReportDialog } from './components/Report/ReportDialog';
 import { ask as askQuestion } from './api/ask';
 import { TableSummaryEnhancer } from './components/TableSummaryEnhancer';
+import { AIBriefingBand } from './components/AI/AIBriefing';
 
 const LAZY: Record<TabId, () => Promise<{ default: ComponentType<{ scope: Scope }> }>> = {
   overview: () => import('./tabs/Overview').then((m) => ({ default: m.Overview })),
@@ -218,6 +219,7 @@ function TabExtras({ tab, scope, children }: { tab: TabId; scope: Scope; childre
   }, []);
   const registry = useMemo(() => ({ register }), [register]);
   return <TabExtrasContext.Provider value={registry}>
+    <AIBriefingBand tab={tab} scope={scope} />
     {children}
     <details className="tab-extras" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary><span className="tab-extras-icon">▸</span><span><b>More analysis, custom widgets &amp; data access</b><small>{entries.size ? `${entries.size} deeper analysis section${entries.size === 1 ? '' : 's'} · ` : ''}Saved views and API tools for this tab</small></span></summary>
