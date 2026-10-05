@@ -10,10 +10,20 @@ import { addWidget, type WidgetSpec } from '../../api/widgets';
 import { scopeLine } from '../../api/export';
 import { onAskQuestion } from './askBus';
 import { useAI } from '../../state/ai';
+import { composeAnswer, reasonOverEvidence, type AIComposedAnswer, type AIReasonedAnswer } from '../../ai/answer';
+import { readOpenAIKey } from '../../ai/client';
 
 const EMPTY: string[] = [];
 
-export interface Turn { id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult }
+export interface Turn {
+  id: string; role: 'you' | 'floor'; text: string; at: number; result?: AskResult;
+  /* A causal question gets a second pass: the deterministic decomposition lands immediately,
+     then the model's ranking of it replaces the placeholder when it arrives. */
+  reasoning?: AIReasonedAnswer; reasoningBusy?: boolean; reasoningError?: string;
+  /* Every reply is written by the model from the engine's computed facts. The deterministic
+     sentence stays on the turn as the fallback for no-key and failure. */
+  composed?: AIComposedAnswer; composingBusy?: boolean; composeError?: string;
+}
 
 const KEY = 'floor.conversation.v1';
 const readTurns = (): Turn[] => { try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; } };
@@ -94,16 +104,61 @@ export function AskPanel() {
         scope: scope.period.label, suggestions: ['Revenue by location', 'Visits this month', 'What can you answer?'],
       };
     }
+    const answerId = `f${now}`;
+    const hasKey = Boolean(readOpenAIKey());
+    const willReason = result.intent === 'reason' && Boolean(result.evidence) && hasKey;
     setTurns((t) => [...t,
       { id: `u${now}`, role: 'you', text: q, at: now },
-      { id: `f${now}`, role: 'floor', text: result.answer, at: now + 1, result }]);
+      { id: answerId, role: 'floor', text: result.answer, at: now + 1, result, reasoningBusy: willReason, composingBusy: hasKey }]);
     setDraft(''); setHistIdx(-1);
+    if (hasKey) void composeFor(answerId, q, result);
+    if (willReason) void reasonFor(answerId, result);
+  };
+
+  /* The model writes every reply, from facts the engine has already computed. A failure or a
+     missing key leaves the engine's own sentence in place — the assistant must still answer. */
+  const composeFor = async (turnId: string, q: string, result: AskResult) => {
+    const patch = (p: Partial<Turn>) => setTurns((t) => t.map((x) => (x.id === turnId ? { ...x, ...p } : x)));
+    try {
+      const composed = await composeAnswer(q, {
+        intent: result.intent,
+        engineAnswer: result.answer,
+        engineDetail: result.detail,
+        metricId: result.metricId,
+        resolvedConfidence: result.confidence,
+        unresolved: result.unresolved ?? false,
+        scope: result.scope,
+        provenance: result.provenance,
+        table: result.table ? { columns: result.table.columns, rows: result.table.rows.slice(0, 25) } : null,
+        premise: result.evidence?.premise ?? null,
+        headline: result.evidence?.headline ?? null,
+        drivers: result.evidence?.drivers?.slice(0, 3) ?? null,
+        notes: result.evidence?.notes ?? [],
+      });
+      patch({ composed, composingBusy: false, composeError: undefined });
+    } catch (e) {
+      patch({ composingBusy: false, composeError: e instanceof Error ? e.message : 'AI could not write the answer.' });
+    }
+  };
+
+  /* The decomposition is already computed and on screen; this adds the model's reading of it.
+     A failure leaves the deterministic answer standing rather than replacing it with an error. */
+  const reasonFor = async (turnId: string, result: AskResult) => {
+    if (!result.evidence || !scope) return;
+    const patch = (p: Partial<Turn>) => setTurns((t) => t.map((x) => (x.id === turnId ? { ...x, ...p } : x)));
+    try {
+      const reasoning = await reasonOverEvidence(result.evidence, scope.period.end.slice(0, 7), scope.filters.locations);
+      patch({ reasoning, reasoningBusy: false, reasoningError: undefined });
+    } catch (e) {
+      patch({ reasoningBusy: false, reasoningError: e instanceof Error ? e.message : 'AI reasoning failed.' });
+    }
   };
   sendRef.current = send;
 
   if (!open) return null;
+  const lastTurn = turns[turns.length - 1];
   const suggestions = turns.length
-    ? (turns[turns.length - 1].result?.suggestions ?? defaultSuggestions()).slice(0, 4)
+    ? (lastTurn?.composed?.followUps?.length ? lastTurn.composed.followUps : lastTurn?.result?.suggestions ?? defaultSuggestions()).slice(0, 4)
     : [...aiQuestions, ...defaultSuggestions()].slice(0, 5);
 
   return (
@@ -144,7 +199,7 @@ export function AskPanel() {
           )}
           {turns.map((t) => (t.role === 'you'
             ? <div key={t.id} className="ask-turn you"><div className="ask-bubble">{t.text}</div></div>
-            : <AnswerBubble key={t.id} turn={t} onGo={(tab) => { setTab(tab); setOpen(false); }} onBuilt={(tab) => { setTab(tab); setOpen(false); }} onPin={(r) => {
+            : <AnswerBubble key={t.id} turn={t} onReason={() => t.result && reasonFor(t.id, t.result)} onGo={(tab) => { setTab(tab); setOpen(false); }} onBuilt={(tab) => { setTab(tab); setOpen(false); }} onPin={(r) => {
                 addCard({ tab: r.tab ?? 'overview', title: r.answer, body: r.detail, severity: 'context', source: 'manual',
                   action: r.provenance ? `${r.provenance.formula} · ${r.provenance.sources.join(', ')}` : undefined });
               }} />
@@ -176,7 +231,7 @@ export function AskPanel() {
   );
 }
 
-function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 'overview') => void; onPin: (r: AskResult) => void; onBuilt: (tab: 'overview') => void }) {
+function AnswerBubble({ turn, onGo, onPin, onBuilt, onReason }: { turn: Turn; onGo: (tab: 'overview') => void; onPin: (r: AskResult) => void; onBuilt: (tab: 'overview') => void; onReason: () => void }) {
   const r = turn.result;
   const [showWork, setShowWork] = useState(false);
   const [tweaking, setTweaking] = useState(false);
@@ -188,8 +243,22 @@ function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 
       <div className="ask-bubble">
         {r.unresolved && <span className="status-pill warn" style={{ marginBottom: 6, display: 'inline-flex' }}>Not in the registry</span>}
         {r.confidence === 'guess' && !r.unresolved && <span className="status-pill warn" style={{ marginBottom: 6, display: 'inline-flex' }}>Best guess</span>}
-        <div className="t-body-m">{r.answer}</div>
-        {r.detail && <p className="t-body-s muted" style={{ margin: '6px 0 0' }}>{r.detail}</p>}
+        {turn.composingBusy && !turn.composed && (
+          <div className="ask-composing"><div className="travel-barre" /><span className="t-label-s faint">✦ Writing the answer…</span></div>
+        )}
+        {/* The model's wording when it arrived, the engine's own sentence when it did not. */}
+        <div className="t-body-m">{turn.composed?.answer ?? r.answer}</div>
+        {turn.composed?.caveat && <p className="t-body-s warn" style={{ margin: '6px 0 0' }}>{turn.composed.caveat}</p>}
+        {turn.composed && turn.composed.observations.length > 0 && (
+          <ul className="ask-observations">{turn.composed.observations.map((o, i) => <li key={i} className="t-body-s">{o}</li>)}</ul>
+        )}
+        {/* The engine's sentence is kept available even once the model has rewritten it: an
+            operator checking a figure should be able to see what was computed, verbatim. */}
+        {turn.composed
+          ? <details className="ask-engine"><summary className="t-label-s faint">What the engine computed</summary><div className="t-body-s muted">{r.answer}{r.detail ? ` ${r.detail}` : ''}</div></details>
+          : r.detail && <p className="t-body-s muted" style={{ margin: '6px 0 0' }}>{r.detail}</p>}
+        {turn.composeError && <div className="t-label-s faint" style={{ marginTop: 5 }}>AI wording unavailable ({turn.composeError}) — showing the computed answer.</div>}
+        {r.intent === 'reason' && <ReasonedBlock turn={turn} onReason={onReason} />}
 
         {r.table && (
           <div className="table-scroll ask-table">
@@ -266,4 +335,83 @@ function AnswerBubble({ turn, onGo, onPin, onBuilt }: { turn: Turn; onGo: (tab: 
 function describeSpec(s: Partial<WidgetSpec>): string {
   const kind = s.kind === 'metric' ? 'Metric card' : s.kind === 'table' ? 'Table' : s.kind === 'trend' ? 'Trend line' : `${(s.kind ?? 'chart')[0].toUpperCase()}${(s.kind ?? 'chart').slice(1)} chart`;
   return `${kind}${s.groupBy ? ` grouped by ${s.groupBy.replace(/_/g, ' ')}` : ''}`;
+}
+
+/** The model's reading of a decomposition that is already on screen.
+ *
+ * Deliberately rendered below the deterministic answer, never instead of it: the figures above
+ * are computed and the prose here is inferred, and an operator is entitled to see which is
+ * which. Without a key the block is an offer rather than an error — the numbers still stand.
+ */
+function ReasonedBlock({ turn, onReason }: { turn: Turn; onReason: () => void }) {
+  const setSettingsOpen = useView((s) => s.setSettingsOpen);
+  const { reasoning, reasoningBusy, reasoningError } = turn;
+
+  if (reasoningBusy) {
+    return <div className="ask-reason is-busy"><div className="travel-barre" /><span className="t-label-s">✦ Weighing the drivers…</span></div>;
+  }
+  if (!reasoning) {
+    const configured = Boolean(readOpenAIKey());
+    return (
+      <div className="ask-reason is-offer">
+        <span className="t-body-s muted">
+          {reasoningError
+            ? reasoningError
+            : configured
+              ? 'The split above is measured. AI can rank which of these actually accounts for the change.'
+              : 'The split above is measured. Add an OpenAI key to have AI rank which of these accounts for the change.'}
+        </span>
+        <div style={{ flex: 1 }} />
+        {configured
+          ? <button className="btn btn-xs" onClick={onReason}>{reasoningError ? 'Try again' : '✦ Reason with AI'}</button>
+          : <button className="btn btn-xs" onClick={() => setSettingsOpen(true)}>Open Settings</button>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="ask-reason">
+      <div className="ask-reason-head">
+        <span className="t-label-s">✦ AI reading</span>
+        <span className={`ai-chip conf-${reasoning.confidence}`}>{reasoning.confidence} confidence</span>
+        <div style={{ flex: 1 }} />
+        <span className="t-label-s faint">{reasoning.model}</span>
+      </div>
+      <p className="t-body-m" style={{ margin: 0 }}>{reasoning.answer}</p>
+
+      {reasoning.factors.length > 0 && (
+        <ol className="ask-factors">
+          {reasoning.factors.map((f, i) => (
+            <li key={i}>
+              <div className="ask-factor-head">
+                <b className="t-body-s">{f.factor}</b>
+                {f.contribution && <span className="ai-chip">{f.contribution}</span>}
+                <span className={`ai-chip conf-${f.confidence}`}>{f.confidence}</span>
+              </div>
+              {f.evidence && <div className="t-body-s muted">{f.evidence}</div>}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {reasoning.ruledOut.length > 0 && (
+        <div className="ask-reason-sub">
+          <span className="t-label-s faint">Ruled out</span>
+          {reasoning.ruledOut.map((x, i) => <div key={i} className="t-body-s muted"><b>{x.factor}</b> — {x.why}</div>)}
+        </div>
+      )}
+      {reasoning.cannotTell.length > 0 && (
+        <div className="ask-reason-sub">
+          <span className="t-label-s faint">This data cannot settle</span>
+          {reasoning.cannotTell.map((x, i) => <div key={i} className="t-body-s muted">{x}</div>)}
+        </div>
+      )}
+      {reasoning.nextChecks.length > 0 && (
+        <div className="ask-reason-sub">
+          <span className="t-label-s faint">Check next</span>
+          <ul style={{ margin: 0, paddingLeft: 16 }}>{reasoning.nextChecks.map((x, i) => <li key={i} className="t-body-s">{x}</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -22,6 +22,8 @@ import { AI_EVENT, clearAIKey, readAIConfig, readOpenAIKey, saveAISettings, type
 import { runAIBriefing } from '../../ai/run';
 import { clearBriefingCache } from '../../ai/briefing';
 import { useAI } from '../../state/ai';
+import { ErrorBoundary } from '../ErrorBoundary';
+import { writeCards } from '../../api/agent';
 import { clearSavedReports, listSavedReports } from '../../report/store';
 import { RAMPS, THEMES, type Theme } from '../../design/ramps';
 
@@ -79,6 +81,7 @@ export function TitleBar() {
         <ThemeMenu theme={theme} setTheme={setTheme} />
       </div>
       <div className="tb-group">
+        <AIGenerateButton />
         <button className="btn btn-xs" onClick={() => useView.getState().setAskOpen(true)} title="Ask a question about this data (A)">Ask <span className="kbd">A</span></button>
         <button className="btn btn-xs" onClick={() => setPaletteOpen(true)} title="Search anything">Search <span className="kbd">⌘K</span></button>
         <button className="btn btn-xs" onClick={() => useView.getState().setReportOpen(true)} title="Generate the monthly report (R)">Report <span className="kbd">R</span></button>
@@ -89,6 +92,30 @@ export function TitleBar() {
         </button>
       </div>
     </header>
+  );
+}
+
+/** The primary way into an AI run.
+ *
+ * This used to live only in the Insight rail, which is collapsed below 1600px — so on an
+ * ordinary laptop the one control for a feature that writes across the whole tab was not on
+ * screen at all. It belongs in the title bar next to Ask and Report, which are always visible.
+ */
+function AIGenerateButton() {
+  const tab = useView((s) => s.tab);
+  const thresholds = useView((s) => s.thresholds);
+  const scope = useScopeForExport();
+  const busy = useAI((s) => Boolean(s.busy[tab]));
+  const briefing = useAI((s) => s.briefings[tab]);
+  const configured = Boolean(readOpenAIKey());
+  const title = configured
+    ? `Read this tab with AI: a briefing above the tab, notes on its KPIs and sections, recommendations, risks and rail cards. ${briefing ? 'Regenerates the saved briefing.' : ''}`
+    : 'Add an OpenAI key in Settings → AI intelligence to turn this on.';
+  return (
+    <button className="btn btn-xs tb-ai" onClick={() => { if (scope) void runAIBriefing(tab, scope, thresholds, Boolean(briefing)); }}
+      disabled={busy || !scope} title={title} aria-label={title}>
+      ✦ {busy ? 'Reading…' : briefing ? 'Regenerate' : 'Generate with AI'}
+    </button>
   );
 }
 
@@ -199,6 +226,7 @@ export function InsightRail() {
         <span className="insight-rail-chevron" aria-hidden="true">{railOpen ? '›' : '‹'}</span>{railOpen ? <span>Insights <span className="insight-rail-count">{forTab.length + custom.length}</span></span> : <span className="insight-rail-vertical">Insights</span>}
       </button>
       {railOpen && (
+        <ErrorBoundary label="The Insights rail" onReset={() => writeCards([])}>
         <div className="insight-rail-content">
           <div className="insight-rail-intro">Signals for this view</div>
           <div className="insight-rail-severity" aria-label="Insight counts by severity">
@@ -235,6 +263,7 @@ export function InsightRail() {
           {!forTab.length && !custom.length && <div className="t-body-s muted">No rule has fired for this scope. Widen the period, generate with AI, or check Data health if sheets failed to load.</div>}
           <div className="t-label-s faint">Sorted by rupee impact within severity. Totals count each member once, so they will be lower than the sum of the cards. Dismissals persist 30 days.</div>
         </div>
+        </ErrorBoundary>
       )}
     </aside>
   );

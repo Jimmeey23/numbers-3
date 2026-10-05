@@ -1463,3 +1463,42 @@ body{font-size:14px;line-height:1.5;letter-spacing:.005em;}
 .register-ai-note{margin-top:5px;max-width:900px;display:flex;gap:6px;align-items:flex-start;padding:6px 9px;border-radius:var(--r-s);background:color-mix(in srgb,var(--hue-growth) 7%,transparent);border:1px solid color-mix(in srgb,var(--hue-growth) 22%,transparent);}
 .register-ai-note span{color:var(--hue-growth);}
 .rail-ai-summary{display:grid;gap:6px;justify-items:start;padding:10px 11px;border:1px solid color-mix(in srgb,var(--hue-growth) 28%,var(--hairline));border-radius:var(--r-s);background:color-mix(in srgb,var(--hue-growth) 6%,var(--surface-1));}
+.tb-ai{border-color:color-mix(in srgb,var(--hue-growth) 45%,var(--hairline));color:var(--text-1);}
+.tb-ai:hover:not(:disabled){border-color:var(--hue-growth);background:color-mix(in srgb,var(--hue-growth) 12%,transparent);}
+.ai-band.is-error{align-items:center;flex-wrap:wrap;}
+
+/* ─── Reasoned answers in Ask ─────────────────────────────────────────────────
+   Kept visually distinct from the computed answer above it: measured figures and
+   inferred prose should never be mistaken for one another. */
+.ask-reason{margin-top:9px;padding:10px 11px;border:1px solid color-mix(in srgb,var(--hue-growth) 26%,var(--hairline));border-left:2px solid var(--hue-growth);border-radius:var(--r-s);background:color-mix(in srgb,var(--hue-growth) 5%,transparent);display:grid;gap:8px;}
+.ask-reason.is-offer,.ask-reason.is-busy{display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
+.ask-reason.is-busy{position:relative;overflow:hidden;}
+.ask-reason-head{display:flex;gap:6px;align-items:center;}
+.ask-reason-head .t-label-s{color:var(--hue-growth);text-transform:uppercase;letter-spacing:.04em;}
+.ask-factors{margin:0;padding-left:17px;display:grid;gap:7px;}
+.ask-factors li::marker{color:var(--hue-growth);font-weight:600;}
+.ask-factor-head{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.ask-reason-sub{display:grid;gap:3px;padding-top:6px;border-top:1px solid var(--hairline);}
+.panel-error{display:grid;gap:6px;justify-items:start;padding:12px 14px;margin:8px 0;border:1px solid color-mix(in srgb,var(--neg) 38%,var(--hairline));border-left:2px solid var(--neg);border-radius:var(--r-s);background:var(--neg-wash);}
+.ask-composing{position:relative;overflow:hidden;padding:5px 0 7px;}
+.ask-observations{margin:7px 0 0;padding:0;list-style:none;display:grid;gap:4px;}
+.ask-observations li{padding-left:14px;position:relative;}
+.ask-observations li::before{content:'';position:absolute;left:3px;top:.55em;width:4px;height:4px;border-radius:999px;background:var(--hue-growth);}
+.ask-engine{margin-top:7px;}
+.ask-engine summary{cursor:pointer;}
+.ask-engine>div{margin-top:5px;padding-left:9px;border-left:1px solid var(--hairline);}
+
+/* ─── Format comparison ───────────────────────────────────────────────────── */
+/* The marker wraps the figure, not the cell: in a four-column table a cell is very wide, and a
+   full-width wash reads as a selected row rather than as "this format leads this metric". */
+.format-matrix td.t-num{white-space:nowrap;}
+.format-matrix td.t-num>span{display:inline-block;padding:1px 7px;border-radius:var(--r-s);}
+.format-matrix td.is-best>span{background:color-mix(in srgb,var(--pos) 15%,transparent);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pos) 30%,transparent);}
+.format-matrix td.t-num small{display:block;font-size:9.5px;line-height:1.3;font-weight:500;padding-right:7px;}
+.format-matrix-family td{background:var(--surface-2);text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding-top:9px;}
+.format-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px;align-items:start;}
+.format-column{display:grid;gap:14px;min-width:0;}
+.format-column-head{display:flex;align-items:baseline;gap:8px;padding-bottom:5px;border-bottom:1px solid var(--hairline-strong);}
+.format-mom-stack{display:grid;gap:26px;}
+.format-mom{min-width:0;}
+@media (max-width:900px){.format-columns{grid-template-columns:1fr;}}

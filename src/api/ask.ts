@@ -15,8 +15,9 @@ import { runRules, summariseImpact } from '../insights/engine';
 import type { Thresholds, TabId } from '../state/view';
 import { ENDPOINTS } from './agent';
 import { defaultTitle, tabForMetric, type WidgetKind, type WidgetSpec } from './widgets';
+import { buildEvidence, type EvidencePack } from './evidence';
 
-export type Intent = 'value' | 'breakdown' | 'rank' | 'trend' | 'compare' | 'define' | 'signals' | 'help' | 'build';
+export type Intent = 'value' | 'breakdown' | 'rank' | 'trend' | 'compare' | 'define' | 'signals' | 'help' | 'build' | 'reason';
 
 export interface AskResult {
   question: string;
@@ -34,12 +35,22 @@ export interface AskResult {
   unresolved?: boolean;
   /** When the question asked for something to be built, the spec that would be pinned. */
   buildSpec?: Partial<WidgetSpec>;
+  /** A causal question: the decomposition behind it, ready for the model to reason over.
+   *  Present whenever the question was understood as "why", key or no key. */
+  evidence?: EvidencePack;
 }
 
 const TOP_WORDS = /\b(top|best|highest|most|strongest|leading)\b/;
 const BOTTOM_WORDS = /\b(worst|lowest|bottom|weakest|least|poorest)\b/;
 const TREND_WORDS = /\b(trend|over time|by month|monthly|history|trajectory|movement|moving)\b/;
 const COMPARE_WORDS = /\b(vs|versus|compared|change|changed|up or down|better or worse|movement)\b/;
+/* A causal question. "Why", "what caused", "what is driving", "explain", "account for" — none
+   of which the registry can answer by computing a value, because a cause is not a measurement. */
+const REASON_WORDS = /\b(why|what caused|what is causing|whats causing|what factors?|which factors?|what drove|what is driving|whats driving|what's driving|driver of|drivers of|reason for|reasons for|explain|account for|accounts for|attributab|blame|behind the)\b/;
+/* "What is X" asks for a definition; "what is driving X" asks for a cause. Only the former
+   may outrank a causal reading, so the definition test used for that decision is the strict
+   one — a bare "what is" followed by a causal verb is not a request for a definition. */
+const STRICT_DEFINE = /\b(define|definition|meaning|formula|how is .* calculated|how do you calculate)\b|\bwhat (is|does) (?!.*\b(driving|causing|behind|responsible)\b)/;
 const DEFINE_WORDS = /\b(what is|what does|define|definition|meaning|how is .* calculated|how do you calculate|formula)\b/;
 const SIGNAL_WORDS = /\b(signal|insight|alert|problem|issue|worry|concern|what should i|what do i do|priorit)\b/;
 const BUILD_WORDS = /\b(add|pin|build|create|make|put|save|chart it|show me a (chart|table|card)|as a (chart|table|card|heatmap))\b/;
@@ -52,6 +63,9 @@ function intentOf(q: string): Intent {
   const s = normalise(q);
   if (BUILD_WORDS.test(s) && !/\b(what|why|how much|how many)\b/.test(s)) return 'build';
   if (HELP_WORDS.test(s)) return 'help';
+  /* Before 'define' and 'compare': "why did churn change" matches both, and answering it with a
+     definition or a bare delta is exactly the failure this intent exists to stop. */
+  if (REASON_WORDS.test(s) && !STRICT_DEFINE.test(s)) return 'reason';
   if (SIGNAL_WORDS.test(s)) return 'signals';
   if (DEFINE_WORDS.test(s)) return 'define';
   if (TREND_WORDS.test(s)) return 'trend';
@@ -127,7 +141,24 @@ function sliceForQuestion(q: string, scope: Scope, table: MetricDef['table']): Q
     start = p.start; end = p.end; periodLabel = p.label; prevLabel = p.prevLabel; explicitPeriod = true; explicitPrevStart = p.prevStart; explicitPrevEnd = p.prevEnd;
   }
 
-  const monthMatch = text.match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(20\d{2})\b/);
+  /* A month after "compared to", "vs", "against" or "relative to" is the BASELINE, not the
+     period being asked about. Reading it as the period inverted the whole question — "what
+     caused the increase vs Sep 2025" was answered as "what happened during Sep 2025", against
+     August 2025, which is a different question with a different answer and no warning given. */
+  const MONTH_NAMES = /january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec/;
+  const baselineMatch = text.match(new RegExp(`\\b(?:compared?\\s+(?:to|with|against)|versus|vs\\.?|against|relative\\s+to|over)\\s+(${MONTH_NAMES.source})\\s+(20\\d{2})\\b`));
+  let baselineStart: string | null = null; let baselineEnd: string | null = null; let baselineLabel: string | null = null;
+  if (baselineMatch) {
+    const bMonth = MONTH_NUMBER[baselineMatch[1]]; const bYear = +baselineMatch[2];
+    baselineStart = `${bYear}-${String(bMonth).padStart(2, '0')}-01`;
+    baselineEnd = isoDay(new Date(Date.UTC(bYear, bMonth, 0)));
+    baselineLabel = `${MONTH_LABEL[bMonth - 1]} ${bYear}`;
+  }
+
+  /* Only a month that is NOT the baseline sets the period. The baseline phrase is cut out of
+     the text first so "vs Sep 2025" cannot also be matched here. */
+  const periodText = baselineMatch ? text.replace(baselineMatch[0], ' ') : text;
+  const monthMatch = periodText.match(new RegExp(`\\b(${MONTH_NAMES.source})\\s+(20\\d{2})\\b`));
   if (monthMatch) {
     const month = MONTH_NUMBER[monthMatch[1]]; const year = +monthMatch[2];
     start = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -161,13 +192,24 @@ function sliceForQuestion(q: string, scope: Scope, table: MetricDef['table']): Q
   };
   const days = Math.max(1, Math.round((new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 864e5) + 1);
   let prevEnd = shiftDay(start, -1); let prevStart = shiftDay(prevEnd, -(days - 1));
-  if (monthMatch) {
+  /* "compared to last year" used to be dropped on the floor, and the answer quietly compared
+     against the previous month instead — the same shape of number against the wrong baseline,
+     which is worse than refusing. An explicit year-on-year request wins over everything else. */
+  const yoy = /\b(last year|a year ago|year ago|year[- ]on[- ]year|year over year|yoy|same (month|period) last year|vs 20\d{2})\b/.test(text);
+  if (baselineStart && baselineEnd && baselineLabel) {
+    prevStart = baselineStart; prevEnd = baselineEnd; prevLabel = baselineLabel;
+  } else if (yoy) {
+    const shiftYear = (iso: string) => `${+iso.slice(0, 4) - 1}${iso.slice(4)}`;
+    prevStart = shiftYear(start); prevEnd = shiftYear(end);
+    prevLabel = periodLabel.replace(/20\d{2}/, (y) => String(+y - 1));
+    if (prevLabel === periodLabel) prevLabel = `${periodLabel} last year`;
+  } else if (monthMatch) {
     const month = MONTH_NUMBER[monthMatch[1]]; const year = +monthMatch[2];
     prevStart = isoDay(new Date(Date.UTC(year, month - 2, 1)));
     prevEnd = isoDay(new Date(Date.UTC(year, month - 1, 0)));
   } else if (explicitPrevStart && explicitPrevEnd) {
     prevStart = explicitPrevStart; prevEnd = explicitPrevEnd;
-  } else {
+  } else if (!yoy && !baselineStart) {
     prevStart = scope.period.prevStart; prevEnd = scope.period.prevEnd;
   }
   const locLabel = location ? location.split(',')[0] : scope.filters.locations.length === 1 ? scope.filters.locations[0] : scope.filters.locations.length ? `${scope.filters.locations.length} locations` : 'All locations';
@@ -261,6 +303,53 @@ export function ask(question: string, scope: Scope, thresholds: Thresholds): Ask
       detail: `Computed as ${def.formula}, over ${grainOf(def.table)}. ${cur.value !== null ? `Right now it is ${formatValue(def.format, cur.value)} for ${questionSlice.scopeLabel}.` : 'No rows in the requested scope carry the inputs it needs.'}`,
       provenance: provenanceOf(def, cur.coverage),
       suggestions: [`${def.label} by location`, `${def.label} by month`, ...altSuggestions] };
+  }
+
+  if (intent === 'reason') {
+    /* The arithmetic is done either way. Without a key this is the whole answer — the largest
+       movers, named — which is far more use than the restated total the resolver used to give.
+       With a key the panel sends this same pack to the model to be ranked and explained. */
+    const evidence = buildEvidence(q, def, rows, cmpRows, scope, thresholds, questionSlice.periodLabel, questionSlice.prevLabel);
+    const h = evidence.headline;
+    const moved = h.change !== null && h.change !== 0;
+    const top = evidence.drivers[0];
+    const movers = (top?.groups ?? []).filter((g) => g.change !== null && g.change !== 0).slice(0, 5);
+    const direction = h.change === null ? 'changed' : h.change < 0 ? 'fell' : 'rose';
+    const headSentence = moved
+      ? `${def.label} ${direction} from ${h.formattedPrevious} in ${evidence.period.comparedWith} to ${h.formattedCurrent} in ${evidence.period.label}${h.changePct === null ? '' : ` (${(h.changePct * 100).toFixed(1)}%)`}.`
+      : `${def.label} is ${h.formattedCurrent} in ${evidence.period.label}, effectively unchanged against ${evidence.period.comparedWith}.`;
+    /* A share above 100% is correct whenever movers offset each other — one group fell further
+       than the net, and others rose. Said bare it reads like a bug, so it is explained inline. */
+    const share = top?.kind === 'additive' ? movers[0]?.shareOfChange ?? null : null;
+    const shareText = share === null || share === 0 ? ''
+      : Math.abs(share) > 1.05
+        ? `, which moved by ${Math.round(Math.abs(share) * 100)}% of the net change on its own — other groups moved the opposite way and cancelled part of it out`
+        : `, which accounts for ${Math.round(share * 100)}% of the change`;
+    const bySentence = top && movers.length
+      ? ` The largest movement by ${top.label.toLowerCase()} is ${movers[0].label}${shareText}.`
+      : '';
+    /* A contradicted premise leads the answer. Attributing causes to a movement that did not
+       happen would be the more confident-sounding reply and the more wrong one. */
+    const premise = evidence.premise && !evidence.premise.matches ? evidence.premise.note : '';
+    return { ...base, intent, metricId: def.id, tab, confidence: conf, evidence,
+      answer: premise ? `${premise} ${headSentence}${bySentence}${hedge}` : `${headSentence}${bySentence}${hedge}`,
+      detail: top
+        ? `Broken down by ${top.label.toLowerCase()}${top.kind === 'mix' ? ' — this is a ratio, so the parts do not add up to the whole and a shift in weight can move it on its own' : ''}. ${evidence.notes.join(' ')}`
+        : `No dimension on this table splits the change further. ${evidence.notes.join(' ')}`,
+      table: top ? {
+        columns: [top.label, evidence.period.comparedWith, evidence.period.label, 'Change', top.kind === 'additive' ? 'Share of change' : 'Weight shift'],
+        rows: movers.map((g) => [
+          g.label,
+          g.previous === null ? null : formatValue(def.format, g.previous),
+          g.current === null ? null : formatValue(def.format, g.current),
+          g.change === null ? null : formatValue(def.format, g.change),
+          top.kind === 'additive'
+            ? (g.shareOfChange === null || g.shareOfChange === undefined ? null : `${Math.round(g.shareOfChange * 100)}%`)
+            : (g.weightBefore === undefined || g.weightAfter === undefined || g.weightBefore === null || g.weightAfter === null ? null : `${Math.round(g.weightBefore * 100)}% → ${Math.round(g.weightAfter * 100)}%`),
+        ]),
+      } : undefined,
+      provenance: provenanceOf(def, cur.coverage),
+      suggestions: [`${def.label} by month`, `${def.label} by location`, ...altSuggestions] };
   }
 
   if (intent === 'trend') {

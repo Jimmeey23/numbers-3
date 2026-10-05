@@ -37,6 +37,8 @@ export function AIBriefingBand({ tab, scope }: { tab: TabId; scope: Scope }) {
   const [pane, setPane] = useState<'summary' | 'actions' | 'risks' | 'outlook'>('summary');
   const recommendations = useMemo(() => [...(briefing?.recommendations ?? [])].sort(rank), [briefing]);
 
+  const regenerate = () => void runAIBriefing(tab, scope, thresholds, true);
+
   if (busy && !briefing) {
     return (
       <div className="ai-band is-busy" aria-busy="true">
@@ -48,11 +50,19 @@ export function AIBriefingBand({ tab, scope }: { tab: TabId; scope: Scope }) {
   }
   if (!briefing || dismissed) {
     if (!error) return null;
-    return <div className="ai-band is-error"><span className="t-label-m">✦ AI briefing failed</span><span className="t-body-s">{error}</span></div>;
+    return (
+      <div className="ai-band is-error">
+        <span className="t-label-m">✦ AI briefing failed</span>
+        <span className="t-body-s">{error}</span>
+        <div style={{ flex: 1 }} />
+        {/* The commonest failure by far is a missing key, so the fix is one click from the message. */}
+        <button className="btn btn-xs" onClick={() => useView.getState().setSettingsOpen(true)}>Open Settings</button>
+        <button className="btn btn-xs" onClick={regenerate}>Try again</button>
+      </div>
+    );
   }
 
   const totalImpact = recommendations.reduce((sum, r) => sum + (r.impactINR ?? 0), 0);
-  const regenerate = () => void runAIBriefing(tab, scope, thresholds, true);
 
   return (
     <section className="ai-band" aria-label="AI briefing for this tab">

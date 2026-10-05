@@ -11,7 +11,8 @@ const SEV: Record<Insight['severity'], { label: string; color: string; wash: str
 };
 
 export function InsightCard({ insight, compact = false }: { insight: Insight; compact?: boolean }) {
-  const s = SEV[insight.severity];
+  // Same guard as the pushed cards: an unknown severity must not throw during render.
+  const s = SEV[insight.severity] ?? SEV.context;
   const setTab = useView((v) => v.setTab); const dismiss = useView((v) => v.dismiss); const announce = useView((v) => v.announce);
   const addTransient = useFilters((f) => f.addTransient);
   const go = () => { setTab(insight.tab); for (const t of insight.linkFilters) addTransient(t); announce(`Opened ${insight.tab} filtered to ${insight.entity}`); };

@@ -24,8 +24,15 @@ const SEV = {
   context: { label: 'Context', color: 'var(--info)', wash: 'var(--info-wash)' },
 } as const;
 
+/* Cards are read back from localStorage and can also be pushed by an external agent through
+   `floor.push()`, neither of which validates. A card written by an older build, or pushed with
+   a severity outside this set, used to make `SEV[...]` undefined and throw on `s.color` —
+   taking down the whole Insights rail on open, not just the one card. Falling back is correct:
+   an unrecognised severity is a display question, never a reason to lose the rail. */
+const severityOf = (value: unknown) => SEV[value as keyof typeof SEV] ?? SEV.context;
+
 export function CustomCardView({ card }: { card: AgentCard }) {
-  const s = SEV[card.severity];
+  const s = severityOf(card.severity);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(card);
   useOverlay(editing, useCallback(() => setEditing(false), []));
@@ -37,7 +44,7 @@ export function CustomCardView({ card }: { card: AgentCard }) {
         <textarea className="input" style={{ height: 58, padding: 8, resize: 'vertical' }} value={draft.body ?? ''} onChange={(e) => setDraft({ ...draft, body: e.target.value })} placeholder="The evidence" aria-label="Body" />
         <input className="input" value={draft.action ?? ''} onChange={(e) => setDraft({ ...draft, action: e.target.value })} placeholder="What to do about it" aria-label="Action" />
         <div style={{ display: 'flex', gap: 6 }}>
-          <select className="input t-label-m" value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value as AgentCard['severity'] })} aria-label="Severity">
+          <select className="input t-label-m" value={draft.severity in SEV ? draft.severity : 'context'} onChange={(e) => setDraft({ ...draft, severity: e.target.value as AgentCard['severity'] })} aria-label="Severity">
             {Object.entries(SEV).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <input className="input" type="number" style={{ width: 110 }} value={draft.impactINR ?? ''} onChange={(e) => setDraft({ ...draft, impactINR: e.target.value ? +e.target.value : undefined })} placeholder="₹ impact" aria-label="Impact" />
@@ -54,7 +61,7 @@ export function CustomCardView({ card }: { card: AgentCard }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span className="t-label-s pill" style={{ background: s.wash, color: s.color, padding: '1px 8px' }}>{s.label}</span>
         <span className="t-label-s pill" style={{ border: '1px solid var(--hairline-strong)', padding: '1px 8px', color: 'var(--text-3)' }}>
-          {card.source.startsWith('openai:') ? 'OpenAI · saved' : card.source === 'agent' ? 'From an agent' : 'Yours'}
+          {typeof card.source === 'string' && card.source.startsWith('openai:') ? 'OpenAI · saved' : card.source === 'agent' ? 'From an agent' : 'Yours'}
         </span>
         {card.impactINR ? <span className="t-label-s muted tabular">{fmtCurrency(card.impactINR)}</span> : null}
         <div style={{ flex: 1 }} />
