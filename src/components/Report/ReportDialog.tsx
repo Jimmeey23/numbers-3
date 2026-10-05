@@ -82,11 +82,15 @@ export function ReportDialog() {
     try {
       let base = model;
       if (!base) { setStage('Calculating report evidence…'); await nextPaint(); if (!scope) throw new Error('The data scope is still loading.'); base = await buildOffThread(scope, thresholds, studio, setStage); setModel(base); }
-      if (!readOpenAIKey()) throw new Error('Add an OpenAI API key under Settings → AI intelligence, then try again.');
       const config = readAIConfig(); setStage('Checking the saved report library…'); await nextPaint();
       const fingerprint = await reportFingerprint(base, config.model);
       let saved: SavedReport | null = null; try { saved = await findSavedReport(fingerprint); } catch { /* private browsing may block IndexedDB */ }
       if (saved?.model.ai) { setModel(saved.model); setNotice(`Reused the saved AI report from ${new Date(saved.createdAt).toLocaleString('en-IN')}. No OpenAI request was made.`); return; }
+      if (!readOpenAIKey()) {
+        // A report may have been generated on another device and saved in the dedicated AI cache.
+        // generateAIReport checks that cache before asking for a key or spending tokens.
+        setStage('Checking the cloud AI cache…');
+      }
       setStage(`Asking ${config.model} to analyze the evidence…`); await nextPaint();
       const ai = await generateAIReport(base); const enhanced = { ...base, ai };
       setModel(enhanced);

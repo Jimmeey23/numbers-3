@@ -31,7 +31,7 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
   const widthAt = (c: number) => Math.max(3, (c / top) * bandW);
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="funnel-chart">
       <svg width={W} height={height + 10} role="img" aria-label="Conversion and retention journey" style={{ display: 'block', overflow: 'visible' }}>
         <defs>
           {stages.map((s, i) => (
@@ -45,6 +45,9 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
             <stop offset="100%" stopColor="var(--neg)" stopOpacity={0.02} />
           </linearGradient>
         </defs>
+
+        {stages.map((stage, index) => <rect key={`track-${stage.id}`} x={4} y={index * rowH + 2} width={W - 8} height={rowH - 4} rx={10}
+          fill={hover === index ? 'var(--hue-wash)' : index % 2 ? 'var(--surface-2)' : 'transparent'} opacity={hover === index ? .75 : .55} />)}
 
         {stages.map((s, i) => {
           const next = stages[i + 1];
@@ -67,7 +70,7 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
                 <path d={`M${cx - w0 / 2},${y1} L${cx - w1 / 2},${y1 + 10} L${cx + w1 / 2},${y1 + 10} L${cx + w0 / 2},${y1} Z`} fill="url(#fn-loss)" />
               )}
               <path d={`M${cx - w0 / 2},${y0} L${cx + w0 / 2},${y0} L${cx + w1 / 2},${y1} L${cx - w1 / 2},${y1} Z`}
-                fill={`url(#fn-${s.id})`} rx={2}
+                fill={`url(#fn-${s.id})`} stroke="var(--surface-1)" strokeWidth={2} className="funnel-band"
                 style={{ animation: `fadeCell var(--m-emphasis) var(--ease-data) ${i * 70}ms both` }} />
 
               {/* left rail: stage name and cumulative survival */}
@@ -88,13 +91,13 @@ export function FunnelChart({ stages, height = 340, onStage, unit = 'people' }: 
               {/* right rail: step conversion, loss, and what the loss costs */}
               {i > 0 ? (
                 <>
-                  <circle cx={LABEL + bandW + 26} cy={midY - 4} r={11} fill={weak ? 'var(--neg-wash)' : 'var(--pos-wash)'} />
-                  <text x={LABEL + bandW + 26} y={midY - 1} textAnchor="middle" className="t-label-s"
-                    fill={weak ? 'var(--neg)' : 'var(--pos)'} style={{ fontWeight: 700, fontSize: 9.5 }}>
+                  <circle cx={LABEL + bandW + 28} cy={midY - 4} r={14} fill={weak ? 'var(--neg-wash)' : 'var(--pos-wash)'} />
+                  <text x={LABEL + bandW + 28} y={midY - 1} textAnchor="middle" className="t-label-s"
+                    fill={weak ? 'var(--neg)' : 'var(--pos)'} style={{ fontWeight: 800, fontSize: 10 }}>
                     {Math.round(rate * 100)}%
                   </text>
-                  <text x={LABEL + bandW + 44} y={midY - 6} className="t-label-m" fill="var(--text-1)">continue</text>
-                  <text x={LABEL + bandW + 44} y={midY + 9} className="t-label-s" fill="var(--text-3)">
+                  <text x={LABEL + bandW + 49} y={midY - 6} className="t-label-m" fill="var(--text-1)">continue</text>
+                  <text x={LABEL + bandW + 49} y={midY + 9} className="t-label-s" fill="var(--text-3)">
                     {drop.toLocaleString('en-IN')} lost{s.lostValue ? ` · ${fmtCurrency(s.lostValue)}` : ''}
                   </text>
                 </>

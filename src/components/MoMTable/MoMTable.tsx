@@ -3,7 +3,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { metricValues, type Row } from '../../semantics/aggregations';
 import { metric, type QueryContext } from '../../semantics/metrics';
 import { fmtDelta, fmtMonthShort, formatValue } from '../../semantics/formats';
-import { diverging, needsInvert } from '../../design/ramps';
+import { diverging } from '../../design/ramps';
 import { useView } from '../../state/view';
 import { useFilters } from '../../state/filters';
 import { Sparkline } from '../MetricCard/MetricCard';
@@ -78,16 +78,17 @@ export function MoMTable({ rows, metricIds, months, ctx, domain, title = 'Month 
   };
 
   return (
-    <div data-domain={domain}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+    <div data-domain={domain} className="mom-table">
+      <div className="mom-toolbar">
         <span className="t-heading-m">{title}</span>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 2 }} role="radiogroup" aria-label="Display mode">
+        <div className="mom-actions"><div className="mom-modes" role="radiogroup" aria-label="Display mode">
           {(['abs', 'mom', 'index'] as Mode[]).map((m) => <button key={m} className="btn btn-xs" role="radio" aria-checked={mode === m} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'abs' ? 'Absolute' : m === 'mom' ? 'MoM %' : 'Index = 100'}</button>)}
         </div>
         <button className="btn btn-xs" aria-pressed={seasonality} onClick={() => setSeasonality((s) => !s)}>Seasonality</button>
         <button className="btn btn-xs" onClick={exportCsv}>Export CSV</button>
+        </div>
       </div>
+      <div className="table-heat-legend" aria-label="Heat colours compare values within each metric row"><span>Within each metric</span><i className="heat-low" /><span>Lower</span><i className="heat-neutral" /><span>Typical</span><i className="heat-high" /><span>Higher</span></div>
       <div className="table-scroll" style={{ overflow: 'auto', maxHeight: 520 }}
         data-summary={`${title} places each registered metric on a row and the latest calendar months across columns, newest first. Absolute, month-on-month and indexed views transform the same underlying monthly rollups.`}
         data-calculation="Absolute values use the metric registry formula. MoM % is (current − previous) ÷ |previous| and stays blank when the previous value is zero or missing. Index = 100 divides each month by the first non-zero month. Heat is normalized within each row; rates are recomputed from monthly numerators and denominators.">
@@ -115,7 +116,7 @@ function MoMCell({ id, v, raw, prev, yoy, rank, n, month, mode, t, theme, latest
   const bg = t === null ? undefined : diverging(theme, t);
   const text = v === null ? '—' : mode === 'abs' ? formatValue(def.format, v) : mode === 'mom' ? `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}%` : v.toFixed(0);
   return (
-    <td {...tip} onClick={onClick} className="t-num" style={{ background: bg, color: bg && t !== null && Math.abs(t) > 0.62 && needsInvert(bg, theme) ? 'var(--heat-text-invert)' : undefined, borderLeft: latest ? '2px solid var(--hue)' : undefined, cursor: 'pointer', opacity: hidden ? 0.35 : 1, transition: 'background var(--m-base) var(--ease-out), opacity var(--m-instant)', position: 'relative' }}>
+    <td {...tip} onClick={onClick} className="t-num" style={{ background: bg ? `color-mix(in srgb, ${bg} 24%, var(--surface-1))` : undefined, borderLeft: latest ? '2px solid var(--hue)' : undefined, cursor: 'pointer', opacity: hidden ? 0.35 : 1, transition: 'background var(--m-base) var(--ease-out), opacity var(--m-instant)', position: 'relative' }}>
       {text}
       {seasonal !== null && <div style={{ position: 'absolute', left: '50%', bottom: 2, height: 3, width: `${Math.min(50, Math.abs(seasonal) * 100)}%`, background: seasonal >= 0 ? 'var(--pos)' : 'var(--neg)', transform: seasonal >= 0 ? 'none' : 'translateX(-100%)' }} />}
     </td>

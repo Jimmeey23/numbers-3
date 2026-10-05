@@ -1,7 +1,22 @@
 /* Renders every tab server-side against the real sheet CSVs (downloaded to /tmp) to catch runtime errors. */
 import fs from 'node:fs';
+import { registerHooks } from 'node:module';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+
+/* Vite resolves image imports to URLs; Node cannot load a .png as a module, so the shell's logo
+   artwork is stubbed with an empty data URL. Without this the chrome check cannot run at all. */
+const ASSET = /\.(png|jpe?g|gif|svg|webp|avif)$/;
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (ASSET.test(spec)) return { url: new URL(spec, ctx.parentURL).href, shortCircuit: true };
+    return next(spec, ctx);
+  },
+  load(url, ctx, next) {
+    if (ASSET.test(url)) return { format: 'module', source: 'export default "data:image/png;base64,";', shortCircuit: true };
+    return next(url, ctx);
+  },
+});
 
 // minimal browser globals for store initialisation
 const g = globalThis as any;

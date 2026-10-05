@@ -2739,6 +2739,121 @@ button.primary {
   .table-scroll { max-height: none !important; overflow: visible !important; }
 }
 
+/* ═══ 14b · COMPONENTS FROM MAIN ══════════════════════════════════════════
+   Brought over from the cloud-sync work on main and restyled to this sheet's
+   vocabulary: hairlines rather than borders-and-shadows, the accent for state,
+   relief only where the theme asks for it. */
+
+/* The supplied Atlas artwork, one variant per mode. It sits in the side nav, so it is
+   sized against the nav rather than the old title bar. */
+.atlas-logo {
+  position: relative;
+  display: block; flex: none;
+  width: 132px; height: 40px;
+  overflow: hidden;
+}
+.atlas-logo-art {
+  position: absolute; left: -7px; top: -15px;
+  width: 146px; height: auto; max-width: none;
+  user-select: none; pointer-events: none;
+}
+.atlas-logo-art--dark { display: none; }
+:root[data-mode="dark"] .atlas-logo-art--light { display: none; }
+:root[data-mode="dark"] .atlas-logo-art--dark { display: block; }
+.atlas-logo.is-animated { animation: atlasLogoIn 650ms var(--ease-soft) both; }
+@keyframes atlasLogoIn { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+.sidenav.is-collapsed .atlas-logo { width: 42px; height: 38px; }
+.sidenav.is-collapsed .atlas-logo-art { left: -8px; top: -14px; width: 136px; }
+.brand-home:hover .atlas-logo { filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--hue-attendance) 24%, transparent)); }
+
+/* Class explorer controls — a field row, not a panel. */
+.class-explorer-controls {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 10px; align-items: end;
+  margin: 0 0 12px; padding: 13px 14px;
+  border-radius: var(--r-l);
+  background: color-mix(in oklab, var(--surface-2) 55%, transparent);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.class-explorer-controls > label {
+  display: grid; gap: 5px;
+  font-family: var(--font-display);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.class-explorer-controls .input { width: 100%; height: 30px; font-size: 12px; }
+.class-explorer-check {
+  display: flex; align-items: center; gap: 8px; min-height: 30px;
+  font-size: 12px; font-weight: 560; letter-spacing: 0; text-transform: none;
+  color: var(--text-1);
+}
+
+/* The funnel keeps a frame because its bands bleed to the edges. */
+.funnel-chart {
+  max-width: 100%; overflow-x: auto;
+  padding: 13px 14px 10px;
+  border-radius: var(--r-l);
+  border: 1px solid var(--hairline);
+}
+.funnel-band { transition: opacity var(--m-quick); }
+.funnel-chart g[role="button"]:hover .funnel-band { opacity: .86; }
+.funnel-note { border-top: 1px solid var(--hairline); padding-top: 8px; margin-top: 5px; }
+
+/* Analytical tables: one toolbar line, and a legend that says what the heat means. */
+.mom-table, .nested-table { min-width: 0; max-width: 100%; }
+.mom-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.mom-actions, .tbl-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.mom-modes { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-full); background: var(--surface-inset); box-shadow: inset 0 0 0 1px var(--hairline); }
+.mom-modes .btn { border: 0; background: transparent; box-shadow: none; }
+.mom-modes .btn[aria-checked="true"] { background: var(--surface-1); color: var(--hue-ink); box-shadow: inset 0 0 0 1px var(--hue-edge-soft); }
+.table-heat-legend {
+  display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+  min-height: 20px; margin: 0 2px 7px;
+  color: var(--text-3);
+  font-size: 9.5px; font-weight: 650; letter-spacing: .02em;
+  white-space: nowrap;
+}
+.table-heat-legend > span:first-child { margin-right: 7px; color: var(--text-2); }
+.table-heat-legend i { width: 14px; height: 8px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--hairline); }
+.table-heat-legend .heat-low { background: color-mix(in srgb, var(--neg) 20%, var(--surface-1)); }
+.table-heat-legend .heat-neutral { background: var(--surface-1); }
+.table-heat-legend .heat-high { background: color-mix(in srgb, var(--pos) 20%, var(--surface-1)); }
+.table-heat-legend .heat-legend-note { margin-left: 7px; font-weight: 500; }
+.nested-table .tbl-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
+.nested-table .groupby { min-width: 0; width: max-content; max-width: 100%; }
+.nested-table .tbl-toolbar-actions { grid-column: 3; }
+.nested-table .tbl-toolbar-actions .input { width: clamp(120px, 11vw, 180px) !important; }
+@media (max-width: 1200px) {
+  .nested-table .tbl-toolbar { grid-template-columns: auto minmax(0, 1fr); }
+  .nested-table .tbl-toolbar-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .nested-table .groupby { grid-column: 2; }
+}
+@media (max-width: 700px) {
+  .mom-toolbar { align-items: flex-start; }
+  .table-heat-legend { justify-content: flex-start; overflow-x: auto; }
+  .nested-table .tbl-toolbar { grid-template-columns: 1fr; }
+  .nested-table .groupby, .nested-table .tbl-toolbar-actions { grid-column: 1; }
+}
+
+/* Quick location chips in the filter strip, alongside the quick dates. */
+.quick-location-filters {
+  display: flex; align-items: center; gap: 2px; min-width: 0;
+  padding: 3px;
+  border-radius: var(--r-full);
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  overflow-x: auto; scrollbar-width: none;
+}
+.quick-location-filters::-webkit-scrollbar { display: none; }
+.quick-filter-caption {
+  padding: 0 6px 0 9px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  white-space: nowrap;
+}
+@media (max-width: 1050px) { .quick-location-filters { max-width: 35vw; } .quick-filter-caption { display: none; } }
+
 /* ═══ 15 · GLOSS — ONE MATERIAL ════════════════════════════════════════════
    Gloss is white on white: the page, the panels and the controls are the same
    colour, and everything is told apart by the way light falls across it. So the

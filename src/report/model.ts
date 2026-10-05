@@ -84,7 +84,7 @@ export interface ReportModel {
   meta: {
     title: string; studio: string; periodLabel: string; comparedWith: string;
     generated: string; scopeLine: string; rowsInScope: number;
-    dataThrough: string;
+    dataThrough: string; scopeEnd?: string; locations?: string[];
   };
   chapters: ReportChapter[];
   actions: ReportAction[];
@@ -735,6 +735,8 @@ export function buildReport(scope: Scope, thresholds: Thresholds, studio: string
       scopeLine: scopeLine(scope),
       rowsInScope: scope.rowsInScope,
       dataThrough: scope.today,
+      scopeEnd: scope.period.end,
+      locations: scope.filters.locations,
     },
     chapters, actions, appendix, impact,
   };

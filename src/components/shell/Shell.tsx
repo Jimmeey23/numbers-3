@@ -4,6 +4,7 @@ import { useDockedPanel, useOverlay } from '../../state/overlays';
 import { Logo } from './Logo';
 import { Icon, TAB_ICONS } from './Icons';
 import { HeroGraphic } from '../HeroGraphic';
+import { CloudSyncSettings } from './CloudSyncSettings';
 import { useData, useScope } from '../../state/data';
 import { useFilters } from '../../state/filters';
 import { fmtAgo, fmtCurrency } from '../../semantics/formats';
@@ -58,7 +59,7 @@ export function SideNav() {
         <button type="button" className="brand-home" title="Go to Overview"
           onClick={() => { setTab('overview'); document.getElementById('canvas')?.scrollTo({ top: 0, behavior: 'smooth' }); }}
           aria-label="Atlas home, open Overview">
-          <Logo size={collapsed ? 30 : 34} />
+          <Logo />
           <span style={{ minWidth: 0 }}>
             <span className="brand-mark">ATLAS</span>
             <span className="brand-sub">Physique 57 India</span>
@@ -370,7 +371,7 @@ export function PageHeader() {
 
 /* ── Insight rail ────────────────────────────────────────────────────────── */
 export function InsightRail() {
-  const { railOpen, toggleRail, thresholds, dismissed, tab, setSettingsOpen, announce } = useView();
+  const { railOpen, toggleRail, thresholds, dismissed, tab, announce } = useView();
   const scope = useScope();
   useDockedPanel(railOpen, useCallback(() => useView.getState().toggleRail(), []));
   const [aiBusy, setAiBusy] = useState(false); const [aiError, setAiError] = useState('');
@@ -381,12 +382,11 @@ export function InsightRail() {
   const counts = { critical: forTab.filter((i) => i.severity === 'critical').length, attention: forTab.filter((i) => i.severity === 'attention').length, opportunity: forTab.filter((i) => i.severity === 'opportunity').length };
   const generateAI = async () => {
     if (!scope || aiBusy) return;
-    if (!readOpenAIKey()) { setSettingsOpen(true); announce('Add an OpenAI API key to generate AI insights'); return; }
     setAiBusy(true); setAiError('');
     try {
       const api = buildAgentApi(scope, thresholds, () => undefined);
       const snapshot = api.get(tab, { limit: 30 });
-      const result = await generateAISignals(tab, snapshot);
+      const result = await generateAISignals(tab, snapshot, scope.period.end.slice(0, 7), scope.filters.locations);
       const source = `openai:${result.fingerprint}`;
       const existing = readCards().filter((c) => c.tab === tab && c.source === source);
       if (!existing.length) for (const s of result.signals) addCard({ tab, title: s.title, body: s.body, action: s.action, severity: s.severity, impactINR: s.impactINR, entity: s.entity, metricId: s.metricId, source });
@@ -427,7 +427,7 @@ export function InsightRail() {
             </div>
           )}
           <button className="ai-signal-button" onClick={generateAI} disabled={aiBusy || !scope}>✦ {aiBusy ? 'Analyzing displayed data…' : 'Generate with AI'}</button>
-          <div className="t-label-s faint">AI insights are saved on this device for the current data and filters.</div>
+          <div className="t-label-s faint">AI insights are reused for the same data scope. Sign in under Settings to sync them across sessions.</div>
           {aiError && <div className="signal-ai-error">{aiError}</div>}
           {custom.map((c) => <CustomCardView key={c.id} card={c} />)}
           {forTab.map((i) => <InsightCard key={i.key} insight={i} />)}
@@ -585,6 +585,8 @@ export function SettingsPanel() {
           <div className="privacy-note"><b>Privacy:</b> only compact, scoped aggregates and report evidence are sent for AI generation—not the API key and not the full raw source sheets. Evidence can include entity labels or member names already present in a report worklist. Deterministic reports work without AI.</div>
         </section>
 
+        <CloudSyncSettings />
+
         <section className="settings-section"><div className="settings-section-head"><div><h3>Economics & report assumptions</h3><p>Changes recompute cards, tables, insights and custom reports immediately.</p></div></div>
           <label className="settings-field"><span>Assumed trainer rate per session<small>Used where the payroll source has no directly observed session cost.</small></span><div><div className="t-display-s tabular">₹{ratePerSession.toLocaleString('en-IN')}</div><input type="range" min={300} max={4000} step={50} value={ratePerSession} onChange={(e) => setRate(+e.target.value)} /></div></label>
         </section>
@@ -602,7 +604,7 @@ export function SettingsPanel() {
 
         <section className="settings-section"><div className="settings-section-head"><div><h3>Data & local storage</h3><p>{loads.filter((x) => x.status === 'ok').length} sources loaded · {loads.filter((x) => x.status === 'error').length} unavailable · {reportCount} saved report {reportCount === 1 ? 'copy' : 'copies'}.</p></div></div>
           <div className="settings-actions"><button className="btn" disabled={status === 'loading'} onClick={async () => { await clearCache(); load(true); }}>{status === 'loading' ? 'Refreshing…' : 'Clear source cache & refresh'}</button><button className="btn" disabled={!reportCount} onClick={async () => { if (confirm('Delete all saved report copies from this browser?')) { await clearSavedReports(); setReportCount(0); } }}>Delete saved reports</button></div>
-          <div className="privacy-note">Raw source cache, saved views, AI insight cache and saved reports stay in this browser. Download report HTML or JSON before clearing browser storage if you need an external copy.</div>
+          <div className="privacy-note">Raw source CSV remains in this browser. Saved views, widgets, chat, AI insights and reports sync to your account when signed in.</div>
         </section>
       </div>
     </div>
