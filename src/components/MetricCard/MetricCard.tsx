@@ -44,16 +44,18 @@ export function MetricCard(p: MetricCardProps) {
   const aiNote = useAI((s) => s.byTab[tab]?.kpiNotes.find((n) => n.metricId === p.metricId));
   /* With no generation yet — or no API key at all — the locally computed pack still has
      something true to say about this metric, so the card is never silent. */
-  const quantNote = useAI((s) => {
-    if (aiNote) return null;
-    const m = s.quantByTab[tab]?.metrics.find((x) => x.metricId === p.metricId);
-    if (!m) return null;
+  /* Select the stable slice from the store, then derive. A selector that builds a new object on
+     every call would hand React a fresh snapshot each render and spin forever. */
+  const quantMetric = useAI((s) => s.quantByTab[tab]?.metrics)?.find((x) => x.metricId === p.metricId);
+  const quantNote = useMemo(() => {
+    const m = quantMetric;
+    if (!m || aiNote) return null;
     if (m.anomaly) return { verdict: m.anomaly.verdict === 'good' ? 'good' : 'bad', note: `${m.anomaly.direction === 'spike' ? 'Spike' : 'Slump'} · ${Math.abs(m.anomaly.z).toFixed(1)}σ from its own median`, driver: undefined as string | undefined };
     if (m.pace) return { verdict: 'neutral', note: `Pacing to ${m.pace.formatted} by month end`, driver: undefined as string | undefined };
     if (m.streak && m.streak.months >= 3) return { verdict: (m.streak.direction === 'up') === m.higherIsBetter ? 'good' : 'watch', note: `${m.streak.months} months ${m.streak.direction} in a row`, driver: undefined as string | undefined };
     if (m.forecast && m.trend && m.trend.direction !== 'flat') return { verdict: (m.trend.direction === 'rising') === m.higherIsBetter ? 'good' : 'watch', note: `${m.trend.direction} trend · next month near ${m.forecast.formatted}`, driver: undefined as string | undefined };
     return null;
-  });
+  }, [quantMetric, aiNote]);
   const note = aiNote ?? quantNote;
   const variant = p.variant ?? 'standard';
   const delay = (p.index ?? 0) * 28;

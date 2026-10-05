@@ -4,7 +4,7 @@
  * experiments and what-ifs, risks, outlook, plan — plus a whole-business synthesis on Overview.
  * The radar pane works with no API key at all, so the panel is never dead weight.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAI } from '../../state/ai';
 import { usePlan, openImpact } from '../../state/plan';
 import { useScope } from '../../state/data';
@@ -45,7 +45,8 @@ export function AIBriefing({ tab }: { tab: TabId }) {
   const scope = useScope();
   const thresholds = useView((s) => s.thresholds);
   const setAskOpen = useView((s) => s.setAskOpen);
-  const planItems = usePlan((s) => s.items.filter((i) => i.tab === tab));
+  const allPlanItems = usePlan((s) => s.items);
+  const planItems = useMemo(() => allPlanItems.filter((i) => i.tab === tab), [allPlanItems, tab]);
   const addToPlan = usePlan((s) => s.add);
   const planHas = usePlan((s) => s.has);
   const [pane, setPane] = useState<Pane>(intel ? 'summary' : 'radar');

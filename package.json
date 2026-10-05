@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "serve": "npm run build && tsx server/index.mts",
-    "api": "tsx server/index.mts"
+    "api": "tsx server/index.mts",
+    "smoke": "tsx --import ./scripts/smoke/register.mjs scripts/smoke/app.tsx && tsx --import ./scripts/smoke/register.mjs scripts/smoke/kpi-card.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
@@ -26,6 +27,8 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "jsdom": "^25.0.1",
+    "playwright": "^1.49.1",
     "tailwindcss": "4.1.17",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",

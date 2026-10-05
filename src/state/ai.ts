@@ -64,7 +64,15 @@ export const useAI = create<Store>((set, get) => ({
   setAutoRun: (v) => { try { localStorage.setItem(AUTO_KEY, v ? '1' : '0'); } catch { /* ignore */ } set({ autoRun: v }); },
 
   computeQuant: (tab, scope) => {
-    const pack = buildQuantPack(scope, tab);
+    /* Defensive: the pack is derived from live sheet data, and a single malformed source must
+       never be able to take the whole workspace down with it. */
+    let pack: QuantPack;
+    try {
+      pack = buildQuantPack(scope, tab);
+    } catch (e) {
+      console.warn('Quant pack could not be computed:', e);
+      pack = { tab, generatedAt: new Date().toISOString(), months: 0, metrics: [], anomalies: [], drivers: [], concentration: [], correlations: [], seasonality: [], dataQuality: [], headline: 'Statistics are unavailable for this scope.' };
+    }
     set({ quantByTab: { ...get().quantByTab, [tab]: pack } });
     return pack;
   },
