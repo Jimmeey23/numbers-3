@@ -28,16 +28,75 @@ const VIEW_MODES: { id: ViewMode; label: string; hint: string }[] = [
 ];
 
 /** Module wrapper: title, five view modes, export in nine formats, PNG raster. */
-export function ChartModule({ title, subtitle, children, table, actions, height, records, scopeLine }: {
+
+/* Plain-English reading of whatever the chart is plotting.
+ *
+ * Every chart already carries a tabular form of its own data, so the description is derived
+ * from that rather than written by hand per chart — which means a chart added later cannot
+ * ship without one. It states what is on each axis, where the high and low points are, and
+ * which way the series has gone, in the words an operator would use.
+ */
+function describeChart(table: { columns: string[]; rows: (string | number | null)[][] }, title?: string): string[] {
+  const out: string[] = [];
+  const [first, ...measures] = table.columns;
+  if (!table.rows.length) return ['There is nothing to plot for the current filters.'];
+  out.push(
+    `Each ${table.rows.length === 1 ? 'entry' : `of the ${table.rows.length.toLocaleString('en-IN')} entries`} along the bottom is one ${(first ?? 'category').toLowerCase()}`
+    + (measures.length === 1 ? `, and the height shows ${measures[0].toLowerCase()}.` : `, and the ${measures.length} plotted measures are ${measures.join(', ').toLowerCase()}.`),
+  );
+  /* Describe the measure that dominates the picture, not whichever happens to be in column
+     two — on a ten-series chart the first column is often a minor category, and describing it
+     tells the reader about a line they can barely see. */
+  const magnitude = table.columns.map((_, i) => (i === 0 ? -1
+    : table.rows.reduce((a, r) => a + (typeof r[i] === 'number' ? Math.abs(r[i] as number) : 0), 0)));
+  const ci = magnitude.indexOf(Math.max(...magnitude));
+  if (ci > 0) {
+    const pairs = table.rows
+      .map((r) => ({ label: String(r[0] ?? ''), v: typeof r[ci] === 'number' ? (r[ci] as number) : null }))
+      .filter((x): x is { label: string; v: number } => x.v !== null && Number.isFinite(x.v));
+    if (pairs.length > 1) {
+      const top = pairs.reduce((a, b) => (b.v > a.v ? b : a));
+      const low = pairs.reduce((a, b) => (b.v < a.v ? b : a));
+      const total = pairs.reduce((a, b) => a + b.v, 0);
+      out.push(`Taking ${table.columns[ci].toLowerCase()}, the largest measure here: the highest is ${top.label} and the lowest is ${low.label}.`);
+      if (total > 0 && top.v > 0) {
+        const share = top.v / total;
+        if (share > 0.3) out.push(`${top.label} alone is ${Math.round(share * 100)}% of the total shown, so the overall picture largely follows it.`);
+      }
+      /* Compare the first and last thirds rather than the two end points: the newest column is
+         very often a part-month, and a point-to-point reading turns that into a crash. */
+      if (pairs.length >= 4) {
+        const take = Math.max(1, Math.round(pairs.length / 3));
+        const avg = (xs: { v: number }[]) => xs.reduce((a, b) => a + b.v, 0) / xs.length;
+        const head = avg(pairs.slice(0, take)); const tail = avg(pairs.slice(-take));
+        if (head !== 0) {
+          const move = (tail - head) / Math.abs(head);
+          out.push(Math.abs(move) >= 0.05
+            ? `Comparing the first ${take} ${first.toLowerCase()}${take > 1 ? 's' : ''} shown with the last ${take}, it is running ${Math.abs(move * 100).toFixed(0)}% ${move > 0 ? 'higher' : 'lower'} — the final column may still be a part period.`
+            : 'Averaged across the span, it is running at about the same level as it started.');
+        }
+      }
+    }
+  }
+  out.push('A gap or a dash means the figure could not be worked out for that entry — it does not mean zero. Switch to Data to read the exact numbers behind every point.');
+  if (title) out.push(`Only rows matching the current period, location and other filters are included in "${title}".`);
+  return out;
+}
+
+export function ChartModule({ title, subtitle, children, table, actions, height, records, scopeLine, explain }: {
   title?: string; subtitle?: string; children: ReactNode;
   table: { columns: string[]; rows: (string | number | null)[][] };
   actions?: ReactNode; height?: number;
+  /** Overrides the derived plain-English reading where a chart needs saying differently. */
+  explain?: string[];
   /** Optional raw rows behind the chart, shown in the Records view. */
   records?: () => { columns: string[]; rows: (string | number | null)[][] };
   scopeLine?: string;
 }) {
   const [mode, setMode] = useState<ViewMode>('chart');
   const [sort, setSort] = useState<{ col: number; dir: 1 | -1 } | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const name = title ?? 'chart';
 
@@ -73,6 +132,11 @@ export function ChartModule({ title, subtitle, children, table, actions, height,
   }, [view, sort]);
 
   const payload = () => ({ name, columns: view.columns, rows: sorted, scopeLine: scopeLine ?? '' });
+  const reading = useMemo(() => explain ?? describeChart(table, title), [explain, table, title]);
+  const copyTable = async () => {
+    const tsv = [view.columns.join('\t'), ...sorted.map((r) => r.map((c) => (c ?? '')).join('\t'))].join('\n');
+    try { await navigator.clipboard.writeText(tsv); setCopied(true); window.setTimeout(() => setCopied(false), 1600); } catch { /* clipboard blocked */ }
+  };
 
   return (
     <div ref={wrap} className="chart-module">
@@ -89,10 +153,20 @@ export function ChartModule({ title, subtitle, children, table, actions, height,
               className={`view-tab ${mode === v.id ? 'is-active' : ''}`} onClick={() => setMode(v.id)}>{v.label}</button>
           ))}
         </div>
+        <button className="btn btn-xs" aria-expanded={showHelp} aria-pressed={showHelp} title="Explain this chart in plain English"
+          onClick={() => setShowHelp((v) => !v)}>What am I looking at?</button>
+        <button className="btn btn-xs" title="Copy the numbers behind this chart, ready to paste into a spreadsheet"
+          onClick={copyTable}>{copied ? 'Copied' : 'Copy'}</button>
         <button className="btn btn-xs" title="Download a 2× PNG of the chart"
           onClick={() => { const svg = wrap.current?.querySelector('svg'); if (svg) svgToPng(svg, `${name.replace(/\s+/g, '-').toLowerCase()}.png`); }}>PNG</button>
         <ExportMenu payload={payload} />
       </div>
+      {showHelp && (
+        <div className="chart-help">
+          <div className="t-heading-s">What am I looking at?</div>
+          {reading.map((line, i) => <p key={i} className="t-body-s">{line}</p>)}
+        </div>
+      )}
       {mode === 'chart' ? children : (
         <div className="table-scroll" style={{ maxHeight: height ?? 340 }}>
           <table className="tbl">

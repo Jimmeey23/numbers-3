@@ -4,7 +4,6 @@ import { Register } from '../components/Register';
 import { WidgetSection } from '../components/Widgets/WidgetSection';
 import { KpiStrip, Two, useMonths, filtersLabel, SectionEmpty, SheetMissing } from './common';
 import { ChartModule, XYChart } from '../components/charts/core';
-import { Scatter } from '../components/charts/special';
 import { Heatmap } from '../components/charts/grids';
 import { NestedTable, type ColumnDef } from '../components/NestedTable/NestedTable';
 import { MoMTable } from '../components/MoMTable/MoMTable';
@@ -44,7 +43,46 @@ export function Sales({ scope }: { scope: Scope }) {
   const productPrev = useMemo(() => rollupLevel(scope.compare.sales, ['product'], 0, S_METRICS, scope.ctx), [scope.compare.sales, scope.ctx]);
   const discountAudit = useMemo(() => rollupLevel(rows.filter((r) => (r.discount ?? 0) > 0), ['discount_code'], 0, ['discount_value', 'discount_rate', 'category_revenue', 'transactions', 'unique_buyers'], scope.ctx)
     .sort((a, b) => (b.values.discount_value.value ?? 0) - (a.values.discount_value.value ?? 0)), [rows, scope.ctx]);
-  const codes = useMemo(() => { const nodes = rollupLevel(rows.filter((r) => r.discount_code), ['discount_code'], 0, ['transactions', 'discount_rate', 'gross_revenue', 'unique_buyers'], scope.ctx); const lapsedByMember = new Map<string, boolean>(); for (const l of scope.all.lapsed) if (l.member_id) lapsedByMember.set(l.member_id, (lapsedByMember.get(l.member_id) ?? false) || l.status === 'Renewed' || l.status === 'Active'); return nodes.map((n) => { const buyers = [...new Set(n.rows.map((r) => r.member_id).filter(Boolean))] as string[]; const retained = buyers.filter((b) => lapsedByMember.get(b)).length; return { n, depth: n.values.discount_rate.value, retention: buyers.length ? retained / buyers.length : null, buyers: buyers.length, rev: n.values.gross_revenue.value }; }).filter((x) => x.buyers >= 3); }, [rows, scope.all.lapsed, scope.ctx]);
+  /* Discount effectiveness, as a ledger rather than a scatter. For each band of discount depth:
+     what was given away, what came back, whether those buyers stayed, and what each retained
+     buyer cost in foregone revenue. The old chart plotted depth against a retention proxy for
+     codes with three or more buyers — usually five or six points, with no reading that led to
+     an action, and it credited retention to a code rather than to the discount. */
+  const discountBands = useMemo(() => {
+    const BANDS: { label: string; lo: number; hi: number }[] = [
+      { label: 'Full price', lo: -Infinity, hi: 0.0001 },
+      { label: 'Up to 10%', lo: 0.0001, hi: 0.1 },
+      { label: '10–25%', lo: 0.1, hi: 0.25 },
+      { label: '25–50%', lo: 0.25, hi: 0.5 },
+      { label: 'Over 50%', lo: 0.5, hi: Infinity },
+    ];
+    // One member is "retained" if any membership of theirs is still active or was renewed.
+    const retainedMember = new Map<string, boolean>();
+    for (const l of scope.all.lapsed) if (l.member_id) retainedMember.set(l.member_id, (retainedMember.get(l.member_id) ?? false) || l.status === 'Renewed' || l.status === 'Active');
+    const live = rows.filter((r) => !r.voided);
+    return BANDS.map((b) => {
+      const inBand = live.filter((r) => {
+        const list = (r.value ?? 0) + (r.discount ?? 0);
+        const depth = list > 0 ? (r.discount ?? 0) / list : 0;
+        return depth >= b.lo && depth < b.hi;
+      });
+      const v = metricValues(inBand, ['gross_revenue', 'discount_value', 'transactions', 'unique_buyers', 'aov'], scope.ctx);
+      const buyers = [...new Set(inBand.map((r) => r.member_id).filter(Boolean))] as string[];
+      const retained = buyers.filter((m) => retainedMember.get(m)).length;
+      const given = v.discount_value.value ?? 0;
+      return {
+        ...b, rows: inBand.length,
+        revenue: v.gross_revenue.value, given, transactions: v.transactions.value, aov: v.aov.value,
+        buyers: buyers.length, retained,
+        retentionRate: buyers.length ? retained / buyers.length : null,
+        // What each retained buyer cost in revenue given up. Full price costs nothing, so null.
+        costPerRetained: retained > 0 && given > 0 ? given / retained : null,
+        // Rupees of revenue booked per rupee discounted — the payback on the giveaway.
+        returnOnDiscount: given > 0 ? (v.gross_revenue.value ?? 0) / given : null,
+      };
+    }).filter((b) => b.rows > 0);
+  }, [rows, scope.all.lapsed, scope.ctx]);
+  const fullPriceRetention = discountBands.find((b) => b.label === 'Full price')?.retentionRate ?? null;
   const hourDay = useMemo(() => { const cells = []; const m = new Map<string, typeof rows>(); for (const r of rows) { if (r.hour === null || !r.day) continue; const k = `${String(r.hour).padStart(2, '0')}:00|${r.day}`; let a = m.get(k); if (!a) { a = []; m.set(k, a); } a.push(r); } for (const [k, rs] of m) { const [x, y] = k.split('|'); cells.push({ x, y, value: metricValues(rs, ['gross_revenue'], scope.ctx).gross_revenue.value, n: rs.length }); } return { xs: [...new Set(cells.map((c) => c.x))].sort(), cells }; }, [rows, scope.ctx]);
   const salespeople = useMemo(() => rollupLevel(rows, ['sold_by'], 0, ['gross_revenue', 'transactions', 'aov', 'membership_rev_share', 'discount_rate', 'discount_value', 'unique_buyers'], scope.ctx).sort((a, b) => (b.values.gross_revenue.value ?? 0) - (a.values.gross_revenue.value ?? 0)), [rows, scope.ctx]);
   const liability = useMemo(() => rows.filter((r) => r.mem_end && r.mem_end >= scope.today && ((r.mem_classes_left ?? 0) > 0 || (r.mem_money_left ?? 0) > 0)).map((r) => ({ ...r, value_left: (r.mem_money_left ?? 0) || ((r.mem_classes_left ?? 0) * (r.rev_per_credit ?? 0)) })).sort((a, b) => a.mem_end!.localeCompare(b.mem_end!)).slice(0, 40), [rows, scope.today]);
@@ -67,8 +105,49 @@ export function Sales({ scope }: { scope: Scope }) {
       </Register>
       <Register title="Products and discount codes" domain="revenue" lazy>
         <Two a={<RankingList title="Products by" nodes={productNodes} compareNodes={productPrev} metricOptions={['category_revenue', 'discount_rate', 'aov', 'unique_buyers', 'transactions']} ctx={scope.ctx} table="sales" domain="revenue" minSample={5} sampleLabel="line items" />}
-          b={<ChartModule title="Discount depth × downstream retention" subtitle="Each point is a discount code; retention = buyers with a renewed or active membership" table={{ columns: ['Code', 'Discount rate', 'Retention', 'Buyers', 'Revenue'], rows: codes.map((c) => [c.n.label, c.depth === null ? null : `${(c.depth * 100).toFixed(1)}%`, c.retention === null ? null : `${(c.retention * 100).toFixed(0)}%`, c.buyers, Math.round(c.rev ?? 0)]) }}>
-            {codes.length ? <Scatter points={codes.filter((c) => c.depth !== null && c.retention !== null).map((c) => ({ id: c.n.id, label: c.n.label, x: c.depth!, y: c.retention!, size: c.buyers, n: c.buyers }))} xLabel="Discount depth" yLabel="Retention" fmtY="percent" quadrants={['Cheap loyalty', 'Deep discount, still loyal', 'Full price churn', 'Discount churn']} onClick={(p) => addTransient({ dim: 'discount_code', value: p.label })} /> : <div className="muted t-body-s">Discount codes are not populated in this scope.</div>}
+          b={<ChartModule title="Does discounting pay for itself?" subtitle="Every line item placed in a discount band, then followed through to whether those buyers are still members"
+            table={{ columns: ['Discount band', 'Revenue', 'Given away', 'Buyers', 'Still members', 'Retention', 'Revenue per ₹1 discounted', 'Discount per retained buyer'],
+              rows: discountBands.map((b) => [b.label, Math.round(b.revenue ?? 0), Math.round(b.given), b.buyers, b.retained, b.retentionRate === null ? null : `${(b.retentionRate * 100).toFixed(0)}%`, b.returnOnDiscount === null ? null : `${b.returnOnDiscount.toFixed(1)}×`, b.costPerRetained === null ? null : Math.round(b.costPerRetained)]) }}>
+            {discountBands.length ? (
+              <div className="discount-ledger">
+                <p className="t-body-s muted" style={{ margin: '0 0 10px' }}>
+                  Read each row as one question: for everything sold at this depth of discount, how much was given up, and are those buyers still here? A band whose retention is no better than full price is a band where the money bought nothing.
+                </p>
+                <div className="table-scroll" style={{ maxHeight: 300 }}
+                  data-summary-title="Discount effectiveness by band"
+                  data-summary="Each row groups every non-voided sale line by how deeply it was discounted. Revenue is what was booked at that depth, Given away is the discount reconciled onto those lines, and Retention is the share of those buyers who still hold an active or renewed membership."
+                  data-calculation="Discount depth is the discount divided by the list price before discount, computed per line. A buyer counts as retained if any membership of theirs is active or renewed, so a buyer appearing in two bands is counted in both. Revenue per ₹1 discounted is revenue booked in the band divided by the discount given in it; it is blank for full price, where nothing was given up.">
+                  <table className="tbl">
+                    <thead><tr>
+                      <th className="t-heading-s">Discount band</th><th className="t-heading-s">Revenue</th><th className="t-heading-s">Given away</th>
+                      <th className="t-heading-s">Buyers</th><th className="t-heading-s">Still members</th><th className="t-heading-s">Back per ₹1 given</th>
+                    </tr></thead>
+                    <tbody>
+                      {discountBands.map((b) => {
+                        // Retention is only meaningful against the full-price baseline on the same data.
+                        const vsFull = b.retentionRate !== null && fullPriceRetention !== null && b.label !== 'Full price' ? b.retentionRate - fullPriceRetention : null;
+                        return (
+                          <tr key={b.label} style={{ cursor: 'pointer' }} onClick={() => addTransient({ dim: 'spend_band', value: b.label })}>
+                            <td className="t-body-s">{b.label}<small className="faint" style={{ display: 'block' }}>{b.transactions ?? 0} transactions</small></td>
+                            <td className="t-num">{fmtCurrency(b.revenue)}</td>
+                            <td className="t-num">{b.given > 0 ? fmtCurrency(b.given) : '—'}</td>
+                            <td className="t-num">{b.buyers.toLocaleString('en-IN')}</td>
+                            <td className="t-num">
+                              {b.retentionRate === null ? '—' : formatValue('percent', b.retentionRate)}
+                              {vsFull !== null && <small className={vsFull >= 0 ? 'pos' : 'neg'} style={{ display: 'block' }}>{vsFull >= 0 ? '+' : '−'}{Math.abs(vsFull * 100).toFixed(0)}pp vs full price</small>}
+                            </td>
+                            <td className={`t-num ${b.returnOnDiscount !== null && b.returnOnDiscount < 2 ? 'neg' : ''}`}>{b.returnOnDiscount === null ? '—' : `${b.returnOnDiscount.toFixed(1)}×`}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="t-label-s faint" style={{ marginTop: 7 }}>
+                  A band is working when its retention beats full price by more than the discount costs. Click a band to filter the tab to it. A buyer who bought at two depths is counted in both, so the buyer column does not sum to the total.
+                </div>
+              </div>
+            ) : <div className="muted t-body-s">No non-voided sale lines in this scope.</div>}
           </ChartModule>} />
         <div style={{ marginTop: 18 }}><div className="t-heading-m" style={{ marginBottom: 6 }}>Discount reconciliation by code</div>
           <div className="t-label-s muted" style={{ marginBottom: 8 }}>Unit discounts are multiplied by quantity. If only a sale-level discount exists, it is allocated once across that sale's lines. Voided lines are excluded; rate = reconciled discount ÷ list price before discount.</div>
